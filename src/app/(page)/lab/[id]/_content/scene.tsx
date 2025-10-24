@@ -20,6 +20,7 @@ type SceneProps = {
     onDropNewAt: (componentType: string, parentPath: Path, index: number) => void;
     onMoveNode: (fromPath: Path, toParentPath: Path, index: number) => void;
     onResize: (id: string, patch: Record<string, any>) => void;
+    zoom?: number;
 };
 
 /* ---------- DnD payloads/MIME ---------- */
@@ -100,19 +101,21 @@ function DropZone({ parentPath, index, kind, orientation, onDropNewAt, onMoveNod
         e.stopPropagation();
         setOver(false);
 
-        const nodeRaw = e.dataTransfer.getData(MIME_NODE);
+        // Prefer our custom MIME, but fall back to text/plain for browsers that
+        // strip custom types during drag across nested elements.
+        const nodeRaw = e.dataTransfer.getData(MIME_NODE) || e.dataTransfer.getData("text/plain");
         if (nodeRaw) {
             try {
                 const p = JSON.parse(nodeRaw) as DragPayloadNode;
                 if (p.kind === "node") return onMoveNode(p.fromPath, parentPath, index);
-            } catch { }
+            } catch {}
         }
-        const compRaw = e.dataTransfer.getData(MIME_COMP);
+        const compRaw = e.dataTransfer.getData(MIME_COMP) || e.dataTransfer.getData("text/plain");
         if (compRaw) {
             try {
                 const p = JSON.parse(compRaw) as DragPayloadComp;
                 if (p.kind === "component") return onDropNewAt(p.id, parentPath, index);
-            } catch { }
+            } catch {}
         }
     };
 
@@ -234,15 +237,42 @@ export default function Scene({
     onSelect,
     onDropNewAt,
     onMoveNode,
+    zoom = 1,
 }: SceneProps) {
     const width = useMemo(() => (device === "mobile" ? 390 : device === "tablet" ? 820 : 1200), [device]);
     const rootMode = nodes[0]?.type === "root";
 
+    const handleSceneDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // This is a fallback for dropping on the scene background
+        const compRaw = e.dataTransfer.getData(MIME_COMP) || e.dataTransfer.getData("text/plain");
+        if (compRaw) {
+            try {
+                const p = JSON.parse(compRaw) as DragPayloadComp;
+                if (p.kind === "component") {
+                    // Add to the root, at the end
+                    onDropNewAt(p.id, [], nodes.length);
+                }
+            } catch {}
+        }
+    };
+
+    const handleSceneDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "copy";
+    };
+
     return (
-        <div className="h-full w-full flex items-stretch justify-center bg-[linear-gradient(transparent_23px,rgba(0,0,0,.04)_24px),linear-gradient(90deg,transparent_23px,rgba(0,0,0,.04)_24px)] bg-[length:24px_24px]">
+        <div
+            className="h-full w-full flex items-stretch justify-center bg-[linear-gradient(transparent_23px,rgba(0,0,0,.04)_24px),linear-gradient(90deg,transparent_23px,rgba(0,0,0,.04)_24px)] bg-[length:24px_24px]"
+            onDrop={handleSceneDrop}
+            onDragOver={handleSceneDragOver}
+        >
             <div
                 className="relative bg-white rounded-2xl shadow-lg overflow-auto"
-                style={{ width, height: "100%" }}
+                style={{ width, height: "100%", transform: `scale(${zoom})`, transformOrigin: "top center" }}
                 onClick={() => onSelect(null)}
             >
                 <div className="p-5 h-full">
@@ -428,19 +458,20 @@ function NodeItem({
         e.stopPropagation();
         const idx = ghost?.index ?? node.children.length;
 
-        const nodeRaw = e.dataTransfer.getData(MIME_NODE);
+        // Prefer custom MIME but support text/plain fallback
+        const nodeRaw = e.dataTransfer.getData(MIME_NODE) || e.dataTransfer.getData("text/plain");
         if (nodeRaw) {
             try {
                 const p = JSON.parse(nodeRaw) as DragPayloadNode;
                 if (p.kind === "node") onMoveNode(p.fromPath, path, idx);
-            } catch { }
+            } catch {}
         }
-        const compRaw = e.dataTransfer.getData(MIME_COMP);
+        const compRaw = e.dataTransfer.getData(MIME_COMP) || e.dataTransfer.getData("text/plain");
         if (compRaw) {
             try {
                 const p = JSON.parse(compRaw) as DragPayloadComp;
                 if (p.kind === "component") onDropNewAt(p.id, path, idx);
-            } catch { }
+            } catch {}
         }
 
         setOverContainer(false);
@@ -458,7 +489,10 @@ function NodeItem({
                 onDragStart: (e: React.DragEvent) => {
                     e.stopPropagation();
                     const payload: DragPayloadNode = { kind: "node", fromPath: path };
-                    e.dataTransfer.setData(MIME_NODE, JSON.stringify(payload));
+                    const raw = JSON.stringify(payload);
+                    e.dataTransfer.setData(MIME_NODE, raw);
+                    // Provide a fallback so drop handlers can parse even if custom MIME is lost
+                    e.dataTransfer.setData("text/plain", raw);
                     e.dataTransfer.effectAllowed = "move";
                 },
                 onDrag: (e: React.DragEvent) => e.stopPropagation(),

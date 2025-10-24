@@ -456,6 +456,7 @@ function RoutePicker({
 /* ===================== ÉDITEUR ===================== */
 export default function Editor({ hubId, initialSave, initialTitle }: { hubId?: string; initialSave?: SaveShape; initialTitle?: string }) {
     const [device, setDevice] = useState<Device>("mobile");
+    const [zoom, setZoom] = useState<number>(1);
     const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
 
     // Determine the maximum number of pages based on the user's subscription. Free
@@ -661,6 +662,16 @@ export default function Editor({ hubId, initialSave, initialTitle }: { hubId?: s
         setNodes(prev => removeAt(prev, selectedPath).tree);
         setSelectedId(null);
     }, [selectedPath]);
+    const duplicateSelected = useCallback(() => {
+        if (!selectedPath) return;
+        const list = getListAtPath(nodes, selectedPath.slice(0, -1)) || [];
+        const idx = selectedPath[selectedPath.length - 1] ?? list.length;
+        const node = list[idx];
+        if (!node) return;
+        const newNode = cloneNodeDeep(node);
+        setNodes(prev => insertAt(prev, selectedPath.slice(0, -1), idx + 1, newNode));
+        setSelectedId(newNode.id);
+    }, [nodes, selectedPath]);
     const copySelected = useCallback(() => {
         if (!selectedPath) return;
         const list = getListAtPath(nodes, selectedPath.slice(0, -1));
@@ -817,10 +828,10 @@ export default function Editor({ hubId, initialSave, initialTitle }: { hubId?: s
     const currentMeta = save[route]?.meta ?? { title: "", description: "", keywords: "", favicon: "" };
 
     return (
-        <main className="h-[100dvh] w-[100dvw] bg-[radial-gradient(1200px_500px_at_30%_-10%,rgba(99,102,241,0.12),transparent),radial-gradient(800px_400px_at_90%_10%,rgba(16,185,129,0.10),transparent)]">
+        <main className="h-full w-full bg-[radial-gradient(1200px_500px_at_30%_-10%,rgba(99,102,241,0.12),transparent),radial-gradient(800px_400px_at_90%_10%,rgba(16,185,129,0.10),transparent)]">
             <div className="h-full w-full flex flex-col">
                 <header className="relative z-20 h-16 px-4 lg:px-6 flex items-center justify-between border-b bg-white/60 backdrop-blur supports-[backdrop-filter]:bg-white/45">
-                    <button className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-white/70 active:scale-[.99] transition border border-white/60">
+                    <button className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-white/70 active:scale-[.99] transition border border-white/60" onClick={() => window.history.back()}>
                         <ArrowLeft size={18} /> Retour
                     </button>
 
@@ -841,6 +852,19 @@ export default function Editor({ hubId, initialSave, initialTitle }: { hubId?: s
                             <Pencil size={12} /> Modifier
                         </button>
                         <DeviceSwitch device={device} setDevice={setDevice} />
+                        <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white/60 border border-white/70 shadow-sm">
+                            <select
+                                value={String(zoom)}
+                                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                                className="h-9 rounded-xl border px-2 py-1 text-xs bg-white"
+                                title="Zoom"
+                            >
+                                <option value="0.75">75%</option>
+                                <option value="1">100%</option>
+                                <option value="1.25">125%</option>
+                                <option value="1.5">150%</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="inline-flex items-center gap-2">
@@ -862,6 +886,12 @@ export default function Editor({ hubId, initialSave, initialTitle }: { hubId?: s
                                 <Upload size={12} /> Importer
                                 <input type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files && importJSON(e.target.files[0])} />
                             </label>
+                        </div>
+                        <div className="inline-flex items-center gap-1 rounded-2xl border bg-white/70 px-2 py-1.5">
+                            <button onClick={undo} className="rounded-lg border px-2 py-1 text-xs bg-white hover:bg-gray-50">Annuler</button>
+                            <button onClick={redo} className="rounded-lg border px-2 py-1 text-xs bg-white hover:bg-gray-50">Rétablir</button>
+                            <button onClick={duplicateSelected} disabled={!selectedId} className="rounded-lg border px-2 py-1 text-xs bg-white hover:bg-gray-50 disabled:opacity-50">Dupliquer</button>
+                            <button onClick={deleteSelected} disabled={!selectedId} className="rounded-lg border px-2 py-1 text-xs bg-white hover:bg-gray-50 disabled:opacity-50">Supprimer</button>
                         </div>
                         {hubId && <SavingBadge />}
                     </div>
@@ -890,6 +920,7 @@ export default function Editor({ hubId, initialSave, initialTitle }: { hubId?: s
                                     onDropNewAt={addFromComponentIdAt}
                                     onMoveNode={moveNodePath}
                                     onResize={(id, patch) => updateNodeStyle(id, patch)}
+                                    zoom={zoom}
                                 />
 
                                 {inspectorCollapsed && (
