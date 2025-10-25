@@ -34,14 +34,10 @@ export async function POST(req: Request) {
     const title = (body.title || "Nouveau hub").toString();
     let slug = body.slug ? slugify(String(body.slug)) : slugify(title);
 
-    // Ensure slug is unique for the user
-    let originalSlug = slug;
     let tries = 0;
     while (await HubModel.exists({ ownerEmail: session.user.email, slug })) {
-        slug = `${originalSlug}-${nano(4)}`;
-        if (++tries > 5) {
-            return NextResponse.json({ error: "failed to generate unique slug" }, { status: 500 });
-        }
+        slug = `${slug}-${nano(4)}`;
+        if (++tries > 5) break;
     }
 
     const user = await UserModel.findOne({ email: session.user.email }).lean();

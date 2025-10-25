@@ -1,5 +1,3 @@
-# HubLocal
-
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -36,15 +34,3 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Hub Editor (Dashboard > Hub > Edit)
-
-The hub page editor provides a drag-and-drop canvas and autosave.
-
-- Drag new elements/widgets from the left sidebar into the scene. Works with HTML5 DnD and supports text/plain fallback.
-- Select a device preview (mobile/tablet/desktop) and adjust zoom (75–150%).
-- Click an element to select it; edit its styles/props in the Inspector on the right.
-- Shortcuts: Ctrl/Cmd+Z (undo), Shift+Ctrl/Cmd+Z or Ctrl/Cmd+Y (redo), Ctrl/Cmd+C/X/V (copy/cut/paste), Delete/Backspace (remove).
-- Header actions: Undo/Redo, Duplicate, Delete, Export/Import JSON, and per-page route metadata.
-
-Autosave persists to `/api/hubs/[id]` as you edit. A small badge in the header shows save state.

@@ -43,6 +43,9 @@ export default function DashboardLayout({
           <Link href="/dashboard/hub" className="hover:underline hidden md:inline">
             Mes hubs
           </Link>
+          <Link href="/dashboard/puck" className="hover:underline hidden md:inline">
+            Éditeur Puck
+          </Link>
           <Link href="/dashboard/profile" className="hover:underline hidden md:inline">
             Mon profil
           </Link>
@@ -69,6 +72,12 @@ export default function DashboardLayout({
               className="block rounded-lg px-3 py-2 hover:bg-gray-100 text-gray-800"
             >
               Mes hubs
+            </Link>
+            <Link
+              href="/dashboard/puck"
+              className="block rounded-lg px-3 py-2 hover:bg-gray-100 text-gray-800"
+            >
+              Éditeur Puck
             </Link>
             <Link
               href="/dashboard/profile"
@@ -104,6 +113,13 @@ export default function DashboardLayout({
                   onClick={() => setSidebarOpen(false)}
                 >
                   Mes hubs
+                </Link>
+                <Link
+                  href="/dashboard/puck"
+                  className="block rounded-lg px-3 py-2 hover:bg-gray-100 text-gray-800"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Éditeur Puck
                 </Link>
                 <Link
                   href="/dashboard/profile"
