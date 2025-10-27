@@ -14,36 +14,17 @@ export async function GET(req: Request) {
   await connectDB();
   const doc = (await PuckDocModel.findOne({ ownerEmail: session.user.email, slug }).lean()) as any;
 
-  // Helper to decide if a Puck document is effectively empty
-  function isEmptyPuckData(d: any) {
-    if (!d || typeof d !== "object") return true;
-    const keys = Object.keys(d);
-    if (keys.length === 0) return true;
-    const content = (d as any)?.content;
-    if (Array.isArray(content) && content.length === 0) return true;
-    return false;
+  // If no document exists for this slug, return a clean default payload without
+  // cloning another app's content. This guarantees each app/page starts with its
+  // own empty object instead of inheriting another app's UI.
+  if (!doc) {
+    const parts = String(slug || "").split("/");
+    const last = parts[parts.length - 1] || slug;
+    const emptyData = { root: { props: { title: last, viewport: "fluid", allowCustomJS: "true", slug } }, content: [] };
+    return NextResponse.json({ data: emptyData, status: "draft", updatedAt: null });
   }
 
-  // If there's no doc, or it's empty (e.g., freshly-created page), seed from the latest existing doc
-  if (!doc || isEmptyPuckData(doc.data)) {
-    const latest = (await PuckDocModel.findOne({ ownerEmail: session.user.email })
-      .sort({ updatedAt: -1 })
-      .lean()) as any;
-    if (latest?.data && !isEmptyPuckData(latest.data)) {
-      // Clone and lightly adapt title to current slug's last segment
-      let seeded = JSON.parse(JSON.stringify(latest.data));
-      try {
-        const parts = String(slug || "").split("/");
-        const last = parts[parts.length - 1] || slug;
-        if (seeded?.root?.props) {
-          seeded.root.props.title = seeded.root.props.title || last;
-        }
-      } catch {}
-      return NextResponse.json({ data: seeded, status: "draft", updatedAt: null, seededFrom: latest.slug });
-    }
-  }
-
-  return NextResponse.json({ data: doc?.data || {}, status: doc?.status || "draft", updatedAt: doc?.updatedAt || null });
+  return NextResponse.json({ data: doc.data || {}, status: doc.status || "draft", updatedAt: doc.updatedAt || null });
 }
 
 export async function POST(req: Request) {

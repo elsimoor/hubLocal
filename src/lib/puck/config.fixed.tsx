@@ -609,8 +609,10 @@ export const puckConfig = {
         padding: { type: "number", label: "Padding (px)", defaultValue: 16 },
       },
       render: ({ items, backgroundColor, borderRadius, padding, puck }: any) => {
-        let list: Array<{ quote: string; author: string }> = [];
-        try { list = JSON.parse(items || "[]"); } catch { list = []; }
+  let parsed: unknown = [];
+  try { parsed = JSON.parse(items || "[]"); } catch { parsed = []; }
+  const normalized = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+  const list = normalized.filter((entry): entry is { quote?: string; author?: string } => typeof entry === "object" && entry !== null);
         const style: React.CSSProperties = { backgroundColor: backgroundColor || "#f9fafb", borderRadius: `${borderRadius || 0}px`, padding: `${padding || 0}px`, marginTop: "0.5rem", marginBottom: "0.5rem" };
         return (
           <div ref={puck?.dragRef} style={style}>
@@ -1535,15 +1537,78 @@ export const puckConfig = {
         flag: { type: "text", label: "Flag d'ouverture", defaultValue: "modalOpen" },
         overlay: { type: "select", label: "Overlay", options: [ { label: "Oui", value: "true" }, { label: "Non", value: "false" } ], defaultValue: "true" },
         closeOnOverlay: { type: "select", label: "Fermer sur overlay", options: [ { label: "Oui", value: "true" }, { label: "Non", value: "false" } ], defaultValue: "true" },
+        overlayColor: { type: "text", label: "Couleur overlay", defaultValue: "rgba(17,24,39,0.55)" },
+        overlayBlur: { type: "number", label: "Blur overlay (px)", defaultValue: 0 },
         width: { type: "number", label: "Largeur (px)", defaultValue: 560 },
         maxWidth: { type: "number", label: "Max width (px)", defaultValue: 720 },
+        maxHeight: { type: "number", label: "Hauteur max (px)", defaultValue: 640 },
         padding: { type: "number", label: "Padding (px)", defaultValue: 16 },
+        gap: { type: "number", label: "Espacement interne (px)", defaultValue: 16 },
         radius: { type: "number", label: "Arrondi (px)", defaultValue: 12 },
+        shadow: { type: "select", label: "Ombre", options: [
+          { label: "Légère", value: "sm" },
+          { label: "Moyenne", value: "md" },
+          { label: "Forte", value: "lg" },
+        ], defaultValue: "md" },
         backgroundColor: { type: "text", label: "Fond", defaultValue: "#ffffff" },
         textColor: { type: "text", label: "Texte", defaultValue: "#111827" },
-        children: { type: "slot", label: "Contenu" },
+        textAlign: { type: "select", label: "Alignement", options: [
+          { label: "Gauche", value: "left" },
+          { label: "Centré", value: "center" },
+          { label: "Droite", value: "right" },
+        ], defaultValue: "left" },
+        eyebrow: { type: "text", label: "Sur-titre", defaultValue: "" },
+        title: { type: "text", label: "Titre", defaultValue: "Titre du modal" },
+        description: { type: "textarea", label: "Description", defaultValue: "Ajoutez un texte introductif pour contextualiser votre contenu." },
+        bodyText: { type: "textarea", label: "Texte principal", defaultValue: "" },
+        showCloseButton: { type: "select", label: "Bouton fermer", options: [ { label: "Afficher", value: "true" }, { label: "Masquer", value: "false" } ], defaultValue: "true" },
+        closeLabel: { type: "text", label: "Label bouton fermer", defaultValue: "Fermer" },
+        primaryLabel: { type: "text", label: "Action principale", defaultValue: "Confirmer" },
+        primaryFlag: { type: "text", label: "Flag action principale", defaultValue: "" },
+        primaryCloses: { type: "select", label: "Fermer après action principale", options: [ { label: "Oui", value: "true" }, { label: "Non", value: "false" } ], defaultValue: "true" },
+        secondaryLabel: { type: "text", label: "Action secondaire", defaultValue: "" },
+        secondaryFlag: { type: "text", label: "Flag action secondaire", defaultValue: "" },
+        secondaryCloses: { type: "select", label: "Fermer après action secondaire", options: [ { label: "Oui", value: "true" }, { label: "Non", value: "false" } ], defaultValue: "false" },
+        actionsAlign: { type: "select", label: "Alignement actions", options: [
+          { label: "Aligné à gauche", value: "flex-start" },
+          { label: "Centré", value: "center" },
+          { label: "Aligné à droite", value: "flex-end" },
+          { label: "Espacées", value: "space-between" },
+        ], defaultValue: "flex-end" },
+        children: { type: "slot", label: "Contenu avancé (slot)" },
       },
-      render: ({ flag, overlay, closeOnOverlay, width, maxWidth, padding, radius, backgroundColor, textColor, children: Content, puck }: any) => {
+      render: ({
+        flag,
+        overlay,
+        closeOnOverlay,
+        overlayColor,
+        overlayBlur,
+        width,
+        maxWidth,
+        maxHeight,
+        padding,
+        gap,
+        radius,
+        shadow,
+        backgroundColor,
+        textColor,
+        textAlign,
+        eyebrow,
+        title,
+        description,
+        bodyText,
+        showCloseButton,
+        closeLabel,
+        primaryLabel,
+        primaryFlag,
+        primaryCloses,
+        secondaryLabel,
+        secondaryFlag,
+        secondaryCloses,
+        actionsAlign,
+        children: Content,
+        puck,
+      }: any) => {
         const { flags, setFlag } = useActionState();
         // When looking up a flag, coerce the name to a trimmed string to avoid
         // `.trim()` on non-strings (e.g. booleans).  Use "modalOpen" as the
@@ -1553,18 +1618,167 @@ export const puckConfig = {
         const isOpen = !!flags[flagName];
         const isEditing = (puck as any)?.isEditing;
         if (!isOpen && !isEditing) return null;
+  const parsedTextAlign = (textAlign || "left") as React.CSSProperties["textAlign"];
+        const overlayStyle: React.CSSProperties = {
+          position: "absolute",
+          inset: 0,
+          background: overlayColor || "rgba(17,24,39,0.55)",
+          backdropFilter: overlayBlur ? `blur(${overlayBlur}px)` : undefined,
+          transition: "opacity 0.2s ease",
+        };
+        const getShadow = (value?: string) => {
+          switch (value) {
+            case "sm":
+              return "0 10px 20px rgba(15,23,42,0.15)";
+            case "lg":
+              return "0 30px 60px rgba(15,23,42,0.35)";
+            default:
+              return "0 20px 40px rgba(15,23,42,0.22)";
+          }
+        };
+        const baseWidth = typeof width === "number" && width > 0 ? width : null;
+        const baseMaxWidth = typeof maxWidth === "number" && maxWidth > 0 ? maxWidth : null;
+        const safeWidth = baseWidth ? `min(${baseWidth}px, calc(100vw - 2.5rem))` : undefined;
+        const safeMaxWidth = baseMaxWidth ? `min(${baseMaxWidth}px, calc(100vw - 2rem))` : "calc(100vw - 2rem)";
+        const safeMaxHeight = typeof maxHeight === "number" && maxHeight > 0 ? `min(${maxHeight}px, calc(100vh - 3rem))` : "calc(100vh - 3rem)";
+        const handleAction = (targetFlag?: string, shouldClose?: string | boolean) => {
+          const trimmed = (targetFlag || "").toString().trim();
+          if (trimmed) {
+            setFlag(trimmed, true);
+          }
+          if (String(shouldClose) === "true") {
+            setFlag(flagName, false);
+          }
+        };
+        const headingId = `${flagName || "modal"}-heading`;
+        const descriptionId = `${flagName || "modal"}-description`;
+        const showClose = String(showCloseButton ?? "true") !== "false";
+        const hasSlotContent = typeof Content === "function";
+        const bodyParagraphs = (bodyText || "")
+          .split(/\n{2,}/)
+          .map((p: string) => p.trim())
+          .filter((p: string) => p.length > 0);
+        const actions: Array<{
+          variant: "primary" | "secondary";
+          label: string;
+          flag?: string;
+          closes?: string | boolean;
+        }> = [];
+        if ((primaryLabel || "").trim()) {
+          actions.push({ variant: "primary", label: primaryLabel, flag: primaryFlag, closes: primaryCloses });
+        }
+        if ((secondaryLabel || "").trim()) {
+          actions.push({ variant: "secondary", label: secondaryLabel, flag: secondaryFlag, closes: secondaryCloses });
+        }
         const body = (
-          <div style={{ background: backgroundColor || "#fff", color: textColor || "#111827", width: width || 560, maxWidth: maxWidth || 720, padding: `${padding || 0}px`, borderRadius: radius ? `${radius}px` : undefined, boxShadow: "0 10px 25px rgba(0,0,0,.12)" }}>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-              <button type="button" onClick={() => setFlag(flagName, false)} style={{ background: "transparent", border: 0, padding: 8, cursor: "pointer" }}>✕</button>
-            </div>
-            {typeof Content === 'function' ? <Content /> : null}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? headingId : undefined}
+            aria-describedby={bodyParagraphs.length || description ? descriptionId : undefined}
+            style={{
+              background: backgroundColor || "#fff",
+              color: textColor || "#111827",
+              width: safeWidth,
+              maxWidth: safeMaxWidth,
+              maxHeight: safeMaxHeight,
+              padding: `${padding || 0}px`,
+              borderRadius: radius ? `${radius}px` : undefined,
+              boxShadow: getShadow(String(shadow)),
+              display: "flex",
+              flexDirection: "column",
+              gap: typeof gap === "number" ? gap : 16,
+              textAlign: parsedTextAlign,
+              overflow: "auto",
+              overflowX: "hidden",
+              scrollbarWidth: "thin",
+              scrollbarColor: "rgba(148,163,184,0.8) transparent",
+            }}
+          >
+            {showClose ? (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setFlag(flagName, false)}
+                  aria-label={closeLabel || "Fermer le modal"}
+                  style={{
+                    background: "transparent",
+                    border: 0,
+                    padding: 8,
+                    cursor: "pointer",
+                    color: "inherit",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : null}
+            {(eyebrow || title || description) ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {eyebrow ? <span style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: 12, fontWeight: 600, opacity: 0.75 }}>{eyebrow}</span> : null}
+                {title ? <h2 id={headingId} style={{ margin: 0, fontSize: "1.75rem", fontWeight: 600 }}>{title}</h2> : null}
+                {description ? <p id={descriptionId} style={{ margin: 0, color: "rgba(17,24,39,0.76)", lineHeight: 1.55 }}>{description}</p> : null}
+              </div>
+            ) : null}
+            {bodyParagraphs.length ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, lineHeight: 1.6 }}>
+                {bodyParagraphs.map((paragraph: string, idx: number) => (
+                  <p key={idx} style={{ margin: 0 }}>{paragraph}</p>
+                ))}
+              </div>
+            ) : null}
+            {hasSlotContent ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <Content />
+              </div>
+            ) : null}
+            {actions.length ? (
+              <div style={{ display: "flex", justifyContent: (actionsAlign || "flex-end") as React.CSSProperties["justifyContent"], gap: 12, flexWrap: "wrap" }}>
+                {actions.map((action, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleAction(action.flag, action.closes)}
+                    style={{
+                      minWidth: 120,
+                      padding: "0.6rem 1.25rem",
+                      borderRadius: 999,
+                      border: action.variant === "secondary" ? "1px solid rgba(15,23,42,0.18)" : "1px solid transparent",
+                      background: action.variant === "secondary" ? "transparent" : "#111827",
+                      color: action.variant === "secondary" ? "#111827" : "#f9fafb",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         );
         return (
-          <div ref={puck?.dragRef} style={{ position: "fixed", inset: 0, display: isOpen ? "grid" : (isEditing ? "grid" : "none"), placeItems: "center", zIndex: 1000 }}>
+          <div
+            ref={puck?.dragRef}
+            style={{
+              position: "fixed",
+              inset: 0,
+              display: isOpen ? "grid" : (isEditing ? "grid" : "none"),
+              placeItems: "center",
+              zIndex: 1000,
+              padding: "2rem 1rem",
+              overflowY: "auto",
+              alignItems: "center",
+              justifyItems: "center",
+            }}
+          >
             {String(overlay) === "true" ? (
-              <div onClick={() => { if (String(closeOnOverlay) === 'true') setFlag(flag || "modalOpen", false); }} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.45)" }} />
+              <div
+                onClick={() => {
+                  if (String(closeOnOverlay) === 'true') setFlag(flagName, false);
+                }}
+                style={overlayStyle}
+              />
             ) : null}
             <div style={{ position: "relative", zIndex: 1 }}>{body}</div>
           </div>

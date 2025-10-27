@@ -39,9 +39,20 @@ export default function PublishedClient({ slugParts }: { slugParts: string[] }) 
     if (v && v !== "fluid") frameWidth = Number(v);
   } catch {}
 
+  // Debug: show resolved viewport and width in console to verify runtime value
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line no-console
+      console.debug("[Published] viewport:", data?.root?.props?.viewport, "resolved width:", frameWidth);
+    } catch {}
+  }, [JSON.stringify(data?.root?.props?.viewport), frameWidth]);
+
   return (
     <div className="min-h-[100dvh] bg-gray-50">
-      <div className="mx-auto py-6 px-4" style={{ maxWidth: typeof frameWidth === "number" ? frameWidth : undefined }}>
+      <div
+        className={typeof frameWidth === "number" ? "mx-auto py-6" : "mx-auto py-6 px-4"}
+        style={typeof frameWidth === "number" ? { width: frameWidth } : undefined}
+      >
         {data ? (
           <Render config={(publishedConfig as any)} data={data} />
         ) : (

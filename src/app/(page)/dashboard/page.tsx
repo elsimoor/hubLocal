@@ -5,6 +5,7 @@
 import { redirect } from "next/navigation";
 
 export default function DashboardIndex() {
-  redirect("/dashboard/hub");
+  // Default landing goes to Apps to let users create/manage their apps first
+  redirect("/dashboard/apps");
   return null;
 }

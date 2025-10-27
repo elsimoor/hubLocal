@@ -50,7 +50,7 @@ export default function AppsDashboardPage() {
       <div className="mx-auto max-w-6xl py-8 px-4">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold text-gray-900">My Apps</h1>
-          <Link href="/dashboard/puck" className="text-sm text-indigo-600 hover:underline">Open Puck editor</Link>
+          {/* <Link href="/dashboard/puck" className="text-sm text-indigo-600 hover:underline">Open Puck editor</Link> */}
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow mb-8">

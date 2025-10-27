@@ -101,6 +101,44 @@ export default function PuckPage() {
               headerActions: ({ children }) => {
                 const appState = usePuck((s) => s.appState);
                 const current = appState?.data;
+                // Ensure the saved document stores the currently selected preview viewport
+                // width into root.props.viewport so the published page can render at the
+                // intended device size. We try a few likely locations in Puck state to
+                // find the active viewport width and fall back to the existing value.
+                const withSyncedViewport = (doc: any) => {
+                  try {
+                    const s: any = appState || {};
+                    let w: number | undefined;
+                    const candidates: any[] = [
+                      s?.viewport,
+                      s?.previewSize,
+                      s?.selectedViewport,
+                      s?.renderer?.viewport,
+                      s?.editor?.viewport,
+                      s?.canvas?.viewport,
+                    ];
+                    for (const c of candidates) {
+                      if (c == null) continue;
+                      if (typeof c === "number") { w = c; break; }
+                      if (typeof c === "string" && /^\d+$/.test(c)) { w = Number(c); break; }
+                      if (typeof c === "object") {
+                        const cw = (c as any).width;
+                        if (typeof cw === "number") { w = cw; break; }
+                        if (typeof cw === "string" && /^\d+$/.test(cw)) { w = Number(cw); break; }
+                      }
+                    }
+                    const nextViewport = (w && w > 0) ? String(w) : (doc?.root?.props?.viewport ?? "fluid");
+                    return {
+                      ...doc,
+                      root: {
+                        ...(doc?.root || {}),
+                        props: { ...((doc?.root || {}).props || {}), viewport: nextViewport },
+                      },
+                    };
+                  } catch {
+                    return doc;
+                  }
+                };
                 // Auto-save removed per request; manual save only
                 return (
                   <div className="flex items-center gap-2">
@@ -122,7 +160,7 @@ export default function PuckPage() {
                     <button
                       type="button"
                       disabled={saving !== "idle"}
-                      onClick={() => current && saveDoc(current, "draft")}
+                      onClick={() => current && saveDoc(withSyncedViewport(current), "draft")}
                       className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
                     >
                       {saving === "draft" ? "Saving…" : "Save draft"}
@@ -130,7 +168,7 @@ export default function PuckPage() {
                     <button
                       type="button"
                       disabled={saving !== "idle"}
-                      onClick={() => current && saveDoc(current, "published")}
+                      onClick={() => current && saveDoc(withSyncedViewport(current), "published")}
                       className="inline-flex items-center rounded-md border border-indigo-600 bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
                     >
                       {saving === "published" ? "Publishing…" : "Publish"}
