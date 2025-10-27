@@ -5,7 +5,7 @@ import { Puck, createUsePuck } from "@measured/puck";
 import "@measured/puck/puck.css";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { puckConfig as config } from "@/lib/puck/config";
+import { puckConfig as config } from "@/lib/puck/config.fixed";
 
 /**
  * PuckPage renders a simple visual editor powered by the open‑source Puck
@@ -39,9 +39,10 @@ export default function PuckPage() {
         const res = await fetch(`/api/puck?slug=${encodeURIComponent(slug)}`, { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load");
         const json = await res.json();
-        if (active && json?.data) setData(json.data);
+        if (active) setData(json?.data ?? {});
       } catch (e) {
         console.warn("Failed to load Puck doc:", e);
+        if (active) setData({});
       } finally {
         if (active) setLoading(false);
       }
@@ -82,8 +83,12 @@ export default function PuckPage() {
           localement dans l’état de la page ; dans un contexte réel, elles
           seraient envoyées à votre API pour être persistées.
         </p>
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow min-h-[240px]">
+          {loading ? (
+            <div className="text-sm text-gray-600">Loading…</div>
+          ) : (
           <Puck
+            key={slug}
             config={config as any}
             data={data}
             viewports={[
@@ -96,6 +101,7 @@ export default function PuckPage() {
               headerActions: ({ children }) => {
                 const appState = usePuck((s) => s.appState);
                 const current = appState?.data;
+                // Auto-save removed per request; manual save only
                 return (
                   <div className="flex items-center gap-2">
                     <input
@@ -130,11 +136,17 @@ export default function PuckPage() {
                       {saving === "published" ? "Publishing…" : "Publish"}
                     </button>
                     <a
-                      href={`/published/${encodeURIComponent(slug)}`}
+                      href={`/published/${slug.split('/').map(encodeURIComponent).join('/')}`}
                       target="_blank"
                       className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
                     >
                       Open published
+                    </a>
+                    <a
+                      href="/dashboard/apps"
+                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                    >
+                      Apps
                     </a>
                     {children}
                   </div>
@@ -146,6 +158,7 @@ export default function PuckPage() {
               saveDoc(newData, "published");
             }}
           />
+          )}
           {/* Inline mode is now used for all components so we no longer need to override
               default wrapper behaviour. The previous global CSS overrides have been
               removed to allow flex and grid items to size themselves naturally. */}

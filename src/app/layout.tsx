@@ -4,7 +4,7 @@ import { ThemeProvider } from './theme-provider';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
       <body>
         {/*
           Wrap the application in ThemeProvider so all pages can react to

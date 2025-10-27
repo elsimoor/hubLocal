@@ -4,9 +4,10 @@ import { PuckDocModel } from "@/lib/models/PuckDoc";
 
 export async function GET(
   req: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string | string[] }> }
 ) {
-  const slug = params?.slug;
+  const { slug: slugParam } = await params;
+  const slug = Array.isArray(slugParam) ? slugParam.join("/") : slugParam;
   if (!slug) return NextResponse.json({ error: "missing slug" }, { status: 400 });
   await connectDB();
   const doc = await PuckDocModel.findOne({ slug, status: "published" }).lean();
