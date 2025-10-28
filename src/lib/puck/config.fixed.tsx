@@ -684,7 +684,9 @@ export const puckConfig = {
       },
       // When the external id changes, look up the static posts and return the title and body.  The
       // changed parameter allows us to avoid reprocessing when unchanged【182405108990970†L179-L224】.
-      resolveData: async ({ post, fallbackTitle, fallbackBody }: any, { changed }: any) => {
+      resolveData: async (args: any, ctx: any) => {
+        const { post, fallbackTitle, fallbackBody } = args || {};
+        const changed = (ctx && (ctx as any).changed) || {};
         // Only recompute when the post id changes
         if (!changed?.post) return undefined;
         const posts = {
@@ -914,32 +916,38 @@ export const puckConfig = {
           { label: "Gauche", value: "left" }, { label: "Centre", value: "center" }, { label: "Droite", value: "right" },
         ], defaultValue: "left" },
       },
-      // Compute derived props and mark fields as readOnly if necessary.  Here we expose a computed
-      // property `resolvedTitle` which uppercases the title.  It isn’t used directly in
-      // render but demonstrates how dynamic props work【30185053043333†L115-L149】.  When the title has not
-      // changed, resolveData is not re-run due to changed tracking.
-      resolveData: async ({ title, description }: any, { changed }: any) => {
-        if (!changed?.title) {
-          // Return undefined to reuse previous resolved data when the title hasn’t changed
-          return undefined;
-        }
-        const resolvedTitle = title ? String(title).toUpperCase() : '';
-        return { props: { resolvedTitle } };
+      /*
+       * Dynamic data resolution.
+       * Puck expects `resolveData` to return an object with a `props` key.  Returning
+       * undefined here causes the editor to attempt destructuring `props` from
+       * undefined, which throws a runtime error.  Returning an empty `props` object
+       * avoids that issue and signals that no props are being modified.
+       */
+      resolveData: async () => {
+        return { props: {} };
       },
-      // Dynamically show or hide fields based on current props.  When the image is positioned top or
-      // bottom, the imageFit option isn’t relevant and is removed from the panel【592755540036342†L115-L150】.
-      resolveFields: async ({ props, fields }: any, { changed }: any) => {
-        const { imagePosition } = props || {};
-        const nextFields = { ...fields };
-        if (imagePosition === 'top' || imagePosition === 'bottom') {
-          // hide imageFit field
-          delete nextFields.imageFit;
+
+      /*
+       * Dynamically show or hide fields based on current props.  When the image
+       * position is vertical (top or bottom), the `imageFit` option isn’t
+       * relevant and is removed from the panel.  Use the `data` and `params`
+       * arguments provided by Puck to safely access props and fields.  If
+       * either argument is undefined, default to empty objects to avoid
+       * destructuring errors.
+       */
+      resolveFields: async (data: any = {}, params: any = {}) => {
+        const fields = (params && params.fields) || {};
+        const props = (data && data.props) || {};
+        if ((props.imagePosition === 'top' || props.imagePosition === 'bottom') && 'imageFit' in fields) {
+          const { imageFit, ...rest } = fields as any;
+          return rest;
         }
-        return nextFields;
+        return fields;
       },
       // Prevent users from deleting the hero component.  They can still drag and duplicate it.
       permissions: { delete: false, drag: true, duplicate: true },
       render: ({ title, description, image, imagePosition, backgroundColor, textColor, radius, padding, gap, imageRadius, imageFit, imageMaxHeight, buttons, align, puck }: any) => {
+        const actionCtx = useActionState();
         let btns: Array<{ label?: string; href?: string; url?: string; variant?: string }> = [];
         if (Array.isArray(buttons)) {
           btns = buttons;
@@ -951,11 +959,18 @@ export const puckConfig = {
             else if (parsed && typeof parsed === "object") btns = [parsed as any];
           } catch { btns = []; }
         }
-        const flexDirection = imagePosition === "left" || imagePosition === "right" ? "row" : "column";
+        // Determine if the layout is horizontal (image left/right) or vertical (image top/bottom)
+        const isHorizontal = imagePosition === "left" || imagePosition === "right";
+        const flexDirection = isHorizontal ? "row" : "column";
         const orderImageFirst = imagePosition === "left" || imagePosition === "top";
+        // When horizontal use equal widths and allow wrapping so that on small viewports the image
+        // and text stack naturally. In vertical mode width is 100%.
+        const columnWidth = isHorizontal ? "50%" : "100%";
         const containerStyle: React.CSSProperties = {
           display: "flex",
           flexDirection,
+          // Allow items to wrap on narrow screens when horizontal to avoid overflow
+          flexWrap: isHorizontal ? "wrap" : undefined,
           alignItems: align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
           justifyContent: "space-between",
           backgroundColor: backgroundColor || "#f9fafb",
@@ -966,8 +981,19 @@ export const puckConfig = {
           marginTop: "0.5rem",
           marginBottom: "0.5rem",
         };
-        const textStyle: React.CSSProperties = { flex: "1 1 0", textAlign: (align as React.CSSProperties["textAlign"]) || "left" };
-        const imageStyle: React.CSSProperties = { width: flexDirection === "row" ? "50%" : "100%", maxHeight: imageMaxHeight ? `${imageMaxHeight}px` : undefined, height: "auto", borderRadius: imageRadius ? `${imageRadius}px` : undefined, objectFit: imageFit || "cover" };
+        const textStyle: React.CSSProperties = {
+          flex: isHorizontal ? "1 1 50%" : undefined,
+          width: columnWidth,
+          textAlign: (align as React.CSSProperties["textAlign"]) || "left",
+        };
+        // The image itself should always fill its container. Height is constrained via maxHeight.
+        const imageStyle: React.CSSProperties = {
+          width: "100%",
+          maxHeight: imageMaxHeight ? `${imageMaxHeight}px` : undefined,
+          height: "auto",
+          borderRadius: imageRadius ? `${imageRadius}px` : undefined,
+          objectFit: imageFit || "cover",
+        };
         const left = (
           <div style={textStyle}>
             <h2 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>{title}</h2>
@@ -1000,7 +1026,6 @@ export const puckConfig = {
                       actions.push({ event: "click", type: "toggle", flag });
                     }
                     if (actions.length) {
-                      const actionCtx = useActionState();
                       await runActions(actions, { isEditing, currentEl: e.currentTarget, ctxOverride: actionCtx });
                       return;
                     }
@@ -1016,7 +1041,14 @@ export const puckConfig = {
           </div>
         );
         const right = (
-          <div style={{ flex: "1 1 0", display: "flex", justifyContent: align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start" }}>
+          <div
+            style={{
+              flex: isHorizontal ? "1 1 50%" : undefined,
+              width: columnWidth,
+              display: "flex",
+              justifyContent: align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
+            }}
+          >
             {image && <img src={image} alt={title || "Image"} style={imageStyle} />}
           </div>
         );

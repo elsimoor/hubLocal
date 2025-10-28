@@ -67,56 +67,82 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return <main className="min-h-[60dvh] grid place-items-center">Chargement…</main>;
+    return (
+      <main className="min-h-[60dvh] grid place-items-center">
+        <div className="w-full max-w-2xl animate-pulse">
+          <div className="h-6 w-1/3 bg-gray-200 rounded mb-4" />
+          <div className="h-40 bg-gray-200 rounded" />
+        </div>
+      </main>
+    );
   }
   if (!session) {
     return <main className="min-h-[60dvh] grid place-items-center">Tu dois être connecté pour modifier ton profil.</main>;
   }
 
   return (
-    <main className="mx-auto max-w-md p-4">
+    <main className="mx-auto max-w-2xl p-4">
       <h1 className="text-xl font-semibold mb-4">Mon profil</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-gray-800">Prénom</label>
-          <input
-            id="firstName"
-            type="text"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          />
-        </div>
-        <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-gray-800">Nom</label>
-          <input
-            id="lastName"
-            type="text"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          />
-        </div>
-        <button
-          type="submit"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          Enregistrer
-        </button>
-        {message && <p className="text-sm text-gray-700">{message}</p>}
-      </form>
 
-      <div className="mt-8 p-4 border rounded-lg bg-gray-50">
-        <h2 className="text-lg font-semibold mb-2">Abonnement</h2>
+      <section className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow">
+        <div className="flex items-center gap-4 mb-4">
+          {session.user?.image ? (
+            <img src={session.user.image} alt="avatar" className="w-12 h-12 rounded-full" />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-gray-200 grid place-items-center text-gray-600 font-semibold">
+              {String(session.user?.name || "").charAt(0).toUpperCase() || "U"}
+            </div>
+          )}
+          <div>
+            <div className="font-medium">{session.user?.name || "Utilisateur"}</div>
+            <div className="text-xs text-gray-600">{session.user?.email}</div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="firstName" className="block text-sm font-medium text-gray-800">Prénom</label>
+            <input
+              id="firstName"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="lastName" className="block text-sm font-medium text-gray-800">Nom</label>
+            <input
+              id="lastName"
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
+            />
+          </div>
+          <div className="md:col-span-2 flex items-center gap-3">
+            <button
+              type="submit"
+              className="inline-flex items-center px-4 py-2 border border-gray-900 text-sm font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-black"
+            >
+              Enregistrer
+            </button>
+            {message && <p className="text-sm text-gray-700">{message}</p>}
+          </div>
+        </form>
+      </section>
+
+      <section className="mt-6 bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow">
+        <h2 className="text-lg font-semibold mb-1">Abonnement</h2>
         <p className="text-sm mb-3">Plan actuel : <strong>{isPro ? 'PRO' : 'Gratuit'}</strong></p>
         <button
           onClick={handleTogglePro}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+          className="inline-flex items-center px-4 py-2 border border-purple-700 text-sm font-medium rounded-md shadow-sm text-white bg-purple-700 hover:bg-purple-800"
         >
           {isPro ? 'Revenir à la version gratuite' : 'Passer en PRO'}
         </button>
         <p className="text-xs text-gray-500 mt-2">Cette action simule l’activation ou la désactivation de l’abonnement PRO. Aucune facturation réelle n’est effectuée.</p>
-      </div>
+      </section>
     </main>
   );
 }

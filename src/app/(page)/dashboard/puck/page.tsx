@@ -73,17 +73,19 @@ export default function PuckPage() {
   return (
     <div className="min-h-[100dvh] bg-gray-50">
       <div className="mx-auto max-w-8xl py-8 px-4">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-4">
-          Éditeur Puck
-        </h1>
-        <p className="text-sm text-gray-600 mb-6">
-          Cette page est une démonstration de l’éditeur visuel Puck. Vous
-          pouvez faire glisser et déposer les composants dans la scène, éditer
-          leurs propriétés et publier le résultat. Les données sont stockées
-          localement dans l’état de la page ; dans un contexte réel, elles
-          seraient envoyées à votre API pour être persistées.
-        </p>
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow min-h-[240px]">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Éditeur Puck</h1>
+            <p className="text-sm text-gray-600">Glissez-déposez des composants, ajustez leurs propriétés, sauvegardez et publiez.</p>
+          </div>
+          <a
+            href="/dashboard/apps"
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+          >
+            Retour aux apps
+          </a>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 shadow min-h-[240px]">
           {loading ? (
             <div className="text-sm text-gray-600">Loading…</div>
           ) : (
@@ -141,9 +143,9 @@ export default function PuckPage() {
                 };
                 // Auto-save removed per request; manual save only
                 return (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <input
-                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none"
+                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300"
                       placeholder="slug"
                       value={slug}
                       onChange={(e) => setSlug(e.target.value.replace(/\s+/g, '-').toLowerCase())}
@@ -169,7 +171,7 @@ export default function PuckPage() {
                       type="button"
                       disabled={saving !== "idle"}
                       onClick={() => current && saveDoc(withSyncedViewport(current), "published")}
-                      className="inline-flex items-center rounded-md border border-indigo-600 bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+                      className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50"
                     >
                       {saving === "published" ? "Publishing…" : "Publish"}
                     </button>
