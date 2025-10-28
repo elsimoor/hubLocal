@@ -50,6 +50,7 @@ export const authOptions: NextAuthOptions = {
   // Allow linking accounts across providers with the same email. Without this, a
   // user who first signs in via email cannot later connect a Google account
   // with the same address (and vice versa). See https://next-auth.js.org/configuration/options#allowdangerousemailaccountlinking
+  // @ts-ignore
   allowDangerousEmailAccountLinking: true,
   providers: [
     GoogleProvider({
@@ -73,7 +74,7 @@ export const authOptions: NextAuthOptions = {
         const password = credentials?.password;
         if (!email || !password) return null;
         await connectDB();
-        const user = await UserModel.findOne({ email }).lean();
+        const user:any = await UserModel.findOne({ email }).lean();
         if (!user || !user.passwordHash) return null;
         const hashed = hashPassword(password);
         if (hashed !== user.passwordHash) return null;
@@ -120,7 +121,7 @@ export const authOptions: NextAuthOptions = {
       try {
         if (session?.user?.email) {
           await connectDB();
-          const user = await UserModel.findOne({ email: session.user.email }).lean();
+          const user:any = await UserModel.findOne({ email: session.user.email }).lean();
           if (user) {
             (session.user as any).id = user._id.toString();
             (session.user as any).isPro = !!user.isPro;

@@ -38,7 +38,13 @@ import {
  * TextSettings related component (see below) is registered on
  * Text.craft.related to expose editable props in the settings panel.
  */
-const Text: React.FC<{ text?: string; fontSize?: number }> = ({
+// Extend each component's type with an optional `craft` static property.  Craft.js
+// attaches configuration to the component via a static property, which isn't
+// defined on React.FC by default.  By intersecting the component type with
+// `{ craft?: any }` we tell TypeScript that this property may exist.  Without
+// this extension, assigning to `Text.craft` (and similar assignments for other
+// components) causes a type error during the Next.js build.
+const Text: React.FC<{ text?: string; fontSize?: number }> & { craft?: any } = ({
   text,
   fontSize,
 }) => {
@@ -156,7 +162,7 @@ Text.craft = {
  * navigate to that link in a new tab.  In edit mode it does nothing,
  * preventing accidental navigation from the editor.
  */
-const Button: React.FC<{ text?: string; color?: string; link?: string }> = ({
+const Button: React.FC<{ text?: string; color?: string; link?: string }> & { craft?: any } = ({
   text,
   color,
   link,
@@ -259,7 +265,7 @@ Button.craft = {
  * canvas>.  We use `connect` and `drag` to make the outer element
  * draggable.
  */
-const Container: React.FC<{ background?: string; padding?: number; children?: React.ReactNode }> = ({
+const Container: React.FC<{ background?: string; padding?: number; children?: React.ReactNode }> & { craft?: any } = ({
   background,
   padding,
   children,
@@ -339,7 +345,7 @@ Container.craft = {
  * shares the same appearance controls as Container but uses a
  * canMoveIn rule to restrict droppable nodes.
  */
-const TextOnlyContainer: React.FC<{ background?: string; padding?: number; children?: React.ReactNode }> = ({
+const TextOnlyContainer: React.FC<{ background?: string; padding?: number; children?: React.ReactNode }> & { craft?: any } = ({
   background,
   padding,
   children,
@@ -420,7 +426,7 @@ TextOnlyContainer.craft = {
  * A container that only accepts Button components as children.  Similar
  * to TextOnlyContainer but for Buttons.
  */
-const ButtonOnlyContainer: React.FC<{ background?: string; padding?: number; children?: React.ReactNode }> = ({
+const ButtonOnlyContainer: React.FC<{ background?: string; padding?: number; children?: React.ReactNode }> & { craft?: any } = ({
   background,
   padding,
   children,
@@ -502,7 +508,7 @@ ButtonOnlyContainer.craft = {
  * The Card itself can be dragged as a single unit and its
  * background colour is configurable.
  */
-const Card: React.FC<{ background?: string }> = ({ background }) => {
+const Card: React.FC<{ background?: string }> & { craft?: any } = ({ background }) => {
   const {
     connectors: { connect, drag },
   } = useNode();
@@ -706,7 +712,15 @@ const LayersPanel: React.FC = () => {
     if (!node) return null;
     const children: string[] = node.data.nodes || [];
     const linkedEntries = node.data.linkedNodes || {};
-    const selectedArray = state.events.selected || [];
+    // `state.events.selected` can be either a Set or an array depending on the Craft.js implementation.
+    // To safely access the first selected id, normalize the value to an array.  If it's a Set, convert
+    // it to an array via Array.from; if it's already an array, use it directly.  If it's undefined, use
+    // an empty array.  Once normalized, grab the first element or null when empty.  This avoids using
+    // `.length` on a Set, which would otherwise cause a TypeScript error.
+    const selectedRaw = state.events.selected;
+    const selectedArray = Array.isArray(selectedRaw)
+      ? selectedRaw
+      : Array.from(selectedRaw ?? [] as any);
     const selectedId = selectedArray.length > 0 ? selectedArray[0] : null;
     const isSelected = selectedId === id;
     return (

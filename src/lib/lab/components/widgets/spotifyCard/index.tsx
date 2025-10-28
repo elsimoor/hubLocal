@@ -1,6 +1,7 @@
 "use client";
+import { IComponentProps } from "@/lib/lab/types";
 import { FaSpotify } from "react-icons/fa";
-import type { IComponentProps } from "../../types";
+// import type { IComponentProps } from "../../types";
 
 // Spotify embed widget: displays a Spotify track or playlist in an iframe. The
 // user must provide a public Spotify URL. The height can be adjusted.

@@ -1,6 +1,7 @@
 "use client";
+import { IComponentProps } from "@/lib/lab/types";
 import { QrCode } from "lucide-react";
-import type { IComponentProps } from "../../types";
+// import type { IComponentProps } from "../../types";
 
 // QR Code widget: uses an external API to render a QR code for a given URL.
 const qrCode: IComponentProps = {

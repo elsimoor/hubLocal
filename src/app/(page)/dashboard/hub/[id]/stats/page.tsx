@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -10,13 +10,20 @@ import { useRouter } from "next/navigation";
  * library. If the user is not authenticated, they are redirected to the
  * sign‑in page.
  */
-export default function StatsPage({ params }: { params: { id: string } }) {
+// In Next.js 15, the `params` prop for dynamic routes may be provided as a Promise.
+// The React `use()` hook can be used to unwrap this promise in a client component.
+// See: https://nextjs.org/docs/messages/sync-dynamic-apis#possible-ways-to-fix-it【354619373757140†L472-L523】
+
+export default function StatsPage({ params }: { params: Promise<{ id: string }> }) {
+  // `params` is provided as a Promise in Next.js 15 for dynamic routes.  Use
+  // React.use() to unwrap the promise in a client component【354619373757140†L472-L523】.
+  const { id } = React.use(params);
+  const hubId = id;
   const { data: session, status } = useSession();
   const router = useRouter();
   const [views, setViews] = useState<number | null>(null);
   const [clicks, setClicks] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const hubId = params.id;
 
   useEffect(() => {
     if (status === "authenticated") {

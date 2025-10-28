@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { Puck, createUsePuck } from "@measured/puck";
 import "@measured/puck/puck.css";
 import { useState, useEffect } from "react";
@@ -16,8 +16,16 @@ import { puckConfig as config } from "@/lib/puck/config.fixed";
  * would persist the data to your database and restore it on page load.
  */
 export default function PuckPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[100dvh] bg-gray-50"><div className="mx-auto max-w-8xl py-8 px-4"><div className="text-sm text-gray-600">Loading…</div></div></div>}>
+      <PuckEditor />
+    </Suspense>
+  );
+}
+
+function PuckEditor() {
   const usePuck = createUsePuck();
-  
+
 
   // Local state to store the current Puck document. Normally this would be
   // persisted via an API and loaded on page mount. For the demo the

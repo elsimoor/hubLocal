@@ -49,7 +49,7 @@ function serializeUser(doc: any): AdapterUser {
 
 export const MongooseAdapter: Adapter = {
   // --- User methods ---
-  async createUser(data) {
+  async createUser(data:any) {
     await connectDB();
     // Create a new user document. We store additional fields (firstName,
     // lastName) if provided. If name is not explicitly passed, derive it
@@ -85,7 +85,7 @@ export const MongooseAdapter: Adapter = {
 
   async getUserByAccount({ providerAccountId, provider }) {
     await connectDB();
-    const acc = await AccountModel.findOne({
+    const acc:any = await AccountModel.findOne({
       provider,
       providerAccountId,
     }).lean();
@@ -96,7 +96,7 @@ export const MongooseAdapter: Adapter = {
 
   async updateUser(user) {
     await connectDB();
-    const existing = await UserModel.findById(user.id);
+    const existing:any = await UserModel.findById(user.id);
     if (!existing) return serializeUser(user as any);
     existing.name = user.name ?? existing.name;
     existing.email = user.email ?? existing.email;
@@ -110,7 +110,7 @@ export const MongooseAdapter: Adapter = {
   },
 
   // --- Account linking methods ---
-  async linkAccount(account) {
+  async linkAccount(account:any) {
     // Store OAuth account details. Upsert on provider+providerAccountId.
     await connectDB();
     try {
@@ -137,7 +137,7 @@ export const MongooseAdapter: Adapter = {
     return;
   },
 
-  async unlinkAccount({ providerAccountId, provider }) {
+  async unlinkAccount({ providerAccountId, provider }:any) {
     await connectDB();
     await AccountModel.deleteOne({ provider, providerAccountId });
     return;

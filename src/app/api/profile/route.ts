@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   await connectDB();
-  const user = await UserModel.findOne({ email: session.user.email }).lean();
+  const user:any = await UserModel.findOne({ email: session.user.email }).lean();
   if (!user) return NextResponse.json({ error: "not_found" }, { status: 404 });
   return NextResponse.json({
     firstName: user.firstName ?? "",

@@ -1,6 +1,6 @@
 "use client";
 import { FaQuoteLeft } from "react-icons/fa";
-import type { IComponentProps } from "../../types";
+import type { IComponentProps } from "../../../types";
 
 // Testimonials widget: displays a list of quotes with authors. The items prop
 // holds a JSON stringified array of objects { quote: string, author: string }.
