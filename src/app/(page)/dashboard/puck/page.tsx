@@ -6,6 +6,8 @@ import "@measured/puck/puck.css";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { puckConfig as config } from "@/lib/puck/config.fixed";
+import { useDashboardUI } from "../../dashboard/ui-context";
+import { Maximize2, Minimize2 } from "lucide-react";
 
 /**
  * PuckPage renders a simple visual editor powered by the open‑source Puck
@@ -25,6 +27,7 @@ export default function PuckPage() {
 
 function PuckEditor() {
   const usePuck = createUsePuck();
+  const { sidebarCollapsed, setSidebarCollapsed, toggleSidebar } = useDashboardUI();
 
 
   // Local state to store the current Puck document. Normally this would be
@@ -37,6 +40,12 @@ function PuckEditor() {
   const search = useSearchParams();
   const router = useRouter();
   const [slug, setSlug] = useState<string>(search?.get("slug") || "default");
+
+  // Sync fullscreen state from query (?fs=1)
+  useEffect(() => {
+    const fs = search?.get("fs");
+    if (fs === "1") setSidebarCollapsed(true);
+  }, [search]);
 
   // Load existing draft on mount
   useEffect(() => {
@@ -111,6 +120,20 @@ function PuckEditor() {
               headerActions: ({ children }) => {
                 const appState = usePuck((s) => s.appState);
                 const current = appState?.data;
+                const isFs = sidebarCollapsed;
+                const onToggleFs = () => {
+                  const next = !isFs;
+                  setSidebarCollapsed(next);
+                  try {
+                    const usp = new URLSearchParams(search?.toString() || "");
+                    if (next) usp.set("fs", "1");
+                    else usp.delete("fs");
+                    const base = "/dashboard/puck";
+                    const slugParam = usp.get("slug") ?? slug;
+                    if (!usp.get("slug") && slugParam) usp.set("slug", slugParam);
+                    router.replace(`${base}?${usp.toString()}`, { scroll: false });
+                  } catch {}
+                };
                 // Ensure the saved document stores the currently selected preview viewport
                 // width into root.props.viewport so the published page can render at the
                 // intended device size. We try a few likely locations in Puck state to
@@ -152,6 +175,14 @@ function PuckEditor() {
                 // Auto-save removed per request; manual save only
                 return (
                   <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={onToggleFs}
+                      title={isFs ? "Exit full page" : "Full page"}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50 transition-transform duration-150 active:scale-95"
+                    >
+                      {isFs ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                    </button>
                     <input
                       className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300"
                       placeholder="slug"

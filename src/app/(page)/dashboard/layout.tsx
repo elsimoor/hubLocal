@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Menu, X, AppWindow, LayoutDashboard, User, Shield } from "lucide-react";
+import { DashboardUIProvider, useDashboardUI } from "./ui-context";
 
 /**
  * DashboardLayout wraps all pages under the `/dashboard` route. It provides a
@@ -47,8 +48,50 @@ export default function DashboardLayout({
 
   // Sidebar open state for small screens. When true, we display the sidebar
   // overlaying the content with a backdrop. On larger screens (md and up)
-  // the sidebar is always visible.
+  // the sidebar visibility is controlled by the Dashboard UI context.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Wrap main layout body with DashboardUIProvider to share collapsed state
+  return (
+    <DashboardUIProvider>
+      <DashboardShell
+        sidebarItems={sidebarItems}
+        isActive={isActive}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+      >
+        {children}
+      </DashboardShell>
+    </DashboardUIProvider>
+  );
+}
+
+function DashboardShell({
+  children,
+  sidebarItems,
+  isActive,
+  sidebarOpen,
+  setSidebarOpen,
+}: {
+  children: React.ReactNode;
+  sidebarItems: { href: string; label: string; icon: any }[];
+  isActive: (href: string) => boolean;
+  sidebarOpen: boolean;
+  setSidebarOpen: (v: boolean) => void;
+}) {
+  const { sidebarCollapsed, setSidebarCollapsed } = useDashboardUI();
+
+  function navLinkClass(active: boolean) {
+    return [
+      "group flex items-center gap-2 rounded-lg px-3 py-2 transition-colors",
+      active ? "bg-gray-900 text-white shadow-sm" : "text-gray-800 hover:bg-gray-100",
+    ].join(" ");
+  }
+
+  // Close the temporary mobile sidebar when entering collapsed (fullscreen) mode
+  useEffect(() => {
+    if (sidebarCollapsed && sidebarOpen) setSidebarOpen(false);
+  }, [sidebarCollapsed]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -93,14 +136,26 @@ export default function DashboardLayout({
       {/* Main content area with sidebar */}
       <div className="flex flex-1 bg-gray-50 relative">
         {/* Sidebar for desktop */}
-        <aside className="hidden md:block w-64 border-r bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-          <div className="sticky top-[49px]">{/* account for sticky nav height */}
+        <aside
+          className={[
+            "hidden md:block border-r bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 transition-all duration-300 ease-in-out",
+            sidebarCollapsed ? "md:w-0 md:opacity-0 md:pointer-events-none md:-translate-x-2" : "md:w-64 md:opacity-100 md:translate-x-0",
+          ].join(" ")}
+          aria-hidden={sidebarCollapsed}
+        >
+          <div className="sticky top-[49px]">
+            {/* account for sticky nav height */}
             <div className="p-4 border-b">
               <div className="text-xs uppercase tracking-wide text-gray-500">Navigation</div>
             </div>
             <nav className="p-3 space-y-1 text-sm">
               {sidebarItems.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href} className={navLinkClass(isActive(href))} aria-current={isActive(href) ? "page" : undefined}>
+                <Link
+                  key={href}
+                  href={href}
+                  className={navLinkClass(isActive(href))}
+                  aria-current={isActive(href) ? "page" : undefined}
+                >
                   <Icon size={16} className="opacity-70 group-[.bg-gray-900]:opacity-100" />
                   <span>{label}</span>
                 </Link>
@@ -136,7 +191,14 @@ export default function DashboardLayout({
             </aside>
           </div>
         )}
-        <main className="flex-1 overflow-auto p-4">{children}</main>
+        <main
+          className={[
+            "flex-1 overflow-auto p-4 transition-all duration-300 ease-in-out",
+            sidebarCollapsed ? "md:ml-0" : "",
+          ].join(" ")}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );
