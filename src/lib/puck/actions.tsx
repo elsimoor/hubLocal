@@ -47,12 +47,25 @@ export async function runActions(
 ) {
   if (!Array.isArray(actions) || actions.length === 0) return;
   const ctx = opts?.ctxOverride ?? ((typeof window !== "undefined") ? (ActionCtx as any)._currentValue as ActionState | null : null);
+  // We run all non‑navigate actions before navigate actions.  Navigating away
+  // from the page can stop subsequent actions from running (e.g. toggling a
+  // flag to open a modal).  To mitigate this, we partition actions and run
+  // non‑navigate actions first, followed by navigate actions.
+  const nonNavigate: ActionType[] = [];
+  const navigateActions: ActionType[] = [];
   for (const a of actions) {
+    if (a.type === "navigate") navigateActions.push(a);
+    else nonNavigate.push(a);
+  }
+  const allActs = [...nonNavigate, ...navigateActions];
+  for (const a of allActs) {
     try {
       switch (a.type) {
         case "navigate": {
           const url = a.url || "#";
           const target = a.target || "_self";
+          // In editing mode we always open links in a new tab to preserve the editor
+          // state. Outside of editing we respect the configured target.
           if (opts.isEditing) {
             try { window.open(url, "_blank", "noopener"); } catch {}
           } else {
@@ -86,7 +99,8 @@ export async function runActions(
         case "toggle": {
           const name = (a.flag || "").trim();
           if (!name) break;
-          ctx?.toggleFlag(name);
+          const current = ctx?.flags?.[name];
+          ctx?.setFlag(name, !(current ?? false));
           break;
         }
         case "setFlag": {

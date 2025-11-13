@@ -68,11 +68,12 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Render } from "@measured/puck";
+import { ActionStateProvider } from "@/lib/puck/actions";
 //
 // ### CORRECTION ICI ###
 // Nous importons 'config' au lieu de 'puckConfig'
 //
-import { config as publishedConfig } from "@/lib/puck/config.fixed";
+import { config as publishedConfig } from "@/lib/puck/config";
 
 export default function PublishedClient({ slugParts }: { slugParts: string[] }) {
   const [data, setData] = useState<any>(null);
@@ -145,16 +146,106 @@ export default function PublishedClient({ slugParts }: { slugParts: string[] }) 
         if (!nextConfig.categories.custom.components.includes(compName)) {
           nextConfig.categories.custom.components.push(compName);
         }
-        const renderFn = () => {
+        const renderFn = (props: any) => {
+          // Begin with the stored HTML for this custom component
+          let html: string = comp.code || "";
+          try {
+            if (props && typeof props === 'object') {
+              if (typeof props.label === 'string' && props.label) {
+                html = html.replace(/>([^<]*)</, `>${props.label}<`);
+              }
+              if (typeof props.href === 'string' && props.href) {
+                html = html.replace(/href="[^"]*"/, `href="${props.href}"`);
+              }
+              // Generic placeholder replacement: replace any {{key}} with the
+              // corresponding prop value.  For a "links" field, split comma-
+              // separated values into anchor tags when the placeholder is
+              // present.
+              Object.keys(props).forEach((key) => {
+                const val: any = (props as any)[key];
+                if (val == null) return;
+                const re = new RegExp(`\\{\\{\\s*${key}\\s*\\}}`, 'g');
+                // Handle arrays: navigation items, links and slides
+                if (Array.isArray(val)) {
+                  // Navigation items (navbar, sidebar)
+                  if (key === 'links' || key === 'items') {
+                    const itemsHtml = val
+                      .map((item: any) => {
+                        // Accept both string and object forms
+                        if (typeof item === 'string') {
+                          return `<a href="#" style="color:#ffffff;text-decoration:none;margin-left:1rem;">${item}</a>`;
+                        }
+                        const label = item.label || '';
+                        const href = item.href || '#';
+                        const target = item.target || '_self';
+                        const classes = 'ml-4';
+                        return `<a href="${href}" target="${target}" style="color:#ffffff;text-decoration:none;margin-left:1rem;">${label}</a>`;
+                      })
+                      .join('');
+                    html = html.replace(re, itemsHtml);
+                    return;
+                  }
+                  // Slides for carousels
+                  if (key === 'slides') {
+                    const slidesHtml = val
+                      .map((slide: any) => {
+                        const src = slide.src || '';
+                        const alt = slide.alt || '';
+                        const width = slide.width || '';
+                        const height = slide.height || '';
+                        const href = slide.href || '';
+                        const target = slide.target || '_self';
+                        const imgTag = `<img src="${src}" alt="${alt}" style="width:${width ? width + 'px' : '100%'};height:${height ? height + 'px' : 'auto'};object-fit:cover;"/>`;
+                        if (href) {
+                          return `<div style="flex:0 0 100%;"><a href="${href}" target="${target}">${imgTag}</a></div>`;
+                        }
+                        return `<div style="flex:0 0 100%;">${imgTag}</div>`;
+                      })
+                      .join('');
+                    html = html.replace(re, slidesHtml);
+                    return;
+                  }
+                  // Generic arrays: join values with a space
+                  const generic = val.map((v: any) => (typeof v === 'string' ? v : JSON.stringify(v))).join(' ');
+                  html = html.replace(re, generic);
+                  return;
+                }
+                if (typeof val === 'string') {
+                  // For legacy comma-separated links
+                  if (key === 'links') {
+                    const linkLabels = val.split(/[,;]+/).map((s: string) => s.trim()).filter(Boolean);
+                    const linksHtml = linkLabels
+                      .map((label: string) => `<a href="#" style="color:#ffffff;text-decoration:none;margin-left:1rem;">${label}</a>`)
+                      .join('');
+                    html = html.replace(re, linksHtml);
+                    return;
+                  }
+                  if (key === 'images') {
+                    // For legacy images field: create slides with default full width
+                    const urls = val.split(/[,;]+/).map((s: string) => s.trim()).filter(Boolean);
+                    const imagesHtml = urls
+                      .map((url: string) => `<div style="flex:0 0 100%;"><img src="${url}" style="width:100%;height:auto;object-fit:cover;"/></div>`)
+                      .join('');
+                    html = html.replace(re, imagesHtml);
+                    return;
+                  }
+                  html = html.replace(re, val);
+                }
+              });
+            }
+          } catch (e) {
+            // ignore replacement errors
+          }
           return (
             <div
               // eslint-disable-next-line react/no-danger
-              dangerouslySetInnerHTML={{ __html: comp.code || "" }}
+              dangerouslySetInnerHTML={{ __html: html }}
             />
           );
         };
         nextConfig.components[compName] = {
           label: compName,
+          inline: true,
           fields: {},
           ...(comp.config || {}),
           render: renderFn,
@@ -185,7 +276,9 @@ export default function PublishedClient({ slugParts }: { slugParts: string[] }) 
         style={typeof frameWidth === "number" ? { width: frameWidth } : undefined}
       >
         {data ? (
-          <Render config={(mergedConfig as any)} data={data} />
+          <ActionStateProvider allowCustomJS={String(data?.root?.props?.allowCustomJS) === "true"}>
+            <Render config={(mergedConfig as any)} data={data} />
+          </ActionStateProvider>
         ) : (
           <div className="text-sm text-gray-600">Chargement…</div>
         )}

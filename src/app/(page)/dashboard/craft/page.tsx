@@ -779,7 +779,7 @@ const Topbar: React.FC = () => {
         alert("Copied layout JSON to clipboard");
       });
     } else {
-      console.log(json);
+      // console.log(json);
     }
   };
   const handleLoad = () => {
@@ -830,7 +830,7 @@ const Topbar: React.FC = () => {
         <button
           onClick={() => {
             const json = query.serialize();
-            console.log(json);
+            // console.log(json);
             alert("Layout JSON serialized to console");
           }}
           className="p-1 px-2 text-sm border rounded bg-gray-200 hover:bg-gray-300"

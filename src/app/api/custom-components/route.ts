@@ -32,6 +32,350 @@ type CreateOptions = {
   icon?: boolean;
 };
 
+// Detect whether the user's prompt describes a navigation bar.  We
+// perform a case‑insensitive search for common keywords.  The AI
+// sometimes struggles to build navbars reliably, so we provide a
+// bespoke fallback implementation when such a prompt is detected.
+function isNavBarPrompt(text: string): boolean {
+  const t = String(text || '').toLowerCase();
+  return t.includes('navbar') || t.includes('navigation bar') || t.includes('nav bar');
+}
+
+// Detect whether the user's prompt asks for an image carousel or slider.  We
+// check for common keywords.
+function isCarouselPrompt(text: string): boolean {
+  const t = String(text || '').toLowerCase();
+  return t.includes('carousel') || t.includes('slider');
+}
+
+// Detect whether the user's prompt asks for a sidebar or side navigation.  We
+// check for common keywords like "sidebar", "side nav" or "side navigation".
+function isSidebarPrompt(text: string): boolean {
+  const t = String(text || '').toLowerCase();
+  return t.includes('sidebar') || t.includes('side bar') || t.includes('side navigation') || t.includes('side nav');
+}
+
+// Detect whether the user's prompt describes a hero section.  A hero
+// section typically includes a prominent headline, subheading, call‑to‑action
+// button and optional illustration.  We match on common phrases like
+// "hero", "hero section", "hero banner" and variations.  This allows the
+// server to produce a multi‑element fallback layout when AI generation is
+// unavailable.
+function isHeroPrompt(text: string): boolean {
+  const t = String(text || '').toLowerCase();
+  return t.includes('hero section') || t.includes('hero banner') || (t.includes('hero') && !t.includes('zero')); // exclude accidental matches like "zero"
+}
+
+// Build a generic hero section template.  This template uses a flexible
+// layout that stacks vertically on mobile and side‑by‑side on larger
+// screens.  It defines editable fields for the headline, subheading,
+// call‑to‑action label, call‑to‑action URL, and an optional image URL.
+function buildHeroTemplate(prompt: string): { code: string; config: any } {
+  // Provide sensible defaults that can be customised via Puck.  If the
+  // prompt contains quoted text (e.g. "Welcome to Acme"), we can use it
+  // as a default headline.  Similarly, detect an image URL if present.
+  let headline = 'Your headline here';
+  let subheading = 'Your subheading here';
+  let ctaLabel = 'Get started';
+  let ctaHref = '#';
+  let imageUrl = 'https://via.placeholder.com/600x400';
+  try {
+    // Extract quoted phrases as potential headline/subheading
+    const quotes = prompt.match(/"([^"]+)"|'([^']+)'/g);
+    if (quotes && quotes.length > 0) {
+      headline = quotes[0].replace(/^["']|["']$/g, '').trim() || headline;
+      if (quotes.length > 1) {
+        subheading = quotes[1].replace(/^["']|["']$/g, '').trim() || subheading;
+      }
+    }
+    // Extract an http(s) URL as image
+    const urlMatch = prompt.match(/https?:\/\/[^\s,]+/);
+    if (urlMatch) {
+      imageUrl = urlMatch[0];
+    }
+  } catch {
+    // ignore parse errors
+  }
+  // Introduce layout and gap properties so that the hero elements can be rearranged using flex directions.  Separate fields for the image allow adjusting its dimensions and alt text.  The layout field controls flex-direction (row, row-reverse, column, column-reverse) and gap sets the spacing between the text and image in rem units.
+  const code = `
+    <section style="display:flex;flex-direction:{{layout}};align-items:center;justify-content:space-between;gap:{{gap}}rem;padding:2rem 1rem;background:#f9fafb">
+      <div style="flex:1;max-width:600px;">
+        <h1 style="font-size:2rem;font-weight:700;margin-bottom:0.5rem">{{headline}}</h1>
+        <p style="font-size:1rem;color:#6b7280;margin-bottom:1rem">{{subheading}}</p>
+        <a href="{{ctaHref}}" style="display:inline-block;padding:0.5rem 1rem;background:#111827;color:#ffffff;border-radius:0.375rem;font-weight:600;text-decoration:none">{{ctaLabel}}</a>
+      </div>
+      <div style="flex:1;max-width:600px;width:100%">
+        <img src="{{imageUrl}}" alt="{{imageAlt}}" style="width:{{imageWidth}}px;height:{{imageHeight}}px;object-fit:cover;border-radius:0.5rem" />
+      </div>
+    </section>
+  `.trim();
+  const config = {
+    fields: {
+      headline: { type: 'text', label: 'Headline', defaultValue: headline },
+      subheading: { type: 'text', label: 'Subheading', defaultValue: subheading },
+      ctaLabel: { type: 'text', label: 'CTA label', defaultValue: ctaLabel },
+      ctaHref: { type: 'text', label: 'CTA URL', defaultValue: ctaHref },
+      imageUrl: { type: 'text', label: 'Image URL', defaultValue: imageUrl },
+      imageAlt: { type: 'text', label: 'Image alt text', defaultValue: '' },
+      imageWidth: { type: 'number', label: 'Image width (px)', defaultValue: 600 },
+      imageHeight: { type: 'number', label: 'Image height (px)', defaultValue: 400 },
+      layout: {
+        type: 'select',
+        label: 'Layout direction',
+        options: [
+          { label: 'Row', value: 'row' },
+          { label: 'Row reverse', value: 'row-reverse' },
+          { label: 'Column', value: 'column' },
+          { label: 'Column reverse', value: 'column-reverse' },
+        ],
+        defaultValue: 'column',
+      },
+      gap: { type: 'number', label: 'Gap (rem)', defaultValue: 1.5 },
+    },
+  };
+  return { code, config };
+}
+
+// Extract image URLs from a carousel prompt.  This simple regex looks for
+// http/https URLs separated by commas or spaces.  If no URLs are found,
+// the caller can provide defaults.
+function parseCarouselPrompt(prompt: string): { images: string[] } {
+  const urls: string[] = [];
+  try {
+    const regex = /(https?:\/\/[^\s,]+)/g;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(prompt))) {
+      urls.push(match[1]);
+    }
+  } catch {
+    // ignore
+  }
+  return { images: urls };
+}
+
+// Build a simple sliding image carousel.  The generated HTML uses a
+// placeholder {{images}} which is replaced at render time with <div>
+// wrappers containing <img> elements.  A basic keyframes animation
+// scrolls through three slides; more slides will repeat.
+function buildCarouselTemplate(prompt: string): { code: string; config: any } {
+  // Parse any image URLs from the prompt. If none are provided, fall back to default slides.
+  const { images } = parseCarouselPrompt(prompt);
+  const defaults = [
+    'https://via.placeholder.com/800x400?text=Slide+1',
+    'https://via.placeholder.com/800x400?text=Slide+2',
+    'https://via.placeholder.com/800x400?text=Slide+3',
+  ];
+  // Build default slide objects with sensible dimensions.
+  const slides = (images.length > 0 ? images : defaults).map((url) => ({
+    src: url,
+    alt: '',
+    width: 800,
+    height: 400,
+    href: '',
+    target: '_self',
+  }));
+  const config = {
+    fields: {
+      slides: {
+        type: 'array',
+        label: 'Slides',
+        arrayFields: {
+          src: { type: 'text', label: 'Image URL' },
+          alt: { type: 'text', label: 'Alt text' },
+          width: { type: 'number', label: 'Width (px)' },
+          height: { type: 'number', label: 'Height (px)' },
+          href: { type: 'text', label: 'Link URL', defaultValue: '' },
+          target: {
+            type: 'select',
+            label: 'Link target',
+            options: [
+              { label: 'Same tab', value: '_self' },
+              { label: 'New tab', value: '_blank' },
+            ],
+            defaultValue: '_self',
+          },
+        },
+        defaultItemProps: {
+          src: 'https://via.placeholder.com/800x400',
+          alt: '',
+          width: 800,
+          height: 400,
+          href: '',
+          target: '_self',
+        },
+        getItemSummary: (item: any) => item?.src || 'Image',
+        ai: {
+          instructions: 'Always return an array of objects for slides with keys: src, alt, width, height, href (optional) and target (optional). Do not return a comma‑separated string.',
+        },
+      },
+    },
+  };
+  // Provide HTML with a slides placeholder. Each slide will be replaced at runtime by the renderer.
+  const code = `
+    <div style="position:relative;overflow:hidden;width:100%">
+      <div style="display:flex;gap:0;">{{slides}}</div>
+    </div>
+  `.trim();
+  return { code, config };
+}
+
+// Build a responsive sidebar template.  A sidebar is a vertical navigation
+// menu that appears on the left of the screen.  It should be flexible
+// enough to collapse into a top navigation bar on small screens.  The
+// template defines editable fields for the list of links, the background
+// colour, and the expanded/collapsed widths.  Default values are chosen
+// according to best practices: an expanded width between 240–300px and a
+// collapsed width between 48–64px【214629395195429†L110-L127】.  The
+// generated HTML uses inline CSS and a small media query for responsive
+// behaviour.  Links are rendered by replacing the {{links}} placeholder at
+// runtime; each link should be provided as a comma‑separated list and is
+// wrapped in a <li> element in the client rendering layer.
+function buildSidebarTemplate(prompt: string): { code: string; config: any } {
+  // Extract potential link labels from the prompt if provided, otherwise use defaults.
+  let linkNames: string[] = [];
+  try {
+    // Find comma- or slash-separated words after keywords like "with" or "includes"
+    const lower = String(prompt || '').toLowerCase();
+    const idx = lower.lastIndexOf('with');
+    if (idx >= 0) {
+      let part = prompt.slice(idx + 4).trim();
+      // Remove trailing punctuation
+      part = part.replace(/[\.?!]/g, '');
+      // Split on commas or slashes
+      linkNames = part.split(/[,\/]+/).map((s) => s.trim()).filter(Boolean);
+    }
+  } catch {
+    // ignore parse errors
+  }
+  if (linkNames.length === 0) {
+    linkNames = ['Home', 'Dashboard', 'Settings', 'Profile'];
+  }
+  const defaults = linkNames.join(', ');
+  const code = `
+    <div style="display:flex;min-height:100vh;width:100%">
+      <nav style="width:{{expandedWidth}}px;background-color:{{backgroundColor}};padding:1rem;overflow:auto;transition:width 0.3s;">
+        <ul style="list-style-type:none;margin:0;padding:0">{{links}}</ul>
+      </nav>
+      <div style="flex:1;padding:1rem">
+        <!-- Content goes here -->
+      </div>
+      <style>
+        /* Responsive behaviour: collapse sidebar into a top bar on small screens */
+        @media screen and (max-width: 700px) {
+          nav { width: 100% !important; height:auto; position:relative; }
+          nav ul { display:flex; flex-direction:row; flex-wrap:wrap; }
+          nav ul li { margin-right:1rem; }
+        }
+        @media screen and (max-width: 400px) {
+          nav ul li { margin-right:0; flex:1 1 100%; text-align:center; }
+        }
+      </style>
+    </div>
+  `.trim();
+  const config = {
+    fields: {
+      // Accept a simple comma‑separated list of link labels.  While the
+      // editor’s primary Sidebar component uses an array of objects, the
+      // fallback remains string‑based for simplicity.  The AI instructions
+      // attached to the Sidebar component will encourage generative
+      // workflows to use the full `items` array instead.  The default
+      // includes 3–6 items extracted from the prompt when available.
+      links: { type: 'text', label: 'Links (comma-separated)', defaultValue: defaults },
+      backgroundColor: { type: 'text', label: 'Background colour', defaultValue: '#f8f9fa' },
+      expandedWidth: { type: 'number', label: 'Expanded width (px)', defaultValue: 280 },
+      collapsedWidth: { type: 'number', label: 'Collapsed width (px)', defaultValue: 60 },
+    },
+  };
+  return { code, config };
+}
+
+// Attempt to extract a brand name and list of link labels from a
+// navigation bar prompt.  This heuristic looks for text in
+// parentheses, treating it as the brand, and comma‑separated items
+// following the word "and" as the menu labels.  If no explicit brand
+// is found, the first item in the list is used for the brand.
+function parseNavBarPrompt(prompt: string): { brand: string; links: string[] } {
+  let brand = '';
+  let links: string[] = [];
+  try {
+    const parenMatch = prompt.match(/\(([^)]*)\)/);
+    if (parenMatch) {
+      brand = parenMatch[1].replace(/as\s+brand/i, '').trim();
+    }
+    // Find the substring after the last occurrence of " and "
+    const lower = prompt.toLowerCase();
+    const idx = lower.lastIndexOf(' and ');
+    let after = '';
+    if (idx >= 0) {
+      after = prompt.slice(idx + 5);
+    }
+    if (after) {
+      // Remove trailing punctuation
+      after = after.replace(/[\.?!]/g, '');
+      const parts = after.split(/[,;]+/).map((s) => s.trim()).filter(Boolean);
+      links = parts;
+    }
+    // If no brand specified, use first link as brand
+    if (!brand && links.length > 0) {
+      brand = links[0];
+      links = links.slice(1);
+    }
+  } catch {
+    // ignore parse errors
+  }
+  if (!brand) brand = 'Brand';
+  if (links.length === 0) {
+    links = ['Home', 'Pricing', 'About', 'Contact'];
+  }
+  return { brand, links };
+}
+
+// Build a simple responsive navigation bar using inline styles.  The
+// generated HTML uses placeholders {{brand}} and {{links}} which are
+// later replaced by the client render function.  The config defines
+// editable fields for the brand and links.  Links should be provided
+// as a comma‑separated list when editing via Puck.
+function buildNavBarTemplate(prompt: string): { code: string; config: any } {
+  const { brand, links } = parseNavBarPrompt(prompt);
+  // Convert link strings into item objects with default href and target
+  const items = links.map((label) => ({ label, href: '#', target: '_self', active: false }));
+  const code = `
+    <nav style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:#111827;color:#ffffff;">
+      <div style="font-weight:bold;font-size:1.125rem;">{{brand}}</div>
+      <div style="display:flex;flex-wrap:wrap;margin-left:1rem;gap:1rem;">{{items}}</div>
+    </nav>
+  `.trim();
+  const config = {
+    fields: {
+      brand: { type: 'text', label: 'Brand', defaultValue: brand },
+      items: {
+        type: 'array',
+        label: 'Navigation items',
+        arrayFields: {
+          label: { type: 'text', label: 'Label' },
+          href: { type: 'text', label: 'URL' },
+          target: {
+            type: 'select',
+            label: 'Target',
+            options: [
+              { label: 'Same tab', value: '_self' },
+              { label: 'New tab', value: '_blank' },
+            ],
+            defaultValue: '_self',
+          },
+          active: { type: 'text', label: 'Active item?', defaultValue: '' },
+        },
+        defaultItemProps: { label: 'Link', href: '#', target: '_self', active: '' },
+        getItemSummary: (item: any) => item?.label || 'Item',
+        ai: {
+          instructions: 'Return an array of objects for navigation items with keys: label, href, target (optional) and active (optional). Do not return a comma‑separated string.',
+        },
+      },
+    },
+  };
+  return { code, config };
+}
+
 function buildTemplateFromOptions(opts: CreateOptions): { code: string; config?: any } {
   const o: CreateOptions = { ...opts };
   const theme = o.theme || "brand";
@@ -109,36 +453,62 @@ function buildTemplateFromOptions(opts: CreateOptions): { code: string; config?:
     </a>
   `.trim();
 
+  // Define a Puck fields configuration matching the simplified
+  // options used in the dashboard editor.  The `phone` field has been
+  // removed; users specify only a label and a URL.  Theme, variant,
+  // size, shape and icon fields mirror those available in the client‑side
+  // editor.
   const config = {
     fields: {
       label: { type: "text", label: "Label" },
       href: { type: "text", label: "URL" },
-      phone: { type: "text", label: "Phone" },
-      theme: { type: "select", label: "Theme", options: [
-        { label: "Brand", value: "brand" },
-        { label: "Light", value: "light" },
-        { label: "Dark", value: "dark" },
-      ] },
-      variant: { type: "select", label: "Variant", options: [
-        { label: "Solid", value: "solid" },
-        { label: "Outline", value: "outline" },
-        { label: "Ghost", value: "ghost" },
-      ] },
-      size: { type: "select", label: "Size", options: [
-        { label: "Small", value: "sm" },
-        { label: "Medium", value: "md" },
-        { label: "Large", value: "lg" },
-      ] },
-      shape: { type: "select", label: "Shape", options: [
-        { label: "Rounded", value: "rounded" },
-        { label: "Pill", value: "full" },
-      ] },
-      icon: { type: "select", label: "Show icon", options: [
-        { label: "Yes", value: "true" },
-        { label: "No", value: "false" },
-      ], defaultValue: "true" },
+      theme: {
+        type: "select",
+        label: "Theme",
+        options: [
+          { label: "Brand", value: "brand" },
+          { label: "Light", value: "light" },
+          { label: "Dark", value: "dark" },
+        ],
+      },
+      variant: {
+        type: "select",
+        label: "Variant",
+        options: [
+          { label: "Solid", value: "solid" },
+          { label: "Outline", value: "outline" },
+          { label: "Ghost", value: "ghost" },
+        ],
+      },
+      size: {
+        type: "select",
+        label: "Size",
+        options: [
+          { label: "Small", value: "sm" },
+          { label: "Medium", value: "md" },
+          { label: "Large", value: "lg" },
+        ],
+      },
+      shape: {
+        type: "select",
+        label: "Shape",
+        options: [
+          { label: "Rounded", value: "rounded" },
+          { label: "Pill", value: "full" },
+        ],
+      },
+      icon: {
+        type: "select",
+        label: "Show icon",
+        options: [
+          { label: "Yes", value: "true" },
+          { label: "No", value: "false" },
+        ],
+        // Hide the icon by default.  Users can toggle it to "Yes" when needed.
+        defaultValue: "false",
+      },
     },
-  };
+  } as const;
 
   return { code, config };
 }
@@ -172,8 +542,11 @@ export async function GET(req: Request) {
 // component.  Requires authentication; unauthenticated users will
 // receive a 401 response.  Expects JSON body with `prompt`, `name`
 // and optional `public` boolean.  The prompt is sent to the
-// OpenAI API to generate component code.  The resulting component
-// definition is stored in MongoDB and returned in the response.
+// Vercel AI SDK (via the generateComponent.ts helper) to generate
+// component code.  The resulting component definition is stored
+// in MongoDB and returned in the response.  Legacy fallbacks to the
+// raw OpenAI SDK have been removed, so only the AI SDK or rule‑based
+// heuristics are used to produce the component.
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -203,6 +576,7 @@ export async function POST(req: NextRequest) {
   const doAI = Boolean(useAI) && Boolean(process.env.OPENAI_API_KEY);
   let code = "";
   let config: any = undefined;
+  let docs: any = undefined;
 
   // Server-side validation (basic)
   const opts = options as CreateOptions;
@@ -242,35 +616,27 @@ export async function POST(req: NextRequest) {
   }
 
   // Helper: run AI with structured JSON output
-  async function tryAI(basePrompt: string, existing?: string) {
+  async function tryAI(basePrompt: string, existing?: string, mode: 'create' | 'modify' = 'create') {
     try {
-      if (!doAI) return false;
-      const OpenAI = (await import("openai")).default;
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const sys = `You are a senior UI engineer. Return a compact JSON object with keys: code (HTML string), config (optional Puck fields shape), and notes. Code must be self-contained HTML/CSS (no external scripts) and safe to embed. Do not include <script> or event handlers.`;
-      const user = [
-        `Request: ${basePrompt}`,
-        `Options: ${JSON.stringify(options)}`,
-        existing ? `Existing code:\n${existing}` : "",
-        `Return ONLY JSON.`,
-      ].filter(Boolean).join("\n\n");
-      const resp = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: user },
-        ],
-        temperature: 0.4,
-      });
-      const content = resp.choices?.[0]?.message?.content || "";
-      const json = JSON.parse(content || "{}");
-      code = sanitizeHtml(String(json.code || ""));
-      config = json.config || undefined;
-      return !!code;
+      // The legacy OpenAI fallback has been disabled.  This function is kept as a
+      // placeholder for reference, but it simply returns false so that the
+      // server never attempts to call the direct OpenAI API.  All AI
+      // generation now goes through the Vercel AI SDK (see generateComponent.ts).
+      return false;
     } catch (e) {
       return false;
     }
+  }
+
+  // Shallow merge for configs; preserves existing fields and adds new ones
+  function mergeConfigs(oldCfg: any, newCfg: any) {
+    const o = (oldCfg || {}) as any;
+    const n = (newCfg || {}) as any;
+    const merged: any = { ...o, ...n };
+    const of = (o.fields || {}) as any;
+    const nf = (n.fields || {}) as any;
+    merged.fields = { ...of, ...nf };
+    return merged;
   }
 
   if (action === "modify") {
@@ -282,8 +648,37 @@ export async function POST(req: NextRequest) {
     if (!existing) {
       return NextResponse.json({ error: "component not found" }, { status: 404 });
     }
-    const basePrompt = `Modify the provided component according to the user's request while preserving structure and improving quality. ${prompt}`;
-    const ok = await tryAI(basePrompt, (existing as any).code as string);
+    const basePrompt = `Enhance the provided component per the request, without removing existing content. ${prompt}`;
+    let ok = false;
+    // Flag indicating whether the component modification was generated by AI.
+    // This value persists across updates so the editor can distinguish AI
+    // components from manual ones.
+    let isAIUpdate = false;
+    // 1) Try Vercel AI SDK in modify mode
+    if (useAI) {
+      try {
+        const mod = await import('@/lib/ai/generateComponent');
+        const { modifyCustomComponent } = mod as any;
+        const res = await modifyCustomComponent(String((existing as any).code || ''), String(prompt || ''), options);
+        // If an error is returned, log it for debugging.  An error indicates the
+        // AI call failed and a fallback should be used.
+        if (res?.error) {
+          try {
+            console.error('[CustomComponents] AI modification error:', res.error);
+          } catch {}
+        }
+        if (res && res.code) {
+          code = sanitizeHtml(String(res.code || ''));
+          config = res.config || undefined;
+          docs = res.docs;
+          ok = true;
+          isAIUpdate = true;
+        }
+      } catch {}
+    }
+    // 2) Legacy OpenAI fallback removed: we no longer call tryAI here.  If the
+    // Vercel AI SDK fails to produce a result, the code falls through to the
+    // simple rule‑based fallback below.
     if (!ok) {
       // Fallback: light rule-based changes (label/color)
       const opts = options as CreateOptions;
@@ -296,29 +691,242 @@ export async function POST(req: NextRequest) {
       }
       code = sanitizeHtml(newCode);
     }
+    // Preserve previous version and increment version counter
+    const mergedConfig = mergeConfigs((existing as any).config, config);
+    function mergeDocs(oldD: any, newD: any) {
+      const o = (oldD || {}) as any;
+      const n = (newD || {}) as any;
+      const out: any = { ...o, ...n };
+      out.summary = n.summary || o.summary || '';
+      out.fields = { ...(o.fields || {}), ...(n.fields || {}) };
+      const ox = Array.isArray(o.examples) ? o.examples : [];
+      const nx = Array.isArray(n.examples) ? n.examples : [];
+      // de-dupe by title+props JSON
+      const seen = new Set<string>();
+      const mergedArr: any[] = [];
+      [...ox, ...nx].forEach((ex) => {
+        try { const key = `${ex?.title || ''}::${JSON.stringify(ex?.props || {})}`; if (seen.has(key)) return; seen.add(key); mergedArr.push(ex); } catch { mergedArr.push(ex); }
+      });
+      if (mergedArr.length) out.examples = mergedArr;
+      return out;
+    }
+    const mergedDocs = mergeDocs((existing as any).docs, docs);
     const updated = await CustomComponentModel.findOneAndUpdate(
       { _id: (existing as any)._id },
-      { $set: { code, prompt: String(prompt), config: config ?? (existing as any).config } },
+      {
+        $set: {
+          code,
+          prompt: String(prompt),
+          config: mergedConfig,
+          docs: mergedDocs,
+          // If this modification introduced AI‑generated content, update the ai flag;
+          // otherwise preserve the existing value.
+          ...(isAIUpdate ? { ai: true } : {}),
+        },
+        $push: { history: { code: (existing as any).code, config: (existing as any).config, docs: (existing as any).docs, prompt: (existing as any).prompt, at: new Date() } },
+        $inc: { version: 1 },
+      },
       { new: true }
     ).lean();
     return NextResponse.json({ ok: true, component: updated, mode: "modified" });
   }
 
   // action === 'create'
-  const promptBase = `Create a high-quality UI ${options?.platform || "component"} matching the user description. Use professional defaults when unspecified, but strictly apply any explicit user preferences.`;
-  const aiOk = await tryAI(`${promptBase}\n\nUser description: ${prompt}`);
+  const promptBase = `Create a high-quality, responsive UI component or section matching the user description. Use semantic HTML and inline CSS or Tailwind classes. When the description specifies particular elements (e.g. carousel, navbar, hero section, card grid, pricing table), construct that layout. Insert {{placeholders}} for pieces of content that should be editable and define them under a fields config so that Puck can surface them. Do not include <script> tags or event handlers.`;
+  let aiOk = false;
+  // First attempt to use the Vercel AI SDK to generate the component.  This
+  // allows us to leverage advanced prompt handling and schema validation.
+  if (useAI) {
+    try {
+      const mod = await import('@/lib/ai/generateComponent');
+      const { generateCustomComponent } = mod as any;
+      const obj = await generateCustomComponent(String(prompt || ''), options);
+      // If the AI returned an error, log it for debugging.  Do not treat
+      // errors as successful generation.
+      if (obj?.error) {
+        try {
+          console.error('[CustomComponents] AI error:', obj.error);
+        } catch {}
+      }
+      if (obj && obj.code) {
+        code = sanitizeHtml(String(obj.code || ''));
+        config = obj.config;
+        docs = obj.docs;
+        aiOk = true;
+        try {
+          console.log('[CustomComponents] Generated using OpenAI Chat API');
+        } catch {}
+      }
+    } catch (e) {
+      // Generation failed; fall through to rule‑based templates.
+    }
+  }
+  // If the AI SDK did not produce a result, skip the legacy OpenAI path entirely
+  // and fall back directly to our rule‑based template generation.  This
+  // eliminates any dependency on the OpenAI SDK and ensures that the
+  // application always uses the Vercel AI SDK or simple heuristics.
   if (!aiOk) {
-    const tpl = buildTemplateFromOptions(options as CreateOptions);
-    code = sanitizeHtml(tpl.code);
-    config = tpl.config;
+    // If the description suggests a navigation bar, carousel or hero section,
+    // generate a tailored template.  Hero detection is checked after navbar
+    // and carousel so that a prompt describing a hero carousel or hero navbar
+    // doesn’t override those dedicated templates.  If none match, fall back
+    // to the generic button/link builder.  This ordering ensures specific
+    // layouts are preferred over the generic call‑to‑action button.
+    if (isNavBarPrompt(prompt || '')) {
+      const tpl = buildNavBarTemplate(prompt || '');
+      code = sanitizeHtml(tpl.code);
+      config = tpl.config;
+      docs = {
+        summary: 'Responsive navigation bar with a brand and navigation items.',
+        fields: {
+          brand: 'Brand name displayed on the left',
+          items: 'Array of navigation items; each item has a label, href, target and optional active flag',
+        },
+        examples: [
+          {
+            title: 'Default',
+            description: 'Brand with Home, About and Contact links',
+            props: {
+              brand: 'Acme',
+              items: [
+                { label: 'Home', href: '#', target: '_self' },
+                { label: 'About', href: '#', target: '_self' },
+                { label: 'Contact', href: '#', target: '_self' },
+              ],
+            },
+          },
+        ],
+      };
+      try { console.log('[CustomComponents] Fallback: generated navigation bar template'); } catch {}
+    }
+    else if (isCarouselPrompt(prompt || '')) {
+      const tpl = buildCarouselTemplate(prompt || '');
+      code = sanitizeHtml(tpl.code);
+      config = tpl.config;
+      docs = {
+        summary: 'Image carousel with individually editable slides.',
+        fields: { slides: 'Array of slide objects; each slide has src, alt, width, height and optional href and target fields' },
+        examples: [
+          {
+            title: '3 slides',
+            description: 'Three placeholder images',
+            props: {
+              slides: [
+                { src: 'https://via.placeholder.com/800x400?text=One', alt: '', width: 800, height: 400, href: '', target: '_self' },
+                { src: 'https://via.placeholder.com/800x400?text=Two', alt: '', width: 800, height: 400, href: '', target: '_self' },
+                { src: 'https://via.placeholder.com/800x400?text=Three', alt: '', width: 800, height: 400, href: '', target: '_self' },
+              ],
+            },
+          },
+        ],
+      };
+      try { console.log('[CustomComponents] Fallback: generated carousel template'); } catch {}
+    }
+    else if (isSidebarPrompt(prompt || '')) {
+      const tpl = buildSidebarTemplate(prompt || '');
+      code = sanitizeHtml(tpl.code);
+      config = tpl.config;
+      docs = {
+        summary: 'Responsive sidebar with customizable links and widths. Uses best‑practice widths (280px expanded, 60px collapsed) and collapses into a horizontal menu on narrow screens.',
+        fields: {
+          links: 'Comma‑separated list of navigation items',
+          backgroundColor: 'Background colour of the sidebar',
+          expandedWidth: 'Width in pixels when expanded (typically 240–300)',
+          collapsedWidth: 'Width in pixels when collapsed (typically 48–64)',
+        },
+        examples: [
+          {
+            title: 'Default sidebar',
+            description: 'A sidebar with common dashboard links',
+            props: { links: 'Home, Dashboard, Settings, Profile', backgroundColor: '#f8f9fa', expandedWidth: 280, collapsedWidth: 60 },
+          },
+        ],
+      };
+      try { console.log('[CustomComponents] Fallback: generated sidebar template'); } catch {}
+    }
+    else if (isHeroPrompt(prompt || '')) {
+      const tpl = buildHeroTemplate(prompt || '');
+      code = sanitizeHtml(tpl.code);
+      config = tpl.config;
+      docs = {
+        summary: 'Responsive hero section with configurable layout, headline, subheading, call‑to‑action and image.  Users can reposition the image and text using the layout and gap fields, and adjust image dimensions.',
+        fields: {
+          headline: 'Main headline text',
+          subheading: 'Secondary text below the headline',
+          ctaLabel: 'Label for the call‑to‑action button',
+          ctaHref: 'URL for the call‑to‑action button',
+          imageUrl: 'URL of the illustrative image',
+          imageAlt: 'Alt text describing the image',
+          imageWidth: 'Width of the image in pixels',
+          imageHeight: 'Height of the image in pixels',
+          layout: 'Flex direction for placing image and text: row, row‑reverse, column or column‑reverse',
+          gap: 'Spacing between image and text (in rem units)',
+        },
+        examples: [
+          {
+            title: 'Side‑by‑side hero',
+            description: 'Image on the right and text on the left with a 1.5 rem gap',
+            props: {
+              headline: 'Welcome to our product',
+              subheading: 'Build amazing things faster',
+              ctaLabel: 'Try now',
+              ctaHref: '#',
+              imageUrl: 'https://via.placeholder.com/600x400',
+              imageAlt: '',
+              imageWidth: 600,
+              imageHeight: 400,
+              layout: 'row',
+              gap: 1.5,
+            },
+          },
+        ],
+      };
+      try { console.log('[CustomComponents] Fallback: generated hero section template'); } catch {}
+    }
+    else {
+      const tpl = buildTemplateFromOptions(options as CreateOptions);
+      code = sanitizeHtml(tpl.code);
+      config = tpl.config;
+      docs = {
+        summary: 'Configurable call‑to‑action link button.',
+        fields: {
+          label: 'Button label', href: 'Target URL', theme: 'Color theme', variant: 'Solid/Outline/Ghost', size: 'Small/Medium/Large', shape: 'Rounded/Pill', icon: 'Show an icon'
+        },
+        examples: [
+          { title: 'Primary', description: 'Brand solid medium rounded', props: { label: 'Get started', href: '#', theme: 'brand', variant: 'solid', size: 'md', shape: 'rounded', icon: true } },
+        ],
+      };
+      try { console.log('[CustomComponents] Fallback: generated generic button/link template'); } catch {}
+    }
   }
 
   try {
     const doc = await CustomComponentModel.findOneAndUpdate(
       { ownerEmail: isPublic ? null : session.user.email, name },
-      { $set: { prompt, code, config: config ?? null, public: isPublic, ownerEmail: isPublic ? null : session.user.email } },
+      {
+        $set: {
+          prompt,
+          code,
+          config: config ?? null,
+          docs: (typeof docs !== 'undefined' ? docs : null),
+          public: isPublic,
+          ownerEmail: isPublic ? null : session.user.email,
+          // Persist whether this component was generated by AI.  When the AI
+          // pipeline fails and a rule‑based template is used, this flag
+          // remains false.
+          ai: aiOk,
+        },
+      },
       { upsert: true, new: true }
     ).lean();
+    // Debug: log whether the saved component was generated by AI or not
+    try {
+      console.log('[CustomComponents] Saved component', {
+        name: name,
+        ai: aiOk,
+        id: (doc as any)?._id?.toString?.() || null,
+      });
+    } catch {}
     return NextResponse.json({ ok: true, component: doc, mode: aiOk ? "ai" : "template" });
   } catch (dbErr: any) {
     console.error("Failed to save custom component", dbErr);

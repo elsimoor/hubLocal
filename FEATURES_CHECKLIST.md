@@ -11,11 +11,11 @@ Legend: [ ] Pending · [~] In Progress · [x] Done
 
 ## Summary (manual)
 
-<!-- Updated counts after final implementation of all remaining features (favicon picker, stats page, PRO management, payment stub and admin backoffice) -->
-- Total: 26
+<!-- Updated counts after adding responsive columns, rich text component and modal overlay fix -->
+- Total: 29
 - Pending: 0
 - In Progress: 0
-- Done: 26
+- Done: 29
 
 ## Features (from quote 2310202501)
 
@@ -47,6 +47,9 @@ Legend: [ ] Pending · [~] In Progress · [x] Done
 | FEAT-018 | Gestion de compte PRO | [x] | Added `isPro` flag to user model and profile API. Profile page now shows the current plan and allows toggling between free and PRO (simulated). The lab editor uses `isPro` to enforce page limits. | |
 | FEAT-019 | Paiement (Stripe) | [x] | Implemented a mock payment flow: users can upgrade/downgrade their plan in the profile page which toggles the `isPro` flag. This simulates subscription management without real payment integration. | |
 | FEAT-020 | Backoffice (admin) | [x] | Added admin API endpoints (`/api/admin/users` and `/api/admin/hubs`) and a dashboard page for admins to list all users and hubs. Admin email is defined via `ADMIN_EMAIL` in `.env`. | |
+| FEAT-021 | Responsive columns collapse | [x] | Updated the `Columns` component in Puck config to include a `collapseAt` field and utilise `useElementWidth` to measure the container width. When the width falls below the specified threshold, columns stack vertically instead of remaining side by side. This ensures that multi‑column layouts remain usable on tablets and mobiles. | |
+| FEAT-022 | Rich text component | [x] | Added a new `RichText` component in the typography category. It stores arbitrary HTML in a textarea and renders it via `dangerouslySetInnerHTML`, with configurable alignment and colour. This lightweight rich text field is inspired by community plugins and enables advanced formatting. | |
+| FEAT-023 | Modal overlay behaviour | [x] | Refactored the modal component so that clicking inside the modal does not trigger a close. The overlay now only closes when the backdrop itself is clicked. The fix passes the ActionState context to action handlers so that buttons can properly toggle flags. | |
 
 ## Notes
 
