@@ -9,6 +9,9 @@ export default function ProfilePage() {
   const [isPro, setIsPro] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [pwdNew, setPwdNew] = useState("");
+  const [pwdConfirm, setPwdConfirm] = useState("");
+  const [pwdMessage, setPwdMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -43,6 +46,40 @@ export default function ProfilePage() {
       }
     } catch {
       setMessage("Erreur réseau.");
+    }
+  }
+
+  async function handlePasswordChange(e: FormEvent) {
+    e.preventDefault();
+    setPwdMessage(null);
+    try {
+      const res = await fetch("/api/profile/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newPassword: pwdNew,
+          confirmPassword: pwdConfirm,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data?.unchanged) {
+          setPwdMessage("Mot de passe identique, aucun changement.");
+        } else {
+          setPwdMessage("Mot de passe mis à jour.");
+          setPwdNew("");
+          setPwdConfirm("");
+        }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const code = data?.error;
+        let msg = "Erreur lors de la mise à jour.";
+        if (code === "password_mismatch") msg = "Les nouveaux mots de passe ne correspondent pas.";
+        if (code === "password_too_short") msg = "Le mot de passe doit contenir au moins 8 caractères.";
+        setPwdMessage(msg);
+      }
+    } catch {
+      setPwdMessage("Erreur réseau.");
     }
   }
 
@@ -142,6 +179,49 @@ export default function ProfilePage() {
           {isPro ? 'Revenir à la version gratuite' : 'Passer en PRO'}
         </button>
         <p className="text-xs text-gray-500 mt-2">Cette action simule l’activation ou la désactivation de l’abonnement PRO. Aucune facturation réelle n’est effectuée.</p>
+      </section>
+
+      <section className="mt-6 bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow">
+        <h2 className="text-lg font-semibold mb-3">Changer le mot de passe</h2>
+        <form onSubmit={handlePasswordChange} className="grid gap-4">
+          <div>
+            <label htmlFor="pwdNew" className="block text-sm font-medium text-gray-800">Nouveau mot de passe</label>
+            <input
+              id="pwdNew"
+              type="password"
+              value={pwdNew}
+              onChange={(e) => setPwdNew(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+          </div>
+          <div>
+            <label htmlFor="pwdConfirm" className="block text-sm font-medium text-gray-800">Confirmer le nouveau mot de passe</label>
+            <input
+              id="pwdConfirm"
+              type="password"
+              value={pwdConfirm}
+              onChange={(e) => setPwdConfirm(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              className="inline-flex items-center px-4 py-2 border border-gray-900 text-sm font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-black"
+              disabled={!pwdNew || !pwdConfirm}
+            >
+              Mettre à jour le mot de passe
+            </button>
+            {pwdMessage && <p className="text-sm text-gray-700">{pwdMessage}</p>}
+          </div>
+        </form>
+        <p className="text-xs text-gray-500 mt-2">Le nouveau mot de passe doit contenir au moins 8 caractères.</p>
       </section>
     </main>
   );

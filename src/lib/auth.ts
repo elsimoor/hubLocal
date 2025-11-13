@@ -27,7 +27,7 @@ function buildEmailServer(): string | undefined {
 
 // Hash a plain text password using SHA-256. We use a simple hash here for
 // demonstration purposes. In production, prefer bcrypt or argon2.
-function hashPassword(password: string): string {
+export function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password).digest("hex");
 }
 
