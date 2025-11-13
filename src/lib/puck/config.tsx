@@ -10,7 +10,7 @@
 // import { selectionStore } from "./selectionStore";
 
 // // Helper functions for selection highlighting.
-// const outlineForSelected: React.CSSProperties = { outline: "2px solid #6366f1", outlineOffset: 2 };
+// const outlineForSelected: any = { outline: "2px solid #6366f1", outlineOffset: 2 };
 // const getPathFromPuck = (puck: any): string | null => {
 //   try {
 //     const p = (puck as any) || {};
@@ -295,7 +295,7 @@
 //         const isEditing = isEditingFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const extraPad = isEditing && typeof editingPadding === 'number' && editingPadding > 0 ? editingPadding : 0;
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           width: '100%',
 //           padding: (padding || extraPad) ? `${(padding || 0) + extraPad}px` : undefined,
 //           margin: margin ? `${margin}px` : undefined,
@@ -307,7 +307,7 @@
 //         };
 //         // path, isSelected already computed above
 //         // While editing, apply hint min sizes and a subtle dashed outline to show the drop area
-//         const hint: React.CSSProperties = isEditing
+//         const hint: any = isEditing
 //           ? {
 //               minWidth: typeof minWidth === 'number' && minWidth > 0 ? `${minWidth}px` : undefined,
 //               minHeight: typeof minHeight === 'number' && minHeight > 0 ? `${minHeight}px` : undefined,
@@ -377,14 +377,14 @@
 //         if (variant === "muted") bg = "#f9fafb";
 //         if (variant === "dark") bg = "#111827";
 //         if (variant === "gradient") bg = `linear-gradient(135deg, ${gradientFrom || "#6366f1"}, ${gradientTo || "#8b5cf6"})`;
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           width: "100%",
 //           minHeight: typeof minHeight === "number" && minHeight > 0 ? `${minHeight}px` : undefined,
 //           background: bg,
 //           padding: `${(paddingY || 0) + (isEditing && editingPadding ? editingPadding : 0)}px ${(paddingX || 0) + (isEditing && editingPadding ? editingPadding : 0)}px`,
 //         };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
-//         const inner: React.CSSProperties = {
+//         const inner: any = {
 //           maxWidth: maxWidth || undefined,
 //           margin: "0 auto",
 //           display: center === "true" ? "flex" : undefined,
@@ -459,7 +459,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isEditing = isEditingFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
-//         const style: React.CSSProperties = {
+//         const style: any = {
 //           display: "flex",
 //           flexDirection: direction || "column",
 //           gap: typeof gap === "number" ? `${gap}px` : undefined,
@@ -511,7 +511,7 @@
 //         if (width >= tabletBp && typeof gapTablet === "number") gap = gapTablet;
 //         if (width >= desktopBp && typeof gapDesktop === "number") gap = gapDesktop;
 //         // ResponsiveFlex dynamic direction & gap; selection vars declared above
-//         const style: React.CSSProperties = {
+//         const style: any = {
 //           display: "flex",
 //           flexDirection: direction,
 //           gap: `${gap}px`,
@@ -580,7 +580,7 @@
 //         }
 //         // ResponsiveGrid dynamic template; selection vars declared above
 //         const extraPad = isEditing && typeof editingPadding === 'number' && editingPadding > 0 ? editingPadding : 0;
-//         const style: React.CSSProperties = {
+//         const style: any = {
 //           display: "grid",
 //           width: "100%",
 //           gridTemplateColumns: template,
@@ -634,7 +634,7 @@
 //         const isEditing = isEditingFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const cols = Array.isArray(columns) ? columns : [];
-//         const style: React.CSSProperties = {
+//         const style: any = {
 //           width: "100%",
 //           background: background || undefined,
 //           color: textColor || undefined,
@@ -647,7 +647,7 @@
 //           if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true);
 //           else selectionStore.toggle(path, false);
 //         };
-//         const gridStyle: React.CSSProperties = {
+//         const gridStyle: any = {
 //           display: "grid",
 //           gap: `${gap}px`,
 //           gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))`,
@@ -711,7 +711,7 @@
 //         const parentType = puck?.parent?.type;
 //         const inGrid = parentType === 'Grid' || parentType === 'ResponsiveGrid';
 //         const inFlex = parentType === 'FlexContainer' || parentType === 'ResponsiveFlex' || parentType === 'Stack';
-//         const style: React.CSSProperties = {
+//         const style: any = {
 //           gridColumn: inGrid ? `span ${columns || 1}` : undefined,
 //             gridRow: inGrid ? `span ${rows || 1}` : undefined,
 //           flexGrow: inFlex && typeof flexGrow === 'number' ? flexGrow : undefined,
@@ -759,7 +759,7 @@
 //         if (width >= tabletBp && typeof sizeTablet === 'number') size = sizeTablet;
 //         if (width >= desktopBp && typeof sizeDesktop === 'number') size = sizeDesktop;
 //         const isEditing = isEditingFromPuck(puck);
-//         const style: React.CSSProperties = orientation === 'horizontal'
+//         const style: any = orientation === 'horizontal'
 //           ? { width: `${size}px`, height: '1px' }
 //           : { height: `${size}px`, width: '1px' };
 //         if (isEditing && showOutline === 'true') {
@@ -799,7 +799,7 @@
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
 //         const extraPad = isEditing && editingPadding ? editingPadding : 0;
-//         const style: React.CSSProperties = {
+//         const style: any = {
 //           display: 'grid',
 //           width: '100%',
 //           gridTemplateColumns: `repeat(auto-fit, minmax(${minTrack}px, 1fr))`,
@@ -868,7 +868,7 @@
 //         const isEditing = isEditingFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const extraPad = isEditing && typeof editingPadding === 'number' && editingPadding > 0 ? editingPadding : 0;
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           display: 'flex',
 //           width: '100%',
 //           gap: gap ? `${gap}px` : undefined,
@@ -878,7 +878,7 @@
 //           padding: extraPad ? `${extraPad}px` : undefined,
 //         };
 //         // While editing, apply hint min sizes and a subtle dashed outline to show the drop area
-//         const hint: React.CSSProperties = isEditing
+//         const hint: any = isEditing
 //           ? {
 //               minWidth: typeof minWidth === 'number' && minWidth > 0 ? `${minWidth}px` : undefined,
 //               minHeight: typeof minHeight === 'number' && minHeight > 0 ? `${minHeight}px` : undefined,
@@ -1011,7 +1011,7 @@
 //         const preset = layout && layout !== 'custom' ? presetMap[layout] : null;
 //         const isEditing = isEditingFromPuck(puck);
 //         const extraPad = isEditing && typeof editingPadding === 'number' && editingPadding > 0 ? editingPadding : 0;
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           display: 'grid',
 //           width: '100%',
 //           gridTemplateColumns: preset?.cols || columns || undefined,
@@ -1022,7 +1022,7 @@
 //         };
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
-//         const hint: React.CSSProperties = isEditing
+//         const hint: any = isEditing
 //           ? {
 //               minWidth: typeof minWidth === 'number' && minWidth > 0 ? `${minWidth}px` : undefined,
 //               minHeight: typeof minHeight === 'number' && minHeight > 0 ? `${minHeight}px` : undefined,
@@ -1083,7 +1083,7 @@
 //       },
 //       render: ({ children: Content, columns, rows, minWidth, minHeight, showOverlayLabel, puck }: any) => {
 //         // Wrapper div receives the grid placement styles so span changes are reflected.
-//         const wrapperStyle: React.CSSProperties = {
+//         const wrapperStyle: any = {
 //           gridColumn: `span ${columns || 1}`,
 //           gridRow: `span ${rows || 1}`,
 //           minWidth: typeof minWidth === 'number' && minWidth > 0 ? `${minWidth}px` : undefined,
@@ -1092,7 +1092,7 @@
 //         };
 //         const isEditing = isEditingFromPuck(puck);
 //         const showLabel = isEditing && String(showOverlayLabel) !== 'false';
-//         const hint: React.CSSProperties = isEditing
+//         const hint: any = isEditing
 //           ? {
 //               outline: '1px dashed #e5e7eb',
 //               outlineOffset: -4,
@@ -1193,13 +1193,13 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           display: 'grid',
 //           width: '100%',
 //           gridTemplateColumns: template,
 //           gap: gap ? `${gap}px` : undefined,
 //         };
-//         const hint: React.CSSProperties = isEditing
+//         const hint: any = isEditing
 //           ? {
 //               minWidth: typeof minWidth === 'number' && minWidth > 0 ? `${minWidth}px` : undefined,
 //               minHeight: typeof minHeight === 'number' && minHeight > 0 ? `${minHeight}px` : undefined,
@@ -1247,7 +1247,7 @@
 //       inline: true,
 //       fields: { size: { type: "number", label: "Height (px)", defaultValue: 16 } },
 //       render: ({ size, puck }: any) => {
-//         const base: React.CSSProperties = { height: size ? `${size}px` : "16px" };
+//         const base: any = { height: size ? `${size}px` : "16px" };
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
@@ -1304,7 +1304,7 @@
 //       },
 //       render: ({ level, text, align, color, marginBottom, puck }: any) => {
 //         const Tag: any = level || "h2";
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           textAlign: align || undefined,
 //           color: color || undefined,
 //           marginBottom: marginBottom ? `${marginBottom}px` : undefined,
@@ -1352,7 +1352,7 @@
 //         color: { type: "text", label: "Color", defaultValue: "#374151" },
 //       },
 //       render: ({ text, align, color, puck }: any) => {
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           textAlign: align || undefined,
 //           color: color || undefined,
 //         };
@@ -1410,7 +1410,7 @@
 //         color: { type: "text", label: "Color", defaultValue: "#374151" },
 //       },
 //       render: ({ html, align, color, puck }: any) => {
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           textAlign: align || undefined,
 //           color: color || undefined,
 //         };
@@ -1464,7 +1464,7 @@
 //         radius: { type: "number", label: "Radius (px)", defaultValue: 0 },
 //       },
 //       render: ({ src, alt, width, height, objectFit, radius, puck }: any) => {
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           width: typeof width === "number" ? `${width}px` : undefined,
 //           height: typeof height === "number" ? `${height}px` : undefined,
 //           objectFit: objectFit || undefined,
@@ -1647,7 +1647,7 @@
 //           fg = "#111827";
 //           border = "none";
 //         }
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           display: "inline-flex",
 //           alignItems: "center",
 //           gap: "0.5rem",
@@ -1862,20 +1862,20 @@
 //             />
 //           )
 //           : null;
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           position: "relative",
 //           paddingTop: typeof paddingY === "number" ? `${paddingY}px` : undefined,
 //           paddingBottom: typeof paddingY === "number" ? `${paddingY}px` : undefined,
 //           background: background || undefined,
 //           color: textColor || undefined,
 //         };
-//         const inner: React.CSSProperties = {
+//         const inner: any = {
 //           margin: "0 auto",
 //           maxWidth: maxWidth || undefined,
 //           textAlign: align as any,
 //         };
 //         // Helper to compute CTA styles.
-//         const btnStyle = (variant: string): React.CSSProperties => {
+//         const btnStyle = (variant: string): any => {
 //           let bg = "#111827",
 //             fg = "#ffffff",
 //             border = "none";
@@ -2055,7 +2055,7 @@
 //         } catch {
 //           embedSrc = url || "";
 //         }
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           width: "100%",
 //           height: typeof height === "number" ? `${height}px` : "400px",
 //           border: "none",
@@ -2130,7 +2130,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           display: "grid",
 //           gridTemplateColumns: `repeat(${columns || 1}, minmax(0, 1fr))`,
 //           gap: gap ? `${gap}px` : undefined,
@@ -2202,7 +2202,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           background: background || undefined,
 //           color: textColor || undefined,
 //           padding: "2rem 1rem",
@@ -2267,7 +2267,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = {};
+//         const base: any = {};
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -2355,7 +2355,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           display: "grid",
 //           gridTemplateColumns: `repeat(${columns || 1}, minmax(0, 1fr))`,
 //           gap: gap ? `${gap}px` : undefined,
@@ -2496,7 +2496,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const baseNav: React.CSSProperties = {
+//         const baseNav: any = {
 //           padding: `${paddingY ?? 12}px ${paddingX ?? 16}px`,
 //           display: "flex",
 //           alignItems: "center",
@@ -2637,7 +2637,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = {};
+//         const base: any = {};
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -2680,7 +2680,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { display: "inline-block" };
+//         const base: any = { display: "inline-block" };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -2718,7 +2718,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { width: "100%" };
+//         const base: any = { width: "100%" };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -2779,7 +2779,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { border: "1px solid #e5e7eb", borderRadius: 8, padding: 16, display: "flex", gap: 16, alignItems: "flex-start" };
+//         const base: any = { border: "1px solid #e5e7eb", borderRadius: 8, padding: 16, display: "flex", gap: 16, alignItems: "flex-start" };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -2832,7 +2832,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           background: color || "#f3f4f6",
 //           width: typeof width === "number" ? `${width}px` : undefined,
 //           height: typeof height === "number" ? `${height}px` : undefined,
@@ -2876,7 +2876,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = {
+//         const base: any = {
 //           background: background || "#ffffff",
 //           padding: typeof padding === "number" ? `${padding}px` : undefined,
 //           borderRadius: typeof borderRadius === "number" ? `${borderRadius}px` : undefined,
@@ -2963,7 +2963,7 @@
 //         const pathId = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(pathId);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { width: '100%' };
+//         const base: any = { width: '100%' };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -3105,7 +3105,7 @@
 //         const side = position === "right" ? "right" : "left";
 //         const wDesktop = Number(widthDesktop || 280) || 280;
 //         const wMobile = Number(widthMobile || 280) || 280;
-//         const baseAside: React.CSSProperties = {
+//         const baseAside: any = {
 //           position: collapsed ? "fixed" : "relative",
 //           top: 0,
 //           bottom: 0,
@@ -3378,7 +3378,7 @@
 //         };
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
-//         const styleOverlay: React.CSSProperties = {
+//         const styleOverlay: any = {
 //           position: "fixed",
 //           inset: 0,
 //           display: "flex",
@@ -3387,7 +3387,7 @@
 //           background: "rgba(0,0,0,0.5)",
 //           zIndex: 300,
 //         };
-//         const modalStyle: React.CSSProperties = {
+//         const modalStyle: any = {
 //           background: "#fff",
 //           padding: 24,
 //           borderRadius: 8,
@@ -3511,7 +3511,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const editing = isEditing;
-//         const base: React.CSSProperties = { width: '100%' };
+//         const base: any = { width: '100%' };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -3591,7 +3591,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
+//         const base: any = { display: 'flex', alignItems: 'center', gap: '8px' };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -3641,7 +3641,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px', width: '100%' };
+//         const base: any = { display: 'flex', alignItems: 'center', gap: '8px', width: '100%' };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -3726,7 +3726,7 @@
 //           }
 //         }, [isEditing, tabsNavRef.current]);
 
-//         const base: React.CSSProperties = { width: '100%' };
+//         const base: any = { width: '100%' };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -3855,7 +3855,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px' };
+//         const base: any = { display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px' };
 //         const style = isSelected ? { ...base, ...outlineForSelected } : base;
 //         const onMouseDown = (e: any) => {
 //           e.stopPropagation();
@@ -3941,7 +3941,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { 
+//         const base: any = { 
 //           padding: '12px', 
 //           background: '#f9fafb', 
 //           border: '1px solid #e5e7eb', 
@@ -4038,7 +4038,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { 
+//         const base: any = { 
 //           display: 'flex', 
 //           flexDirection: 'column',
 //           gap: '12px', 
@@ -4182,7 +4182,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { 
+//         const base: any = { 
 //           display: 'flex', 
 //           flexDirection: 'column', 
 //           gap: '8px', 
@@ -4364,7 +4364,7 @@
 //         const path = getPathFromPuck(puck);
 //         const isSelected = selectionStore.has(path);
 //         const isEditing = isEditingFromPuck(puck);
-//         const base: React.CSSProperties = { 
+//         const base: any = { 
 //           padding: '16px', 
 //           background: '#f9fafb', 
 //           border: '1px solid #e5e7eb', 
@@ -4483,7 +4483,7 @@ import { useActionState, runActions } from "./actions"
 import { selectionStore } from "./selectionStore"
 
 // Helper functions for selection highlighting.
-const outlineForSelected: React.CSSProperties = { outline: "2px solid #6366f1", outlineOffset: 2 }
+const outlineForSelected: any = { outline: "2px solid #6366f1", outlineOffset: 2 }
 const getPathFromPuck = (puck: any): string | null => {
   try {
     const p = (puck as any) || {}
@@ -4773,7 +4773,7 @@ export const config = {
         const isEditing = isEditingFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const extraPad = isEditing && typeof editingPadding === "number" && editingPadding > 0 ? editingPadding : 0
-        const base: React.CSSProperties = {
+        const base: any = {
           width: "100%",
           padding: padding || extraPad ? `${(padding || 0) + extraPad}px` : undefined,
           margin: margin ? `${margin}px` : undefined,
@@ -4785,7 +4785,7 @@ export const config = {
         }
         // path, isSelected already computed above
         // While editing, apply hint min sizes and a subtle dashed outline to show the drop area
-        const hint: React.CSSProperties = isEditing
+        const hint: any = isEditing
           ? {
             minWidth: typeof minWidth === "number" && minWidth > 0 ? `${minWidth}px` : undefined,
             minHeight: typeof minHeight === "number" && minHeight > 0 ? `${minHeight}px` : undefined,
@@ -4864,14 +4864,14 @@ export const config = {
         if (variant === "dark") bg = "#111827"
         if (variant === "gradient")
           bg = `linear-gradient(135deg, ${gradientFrom || "#6366f1"}, ${gradientTo || "#8b5cf6"})`
-        const base: React.CSSProperties = {
+        const base: any = {
           width: "100%",
           minHeight: typeof minHeight === "number" && minHeight > 0 ? `${minHeight}px` : undefined,
           background: bg,
           padding: `${(paddingY || 0) + (isEditing && editingPadding ? editingPadding : 0)}px ${(paddingX || 0) + (isEditing && editingPadding ? editingPadding : 0)}px`,
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
-        const inner: React.CSSProperties = {
+        const inner: any = {
           maxWidth: maxWidth || undefined,
           margin: "0 auto",
           display: center === "true" ? "flex" : undefined,
@@ -4946,7 +4946,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isEditing = isEditingFromPuck(puck)
         const isSelected = selectionStore.has(path)
-        const style: React.CSSProperties = {
+        const style: any = {
           display: "flex",
           flexDirection: direction || "column",
           gap: typeof gap === "number" ? `${gap}px` : undefined,
@@ -5073,7 +5073,7 @@ export const config = {
         if (width >= tabletBp && typeof gapTablet === "number") gap = gapTablet
         if (width >= desktopBp && typeof gapDesktop === "number") gap = gapDesktop
         // ResponsiveFlex dynamic direction & gap; selection vars declared above
-        const style: React.CSSProperties = {
+        const style: any = {
           display: "flex",
           flexDirection: direction,
           gap: `${gap}px`,
@@ -5168,7 +5168,7 @@ export const config = {
         }
         // ResponsiveGrid dynamic template; selection vars declared above
         const extraPad = isEditing && typeof editingPadding === "number" && editingPadding > 0 ? editingPadding : 0
-        const style: React.CSSProperties = {
+        const style: any = {
           display: "grid",
           width: "100%",
           gridTemplateColumns: template,
@@ -5254,7 +5254,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isEditing = isEditingFromPuck(puck)
         const isSelected = selectionStore.has(path)
-        const style: React.CSSProperties = {
+        const style: any = {
           width: "100%",
           background: background || undefined,
           color: textColor || undefined,
@@ -5267,7 +5267,7 @@ export const config = {
           if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
           else selectionStore.toggle(path, false)
         }
-        const gridStyle: React.CSSProperties = {
+        const gridStyle: any = {
           display: "grid",
           gap: `${gap}px`,
           gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))`,
@@ -5428,7 +5428,7 @@ export const config = {
       parentType === "Stack";
 
     // Build style based on context
-    const style: CSSProperties = {
+    const style: any = {
       // Grid properties (only apply if in grid)
       ...(isInGrid && {
         gridColumn: `span ${gridColumns}`,
@@ -5542,7 +5542,7 @@ export const config = {
         if (width >= tabletBp && typeof sizeTablet === "number") size = sizeTablet
         if (width >= desktopBp && typeof sizeDesktop === "number") size = sizeDesktop
         const isEditing = isEditingFromPuck(puck)
-        const style: React.CSSProperties =
+        const style: any =
           orientation === "horizontal" ? { width: `${size}px`, height: "1px" } : { height: `${size}px`, width: "1px" }
         if (isEditing && showOutline === "true") {
           style.outline = "1px dashed #e5e7eb"
@@ -5601,7 +5601,7 @@ export const config = {
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
         const extraPad = isEditing && editingPadding ? editingPadding : 0
-        const style: React.CSSProperties = {
+        const style: any = {
           display: "grid",
           width: "100%",
           gridTemplateColumns: `repeat(auto-fit, minmax(${minTrack}px, 1fr))`,
@@ -5843,7 +5843,7 @@ export const config = {
 
         const extraPad = isEditing && typeof editingPadding === "number" && editingPadding > 0 ? editingPadding : 0
 
-        const style: React.CSSProperties = {
+        const style: any = {
           display: "grid",
           width: "100%",
           gridTemplateColumns: template,
@@ -5978,7 +5978,7 @@ export const config = {
         const isEditing = puck?.isEditing
         const extraPad = isEditing && typeof editingPadding === "number" && editingPadding > 0 ? editingPadding : 0
 
-        const base: React.CSSProperties = {
+        const base: any = {
           display: "grid",
           width: "100%",
           gridTemplateColumns: presetMap[layout] || columns || undefined,
@@ -5986,7 +5986,7 @@ export const config = {
           padding: extraPad ? `${extraPad}px` : undefined,
         }
 
-        const hint: React.CSSProperties = isEditing
+        const hint: any = isEditing
           ? {
             minHeight: typeof minHeight === "number" && minHeight > 0 ? `${minHeight}px` : undefined,
             outline: "1px dashed #e5e7eb",
@@ -6029,7 +6029,7 @@ export const config = {
       },
       render: ({ children: Content, columns, rows, minWidth, minHeight, showOverlayLabel, puck }: any) => {
         // Wrapper div receives the grid placement styles so span changes are reflected.
-        const wrapperStyle: React.CSSProperties = {
+        const wrapperStyle: any = {
           gridColumn: `span ${columns || 1}`,
           gridRow: `span ${rows || 1}`,
           minWidth: typeof minWidth === "number" && minWidth > 0 ? `${minWidth}px` : undefined,
@@ -6038,7 +6038,7 @@ export const config = {
         }
         const isEditing = isEditingFromPuck(puck)
         const showLabel = isEditing && String(showOverlayLabel) !== "false"
-        const hint: React.CSSProperties = isEditing
+        const hint: any = isEditing
           ? {
             outline: "1px dashed #e5e7eb",
             outlineOffset: -4,
@@ -6139,13 +6139,13 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           display: "grid",
           width: "100%",
           gridTemplateColumns: template,
           gap: gap ? `${gap}px` : undefined,
         }
-        const hint: React.CSSProperties = isEditing
+        const hint: any = isEditing
           ? {
             minWidth: typeof minWidth === "number" && minWidth > 0 ? `${minWidth}px` : undefined,
             minHeight: typeof minHeight === "number" && minHeight > 0 ? `${minHeight}px` : undefined,
@@ -6199,7 +6199,7 @@ export const config = {
       inline: true,
       fields: { size: { type: "number", label: "Height (px)", defaultValue: 16 } },
       render: ({ size, puck }: any) => {
-        const base: React.CSSProperties = { height: size ? `${size}px` : "16px" }
+        const base: any = { height: size ? `${size}px` : "16px" }
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
@@ -6249,7 +6249,7 @@ export const config = {
       },
       render: ({ level, text, align, color, marginBottom, puck }: any) => {
         const Tag: any = level || "h2"
-        const base: React.CSSProperties = {
+        const base: any = {
           textAlign: align || undefined,
           color: color || undefined,
           marginBottom: marginBottom ? `${marginBottom}px` : undefined,
@@ -6292,7 +6292,7 @@ export const config = {
         color: { type: "text", label: "Color", defaultValue: "#374151" },
       },
       render: ({ text, align, color, puck }: any) => {
-        const base: React.CSSProperties = {
+        const base: any = {
           textAlign: align || undefined,
           color: color || undefined,
         }
@@ -6345,7 +6345,7 @@ export const config = {
         color: { type: "text", label: "Color", defaultValue: "#374151" },
       },
       render: ({ html, align, color, puck }: any) => {
-        const base: React.CSSProperties = {
+        const base: any = {
           textAlign: align || undefined,
           color: color || undefined,
         }
@@ -6399,7 +6399,7 @@ export const config = {
         radius: { type: "number", label: "Radius (px)", defaultValue: 0 },
       },
       render: ({ src, alt, width, height, objectFit, radius, puck }: any) => {
-        const base: React.CSSProperties = {
+        const base: any = {
           width: typeof width === "number" ? `${width}px` : undefined,
           height: typeof height === "number" ? `${height}px` : undefined,
           objectFit: objectFit || undefined,
@@ -6577,7 +6577,7 @@ export const config = {
           fg = "#111827"
           border = "none"
         }
-        const base: React.CSSProperties = {
+        const base: any = {
           display: "inline-flex",
           alignItems: "center",
           gap: "0.5rem",
@@ -6783,20 +6783,20 @@ export const config = {
             }}
           />
         ) : null
-        const base: React.CSSProperties = {
+        const base: any = {
           position: "relative",
           paddingTop: typeof paddingY === "number" ? `${paddingY}px` : undefined,
           paddingBottom: typeof paddingY === "number" ? `${paddingY}px` : undefined,
           background: background || undefined,
           color: textColor || undefined,
         }
-        const inner: React.CSSProperties = {
+        const inner: any = {
           margin: "0 auto",
           maxWidth: maxWidth || undefined,
           textAlign: align as any,
         }
         // Helper to compute CTA styles.
-        const btnStyle = (variant: string): React.CSSProperties => {
+        const btnStyle = (variant: string): any => {
           let bg = "#111827",
             fg = "#ffffff",
             border = "none"
@@ -6961,7 +6961,7 @@ export const config = {
         } catch {
           embedSrc = url || ""
         }
-        const base: React.CSSProperties = {
+        const base: any = {
           width: "100%",
           height: typeof height === "number" ? `${height}px` : "400px",
           border: "none",
@@ -7036,7 +7036,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           display: "grid",
           gridTemplateColumns: `repeat(${columns || 1}, minmax(0, 1fr))`,
           gap: gap ? `${gap}px` : undefined,
@@ -7102,7 +7102,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           background: background || undefined,
           color: textColor || undefined,
           padding: "2rem 1rem",
@@ -7158,7 +7158,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {}
+        const base: any = {}
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -7237,7 +7237,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           display: "grid",
           gridTemplateColumns: `repeat(${columns || 1}, minmax(0, 1fr))`,
           gap: gap ? `${gap}px` : undefined,
@@ -7373,7 +7373,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const baseNav: React.CSSProperties = {
+        const baseNav: any = {
           padding: `${paddingY ?? 12}px ${paddingX ?? 16}px`,
           display: "flex",
           alignItems: "center",
@@ -7543,7 +7543,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {}
+        const base: any = {}
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -7581,7 +7581,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = { display: "inline-block" }
+        const base: any = { display: "inline-block" }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -7614,7 +7614,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = { width: "100%" }
+        const base: any = { width: "100%" }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -7679,7 +7679,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           border: "1px solid #e5e7eb",
           borderRadius: 8,
           padding: 16,
@@ -7738,7 +7738,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           background: color || "#f3f4f6",
           width: typeof width === "number" ? `${width}px` : undefined,
           height: typeof height === "number" ? `${height}px` : undefined,
@@ -7784,7 +7784,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           background: background || "#ffffff",
           padding: typeof padding === "number" ? `${padding}px` : undefined,
           borderRadius: typeof borderRadius === "number" ? `${borderRadius}px` : undefined,
@@ -7885,7 +7885,7 @@ export const config = {
         const pathId = getPathFromPuck(puck)
         const isSelected = selectionStore.has(pathId)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = { width: "100%" }
+        const base: any = { width: "100%" }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -8022,7 +8022,7 @@ export const config = {
         const side = position === "right" ? "right" : "left"
         const wDesktop = Number(widthDesktop || 280) || 280
         const wMobile = Number(widthMobile || 280) || 280
-        const baseAside: React.CSSProperties = {
+        const baseAside: any = {
           position: collapsed ? "fixed" : "relative",
           top: 0,
           bottom: 0,
@@ -8342,7 +8342,7 @@ export const config = {
         }
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
-        const styleOverlay: React.CSSProperties = {
+        const styleOverlay: any = {
           position: "fixed",
           inset: 0,
           display: "flex",
@@ -8351,7 +8351,7 @@ export const config = {
           background: "rgba(0,0,0,0.5)",
           zIndex: 300,
         }
-        const modalStyle: React.CSSProperties = {
+        const modalStyle: any = {
           background: "#fff",
           padding: 24,
           borderRadius: 8,
@@ -8488,7 +8488,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const editing = isEditing
-        const base: React.CSSProperties = { width: "100%" }
+        const base: any = { width: "100%" }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -8575,7 +8575,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = { display: "flex", alignItems: "center", gap: "8px" }
+        const base: any = { display: "flex", alignItems: "center", gap: "8px" }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -8620,7 +8620,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = { display: "flex", alignItems: "center", gap: "8px", width: "100%" }
+        const base: any = { display: "flex", alignItems: "center", gap: "8px", width: "100%" }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -8709,7 +8709,7 @@ export const config = {
         }
 
         const isSelected = false // You'd implement this with your selection store
-        const base: React.CSSProperties = { width: "100%" }
+        const base: any = { width: "100%" }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
 
         return (
@@ -8847,7 +8847,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           display: "flex",
           flexDirection: "column",
           gap: "8px",
@@ -8935,7 +8935,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           padding: "12px",
           background: "#f9fafb",
           border: "1px solid #e5e7eb",
@@ -9023,7 +9023,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           display: "flex",
           flexDirection: "column",
           gap: "12px",
@@ -9158,7 +9158,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           display: "flex",
           flexDirection: "column",
           gap: "8px",
@@ -9335,7 +9335,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: React.CSSProperties = {
+        const base: any = {
           padding: "16px",
           background: "#f9fafb",
           border: "1px solid #e5e7eb",
