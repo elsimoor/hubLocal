@@ -11,12 +11,13 @@ import { ActionStateProvider } from "@/lib/puck/actions"
  */
 export default function PuckRenderWrapper({ data }: { data: any }) {
   if (!data) return null
-  // Wrap in ActionStateProvider so components using useActionState won't throw.
-  // We disable custom JS for published pages for safety.
-  const mutableConfig: any = config // cast to satisfy Render's expected mutable arrays
+  const mutableConfig: any = config
+  const pageFont = typeof data?.root?.props?.pageFont === 'string' ? data.root.props.pageFont : undefined
   return (
     <ActionStateProvider allowCustomJS={false}>
-      <Render config={mutableConfig} data={data} />
+      <div style={{ fontFamily: pageFont }}>
+        <Render config={mutableConfig} data={data} />
+      </div>
     </ActionStateProvider>
   )
 }

@@ -291,8 +291,9 @@ export default function PublishedServer({ data, showTypes }: { data: any; showTy
     } catch {}
   }
 
+  const pageFont = typeof rp.pageFont === 'string' ? rp.pageFont : undefined;
   return (
-    <div className="min-h-[100dvh] bg-gray-50" style={{ background: backgroundPattern, backgroundAttachment: backgroundPattern ? "fixed" : undefined, backgroundSize: backgroundPattern ? "200px 200px" : undefined }}>
+    <div className="min-h-[100dvh] bg-gray-50" style={{ background: backgroundPattern, backgroundAttachment: backgroundPattern ? "fixed" : undefined, backgroundSize: backgroundPattern ? "200px 200px" : undefined, fontFamily: pageFont }}>
       {/* pre-body scripts (as requested) will be injected by page if needed */}
       <div className={typeof frameWidth === "number" ? "mx-auto py-6" : "mx-auto py-6 px-4"} style={typeof frameWidth === "number" ? { width: frameWidth } : undefined}>
         {debugSummary ? (

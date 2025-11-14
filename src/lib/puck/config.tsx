@@ -249,6 +249,20 @@ export const config = {
           },
           {
             label: "Geometric Flowers",
+        pageFont: {
+          type: "select",
+          label: "Page Font",
+          options: [
+            { label: "Default (Inter)", value: "var(--font-inter, Arial, Helvetica, sans-serif)" },
+            { label: "Lora (Serif)", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair Display", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "var(--font-inter, Arial, Helvetica, sans-serif)",
+        },
             value:
               "radial-gradient(circle at 20% 80%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em),radial-gradient(circle at 80% 20%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em),radial-gradient(circle at 50% 50%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em)",
           },
@@ -1961,13 +1975,29 @@ export const config = {
         },
         color: { type: "text", label: "Color", defaultValue: "#111827" },
         marginBottom: { type: "number", label: "Bottom (px)", defaultValue: 8 },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
-      render: ({ level, text, align, color, marginBottom, puck }: any) => {
+      render: ({ level, text, align, color, marginBottom, fontFamily, puck }: any) => {
         const Tag: any = level || "h2"
         const base: any = {
           textAlign: align || undefined,
           color: color || undefined,
           marginBottom: marginBottom ? `${marginBottom}px` : undefined,
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
@@ -2005,11 +2035,27 @@ export const config = {
           defaultValue: "left",
         },
         color: { type: "text", label: "Color", defaultValue: "#374151" },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
-      render: ({ text, align, color, puck }: any) => {
+      render: ({ text, align, color, fontFamily, puck }: any) => {
         const base: any = {
           textAlign: align || undefined,
           color: color || undefined,
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
@@ -2058,11 +2104,27 @@ export const config = {
           defaultValue: "left",
         },
         color: { type: "text", label: "Color", defaultValue: "#374151" },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code', 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
-      render: ({ html, align, color, puck }: any) => {
+      render: ({ html, align, color, fontFamily, puck }: any) => {
         const base: any = {
           textAlign: align || undefined,
           color: color || undefined,
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
