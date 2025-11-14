@@ -700,9 +700,8 @@ export const config = {
           const max = nums.length ? Math.max(...nums) : 0;
           return { min, max };
         }, [cards]);
-        const [minPrice, setMinPrice] = React.useState<number | ''>(prices.min);
-        const [maxPrice, setMaxPrice] = React.useState<number | ''>(prices.max);
-        React.useEffect(() => { setMinPrice(prices.min); setMaxPrice(prices.max); }, [prices.min, prices.max]);
+        const [minPrice, setMinPrice] = React.useState<number | ''>('');
+        const [maxPrice, setMaxPrice] = React.useState<number | ''>('');
 
         const allCategories = React.useMemo(() => {
           const set = new Set<string>();
@@ -797,7 +796,7 @@ export const config = {
                       <input className="w-20 border border-gray-200 rounded-md px-2 py-1 bg-white" type="number" step="0.01" placeholder={String(prices.min)} value={minPrice as any} onChange={(e) => setMinPrice(e.target.value === '' ? '' : Number(e.target.value))} />
                       <span>-</span>
                       <input className="w-20 border border-gray-200 rounded-md px-2 py-1 bg-white" type="number" step="0.01" placeholder={String(prices.max)} value={maxPrice as any} onChange={(e) => setMaxPrice(e.target.value === '' ? '' : Number(e.target.value))} />
-                      <button className="text-gray-500 hover:text-gray-700" onClick={() => { setMinPrice(prices.min); setMaxPrice(prices.max); }}>Reset</button>
+                      <button className="text-gray-500 hover:text-gray-700" onClick={() => { setMinPrice(''); setMaxPrice(''); }}>Reset</button>
                     </div>
                   ) : null}
                 </div>
