@@ -257,12 +257,12 @@ export const config = {
             label: "Diagonal Stripes",
             value: "repeating-linear-gradient(45deg, #1a1a1a 0px, #1a1a1a 2px, transparent 2px, transparent 20px)",
           },
-          { label: 'Overlapping Cubes', value: 'repeating-conic-gradient(from 30deg at 50% calc(1/3 * 1em),#1a1a1a 0deg 60deg,#ffffff 60deg 120deg)' },
-          { label: 'Geometric Flowers', value: 'radial-gradient(circle at 20% 80%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em),radial-gradient(circle at 80% 20%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em),radial-gradient(circle at 50% 50%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em)' },
-          { label: 'Wavy Lines', value: 'repeating-linear-gradient(90deg, #1a1a1a 0px, #1a1a1a 1px, transparent 1px, transparent calc(1em + 1px))' },
-          { label: 'Checkerboard', value: 'linear-gradient(45deg, #e5e7eb 25%, transparent 25%),linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),linear-gradient(45deg, transparent 75%, #e5e7eb 75%),linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)' },
-          { label: 'Dots Grid', value: 'radial-gradient(circle, #1a1a1a 1px, transparent 1px)' },
-          { label: 'Diagonal Stripes', value: 'repeating-linear-gradient(45deg, #1a1a1a 0px, #1a1a1a 2px, transparent 2px, transparent 20px)' },
+          // { label: 'Overlapping Cubes', value: 'repeating-conic-gradient(from 30deg at 50% calc(1/3 * 1em),#1a1a1a 0deg 60deg,#ffffff 60deg 120deg)' },
+          // { label: 'Geometric Flowers', value: 'radial-gradient(circle at 20% 80%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em),radial-gradient(circle at 80% 20%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em),radial-gradient(circle at 50% 50%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em)' },
+          // { label: 'Wavy Lines', value: 'repeating-linear-gradient(90deg, #1a1a1a 0px, #1a1a1a 1px, transparent 1px, transparent calc(1em + 1px))' },
+          // { label: 'Checkerboard', value: 'linear-gradient(45deg, #e5e7eb 25%, transparent 25%),linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),linear-gradient(45deg, transparent 75%, #e5e7eb 75%),linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)' },
+          // { label: 'Dots Grid', value: 'radial-gradient(circle, #1a1a1a 1px, transparent 1px)' },
+          // { label: 'Diagonal Stripes', value: 'repeating-linear-gradient(45deg, #1a1a1a 0px, #1a1a1a 2px, transparent 2px, transparent 20px)' },
           { label: 'Polka Dots', value: 'radial-gradient(circle, #1a1a1a 20%, transparent 20%)' },
           { label: 'Pattern 1', value: 'conic-gradient(from 0deg at calc(500%/6) calc(100%/3),#999999 0 120deg,#0000 0), conic-gradient(from -120deg at calc(100%/6) calc(100%/3),#cdcbcc 0 120deg,#0000 0), conic-gradient(from 120deg at calc(100%/3) calc(500%/6),#f2f2f2 0 120deg,#0000 0), conic-gradient(from 120deg at calc(200%/3) calc(500%/6),#f2f2f2 0 120deg,#0000 0), conic-gradient(from -180deg at calc(100%/3) 50%,#cdcbcc 60deg,#f2f2f2 0 120deg,#0000 0)' },
           { label: 'Pattern 2', value: 'repeating-conic-gradient(from 30deg,#0000 0 120deg,#3c3c3c 0 180deg) calc(.5*200px) calc(.5*200px*0.577), repeating-conic-gradient(from 30deg,#1d1d1d 0 60deg,#4e4f51 0 120deg,#3c3c3c 0 180deg)' },
@@ -988,7 +988,7 @@ export const config = {
         return (
           <footer ref={puck?.dragRef} data-puck-path={path || undefined} style={final} onMouseDown={onMouseDown}>
             <div style={gridStyle}>
-              {cols.map((col: any, i: number) => (
+              {cols?.map((col: any, i: number) => (
                 <div key={i} style={{ display: "flex", flexDirection: "column", gap: "8px", textAlign: align as any }}>
                   <div style={{ fontWeight: 600 }}>{col?.heading || ""}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
