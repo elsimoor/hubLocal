@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import { DropZone } from "@measured/puck"
 // Import ActionStateProvider, useActionState and runActions to enable
 // interactive behaviour. useActionState exposes a flags API for
@@ -171,7 +172,7 @@ export const config = {
     },
     widgets: {
       title: "Visual Widgets",
-      components: ["Card", "ColorBox", "ColorPickerBox", "QrCode", "SpotifyCard", "ExternalPost"],
+      components: ["Card", "ColorBox", "ColorPickerBox", "QrCode", "SpotifyCard", "ExternalPost", "Shop"],
       defaultExpanded: false,
     },
     animations: {
@@ -429,6 +430,47 @@ export const config = {
         ],
         defaultValue: "var(--font-inter, Arial, Helvetica, sans-serif)",
       },
+      metaKeywords: {
+        type: "text",
+        label: "Meta Keywords (comma separated)",
+        defaultValue: "",
+      },
+      metaImage: {
+        type: "text",
+        label: "Meta Image URL (OG/Twitter)",
+        defaultValue: "",
+      },
+      metaAuthor: {
+        type: "text",
+        label: "Author",
+        defaultValue: "",
+      },
+      metaCanonical: {
+        type: "text",
+        label: "Canonical URL (override)",
+        defaultValue: "",
+      },
+      metaRobots: {
+        type: "select",
+        label: "Robots Directive",
+        options: [
+          { label: "index,follow", value: "index,follow" },
+          { label: "noindex,follow", value: "noindex,follow" },
+          { label: "index,nofollow", value: "index,nofollow" },
+          { label: "noindex,nofollow", value: "noindex,nofollow" },
+        ],
+        defaultValue: "index,follow",
+      },
+      metaOgType: {
+        type: "select",
+        label: "OpenGraph Type",
+        options: [
+          { label: "website", value: "website" },
+          { label: "article", value: "article" },
+          { label: "profile", value: "profile" },
+        ],
+        defaultValue: "website",
+      },
     },
     defaultProps: {
       title: "My Page",
@@ -458,6 +500,380 @@ export const config = {
     },
   },
   components: {
+    Shop: {
+      preview: () => (
+        <div className="rounded-xl border border-gray-200 p-4 bg-white w-full">
+          <div className="text-xs font-medium text-gray-500 mb-2">Shop</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg bg-gray-100 h-20" />
+            <div className="rounded-lg bg-gray-100 h-20" />
+          </div>
+        </div>
+      ),
+      fields: {
+        title: { type: "text", label: "Section Title", defaultValue: "Products" },
+        fontFamily: {
+          type: "select",
+          label: "Font Family",
+          options: [
+            { label: "Inherit (from page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, Helvetica, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair Display", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
+        showDisclaimer: {
+          type: "select",
+          label: "Show Disclaimer",
+          options: [
+            { label: "Yes", value: "true" },
+            { label: "No", value: "false" },
+          ],
+          defaultValue: "true",
+        },
+        disclaimerText: { type: "text", label: "Disclaimer Text", defaultValue: "Products may contain affiliate links" },
+        showSearch: {
+          type: "select",
+          label: "Show Search Bar",
+          options: [
+            { label: "Yes", value: "true" },
+            { label: "No", value: "false" },
+          ],
+          defaultValue: "true",
+        },
+        searchPlaceholder: { type: "text", label: "Search Placeholder", defaultValue: "Search products" },
+        currency: { type: "text", label: "Currency Symbol", defaultValue: "$" },
+        defaultSort: {
+          type: "select",
+          label: "Default Sort",
+          options: [
+            { label: "Relevance", value: "relevance" },
+            { label: "Title A→Z", value: "title-asc" },
+            { label: "Price Low→High", value: "price-asc" },
+            { label: "Price High→Low", value: "price-desc" },
+          ],
+          defaultValue: "relevance",
+        },
+        showCategoryChips: {
+          type: "select",
+          label: "Show Category Chips",
+          options: [
+            { label: "Yes", value: "true" },
+            { label: "No", value: "false" },
+          ],
+          defaultValue: "true",
+        },
+        categories: {
+          type: "array",
+          label: "Categories (optional preset)",
+          getItemSummary: (item: any, i: number) => item?.name ? `${item.name}` : `Category ${i + 1}`,
+          defaultItemProps: { name: "All" },
+          fields: {
+            name: { type: "text", label: "Name", defaultValue: "All" },
+          },
+        },
+        showCreatorChips: {
+          type: "select",
+          label: "Show Creator Chips",
+          options: [
+            { label: "Yes", value: "true" },
+            { label: "No", value: "false" },
+          ],
+          defaultValue: "false",
+        },
+        creators: {
+          type: "array",
+          label: "Creators (optional preset)",
+          getItemSummary: (item: any, i: number) => item?.name ? `${item.name}` : `Creator ${i + 1}`,
+          defaultItemProps: { name: "" },
+          fields: {
+            name: { type: "text", label: "Name", defaultValue: "" },
+          },
+        },
+        enablePriceFilter: {
+          type: "select",
+          label: "Enable Price Filter",
+          options: [
+            { label: "Yes", value: "true" },
+            { label: "No", value: "false" },
+          ],
+          defaultValue: "true",
+        },
+        useNextImage: {
+          type: "select",
+          label: "Use Next.js Image",
+          options: [
+            { label: "No (img tag)", value: "false" },
+            { label: "Yes (optimized)", value: "true" },
+          ],
+          defaultValue: "false",
+        },
+        cards: {
+          type: "array",
+          label: "Cards",
+          getItemSummary: (item: any, i: number) => item?.title ? `${item.title}` : `Card ${i + 1}`,
+          defaultItemProps: {
+            title: "Sample Product",
+            price: 19.99,
+            url: "https://example.com",
+            imageUrl: "https://picsum.photos/seed/puck/600/400",
+            imageAlt: "Sample product image",
+            imageFit: "cover",
+            imageRatio: "16/9",
+            rounded: "xl",
+            background: "#f4f4f5",
+            badgeText: "",
+            badgeColor: "#ef4444",
+            creator: "",
+            category: "",
+          },
+          fields: {
+            title: { type: "text", label: "Title", defaultValue: "Product" },
+            price: { type: "number", label: "Price", defaultValue: 0 },
+            url: { type: "text", label: "URL", defaultValue: "" },
+            imageUrl: { type: "text", label: "Image URL", defaultValue: "" },
+            imageAlt: { type: "text", label: "Image Alt", defaultValue: "" },
+            imageRatio: {
+              type: "select",
+              label: "Image Aspect Ratio",
+              options: [
+                { label: "1:1", value: "1/1" },
+                { label: "4:3", value: "4/3" },
+                { label: "3:4", value: "3/4" },
+                { label: "16:9", value: "16/9" },
+                { label: "9:16", value: "9/16" },
+              ],
+              defaultValue: "16/9",
+            },
+            imageFit: {
+              type: "select",
+              label: "Image Fit",
+              options: [
+                { label: "Cover", value: "cover" },
+                { label: "Contain", value: "contain" },
+                { label: "Fill", value: "fill" },
+              ],
+              defaultValue: "cover",
+            },
+            rounded: {
+              type: "select",
+              label: "Rounded",
+              options: [
+                { label: "None", value: "none" },
+                { label: "sm", value: "sm" },
+                { label: "md", value: "md" },
+                { label: "lg", value: "lg" },
+                { label: "xl", value: "xl" },
+                { label: "2xl", value: "2xl" },
+                { label: "full", value: "full" },
+              ],
+              defaultValue: "xl",
+            },
+            background: { type: "text", label: "Card Background", defaultValue: "#f4f4f5" },
+            badgeText: { type: "text", label: "Badge Text", defaultValue: "" },
+            badgeColor: { type: "text", label: "Badge Color", defaultValue: "#ef4444" },
+            creator: { type: "text", label: "Creator", defaultValue: "" },
+            category: { type: "text", label: "Category", defaultValue: "" },
+          },
+        },
+      },
+      render: ({ title, cards = [], currency = '$', showSearch = 'true', searchPlaceholder = 'Search products', showDisclaimer = 'true', disclaimerText = 'Products may contain affiliate links', fontFamily, puck, defaultSort = 'relevance', showCategoryChips = 'true', categories = [], showCreatorChips = 'false', creators = [], enablePriceFilter = 'true', useNextImage = 'false' }: any) => {
+        const [query, setQuery] = React.useState("");
+        const showSearchBool = (typeof showSearch === 'string' ? showSearch : String(showSearch)) === 'true';
+        const showDisclaimerBool = (typeof showDisclaimer === 'string' ? showDisclaimer : String(showDisclaimer)) === 'true';
+        const showCategories = (typeof showCategoryChips === 'string' ? showCategoryChips : String(showCategoryChips)) === 'true';
+        const showCreators = (typeof showCreatorChips === 'string' ? showCreatorChips : String(showCreatorChips)) === 'true';
+        const priceFilterOn = (typeof enablePriceFilter === 'string' ? enablePriceFilter : String(enablePriceFilter)) === 'true';
+        const useNextImg = (typeof useNextImage === 'string' ? useNextImage : String(useNextImage)) === 'true';
+        const [sortMode, setSortMode] = React.useState(String(defaultSort || 'relevance'));
+        const [activeCategory, setActiveCategory] = React.useState<string | null>(null);
+        const [activeCreator, setActiveCreator] = React.useState<string | null>(null);
+        const q = query.trim().toLowerCase();
+        const prices = React.useMemo(() => {
+          const nums = (cards || []).map((c: any) => Number(c?.price)).filter((n: number) => !isNaN(n));
+          const min = nums.length ? Math.min(...nums) : 0;
+          const max = nums.length ? Math.max(...nums) : 0;
+          return { min, max };
+        }, [cards]);
+        const [minPrice, setMinPrice] = React.useState<number | ''>(prices.min);
+        const [maxPrice, setMaxPrice] = React.useState<number | ''>(prices.max);
+        React.useEffect(() => { setMinPrice(prices.min); setMaxPrice(prices.max); }, [prices.min, prices.max]);
+
+        const allCategories = React.useMemo(() => {
+          const set = new Set<string>();
+          (categories || []).forEach((x: any) => { if (x?.name) set.add(String(x.name)); });
+          (cards || []).forEach((c: any) => { if (c?.category) set.add(String(c.category)); });
+          return Array.from(set);
+        }, [categories, cards]);
+        const allCreators = React.useMemo(() => {
+          const set = new Set<string>();
+          (creators || []).forEach((x: any) => { if (x?.name) set.add(String(x.name)); });
+          (cards || []).forEach((c: any) => { if (c?.creator) set.add(String(c.creator)); });
+          return Array.from(set);
+        }, [creators, cards]);
+
+        const filtered = React.useMemo(() => {
+          let list = (cards || []).slice();
+          if (q) {
+            list = list.filter((c: any) => {
+              const t = String(c?.title || '').toLowerCase();
+              const pStr = typeof c?.price === 'number' ? String(c.price) : String(c?.price || '');
+              return t.includes(q) || pStr.includes(q);
+            });
+          }
+          if (activeCategory) list = list.filter((c: any) => String(c?.category || '') === activeCategory);
+          if (activeCreator) list = list.filter((c: any) => String(c?.creator || '') === activeCreator);
+          const min = typeof minPrice === 'number' ? minPrice : -Infinity;
+          const max = typeof maxPrice === 'number' ? maxPrice : Infinity;
+          list = list.filter((c: any) => {
+            const n = Number(c?.price);
+            return !isNaN(n) ? n >= min && n <= max : true;
+          });
+          switch (sortMode) {
+            case 'title-asc':
+              list.sort((a: any, b: any) => String(a?.title || '').localeCompare(String(b?.title || '')));
+              break;
+            case 'price-asc':
+              list.sort((a: any, b: any) => Number(a?.price || 0) - Number(b?.price || 0));
+              break;
+            case 'price-desc':
+              list.sort((a: any, b: any) => Number(b?.price || 0) - Number(a?.price || 0));
+              break;
+          }
+          return list;
+        }, [q, cards, activeCategory, activeCreator, minPrice, maxPrice, sortMode]);
+
+        const rClass = (r: string | undefined) => {
+          switch (r) {
+            case 'none': return 'rounded-none';
+            case 'sm': return 'rounded-sm';
+            case 'md': return 'rounded-md';
+            case 'lg': return 'rounded-lg';
+            case 'xl': return 'rounded-xl';
+            case '2xl': return 'rounded-2xl';
+            case 'full': return 'rounded-full';
+            default: return 'rounded-xl';
+          }
+        };
+
+        return (
+          <section style={{ fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }}>
+            {showDisclaimerBool && disclaimerText ? (
+              <div className="text-center text-gray-600 text-sm mb-3">{disclaimerText}</div>
+            ) : null}
+            {title ? (
+              <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-3">{title}</h2>
+            ) : null}
+            {(showSearchBool || priceFilterOn) ? (
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex items-center gap-2 rounded-full bg-white/70 backdrop-blur border border-gray-200 px-4 py-3 shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-5 h-5 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 103.75 3.75a7.5 7.5 0 0012.9 12.9z" /></svg>
+                  <input
+                    type="text"
+                    placeholder={searchPlaceholder}
+                    className="w-full bg-transparent outline-none text-gray-900 placeholder:text-gray-400 text-base"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <span>Sort:</span>
+                    <select className="border border-gray-200 rounded-md px-2 py-1 bg-white" value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
+                      <option value="relevance">Relevance</option>
+                      <option value="title-asc">Title A–Z</option>
+                      <option value="price-asc">Price Low–High</option>
+                      <option value="price-desc">Price High–Low</option>
+                    </select>
+                  </div>
+                  {priceFilterOn ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span>Price:</span>
+                      <input className="w-20 border border-gray-200 rounded-md px-2 py-1 bg-white" type="number" step="0.01" placeholder={String(prices.min)} value={minPrice as any} onChange={(e) => setMinPrice(e.target.value === '' ? '' : Number(e.target.value))} />
+                      <span>-</span>
+                      <input className="w-20 border border-gray-200 rounded-md px-2 py-1 bg-white" type="number" step="0.01" placeholder={String(prices.max)} value={maxPrice as any} onChange={(e) => setMaxPrice(e.target.value === '' ? '' : Number(e.target.value))} />
+                      <button className="text-gray-500 hover:text-gray-700" onClick={() => { setMinPrice(prices.min); setMaxPrice(prices.max); }}>Reset</button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            {showCategories && allCategories.length ? (
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button onClick={() => setActiveCategory(null)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCategory===null ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>All</button>
+                {allCategories.map((c: string, i: number) => (
+                  <button key={i} onClick={() => setActiveCategory(c===activeCategory?null:c)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCategory===c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>{c}</button>
+                ))}
+              </div>
+            ) : null}
+
+            {showCreators && allCreators.length ? (
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button onClick={() => setActiveCreator(null)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCreator===null ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>All creators</button>
+                {allCreators.map((c: string, i: number) => (
+                  <button key={i} onClick={() => setActiveCreator(c===activeCreator?null:c)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCreator===c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>{c}</button>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filtered.map((c: any, idx: number) => {
+                const fit = c?.imageFit || 'cover';
+                const rounded = rClass(c?.rounded);
+                const bg = typeof c?.background === 'string' && c.background ? c.background : '#f4f4f5';
+                const ratio = typeof c?.imageRatio === 'string' ? c.imageRatio : '16/9';
+                const trackClick = () => {
+                  try {
+                    const payload = { component: 'Shop', title: c?.title, url: c?.url, price: c?.price, creator: c?.creator, category: c?.category };
+                    if (typeof window !== 'undefined') {
+                      (window as any).dataLayer?.push({ event: 'shop_outbound_click', ...payload });
+                      window.dispatchEvent(new CustomEvent('shop:outbound-click', { detail: payload }));
+                    }
+                  } catch {}
+                };
+                return (
+                  <a key={idx} href={c?.url || '#'} target={c?.url ? '_blank' : undefined} rel={c?.url ? 'noopener noreferrer' : undefined} className="group block" onClick={trackClick}>
+                    <div className={`overflow-hidden ${rounded} border border-gray-200 shadow-sm bg-white transition-shadow hover:shadow-md`} style={{ background: '#ffffff' }}>
+                      <div className={`relative w-full ${rounded}`} style={{ background: bg, aspectRatio: ratio }}>
+                        {c?.imageUrl ? (
+                          useNextImg ? (
+                            <Image src={c.imageUrl} alt={c?.imageAlt || ''} fill style={{ objectFit: fit as any }} />
+                          ) : (
+                            <img src={c.imageUrl} alt={c?.imageAlt || ''} className="w-full h-full" style={{ objectFit: fit as any }} />
+                          )
+                        ) : (
+                          <div className="absolute inset-0 grid place-items-center text-gray-400 text-sm">No image</div>
+                        )}
+                        {c?.badgeText ? (
+                          <div className="absolute top-2 left-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium shadow" style={{ background: c?.badgeColor || '#ef4444', color: '#fff' }}>{c.badgeText}</div>
+                        ) : null}
+                      </div>
+                      <div className="p-3">
+                        <div className="text-gray-900 text-base md:text-lg font-medium line-clamp-2">{c?.title || 'Untitled'}</div>
+                        <div className="text-gray-500 text-sm mt-0.5">{currency}{typeof c?.price === 'number' ? c.price.toFixed(2) : String(c?.price || '')}</div>
+                        <div className="text-gray-400 text-xs mt-1 flex gap-2">
+                          {c?.category ? <span>#{c.category}</span> : null}
+                          {c?.creator ? <span>by {c.creator}</span> : null}
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                );
+              })}
+              {filtered.length === 0 ? (
+                <div className="col-span-full text-center text-gray-500 py-8">No products match your search.</div>
+              ) : null}
+            </div>
+          </section>
+        );
+      },
+    },
     /**
      * Container component for constraining content and applying padding/margins.
      * The wrapper applies selection outlines and passes dragRef for Puck.

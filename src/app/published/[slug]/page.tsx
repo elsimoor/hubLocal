@@ -60,16 +60,50 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   try {
     const { slug } = await params;
     const base = process.env.NEXT_PUBLIC_SITE_URL || `http://localhost:3000`;
-    const url = `${base}/api/puck/published/${encodeURIComponent(slug)}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (res.ok) {
-      const json = await res.json();
-      const description = json?.data?.root?.props?.description;
-      if (typeof description === "string" && description.trim()) {
-        const title = json?.data?.root?.props?.title;
-        return { description, title };
-      }
-    }
+    const apiUrl = `${base}/api/puck/published/${encodeURIComponent(slug)}`;
+    const res = await fetch(apiUrl, { cache: "no-store" });
+    if (!res.ok) return {};
+    const json = await res.json();
+    const rp = json?.data?.root?.props || {};
+    const title = typeof rp.title === 'string' ? rp.title : undefined;
+    const description = typeof rp.description === 'string' ? rp.description : undefined;
+    const keywords = typeof rp.metaKeywords === 'string' && rp.metaKeywords.trim() ? rp.metaKeywords : undefined;
+    const image = typeof rp.metaImage === 'string' && rp.metaImage.trim() ? rp.metaImage : undefined;
+    const author = typeof rp.metaAuthor === 'string' && rp.metaAuthor.trim() ? rp.metaAuthor : undefined;
+    const canonical = typeof rp.metaCanonical === 'string' && rp.metaCanonical.trim() ? rp.metaCanonical : `${base}/published/${encodeURIComponent(slug)}`;
+    const robots = typeof rp.metaRobots === 'string' ? rp.metaRobots : 'index,follow';
+    const ogType = typeof rp.metaOgType === 'string' ? rp.metaOgType : 'website';
+
+    const openGraph: Metadata['openGraph'] = {
+      title: title,
+      description: description,
+      type: ogType as any,
+      url: canonical,
+      images: image ? [{ url: image }] : undefined,
+    };
+    const twitter: Metadata['twitter'] = {
+      card: image ? 'summary_large_image' : 'summary',
+      title: title,
+      description: description,
+      images: image ? [image] : undefined,
+    };
+    const robotsObj: Metadata['robots'] = robots
+      ? {
+          index: robots.includes('index'),
+          follow: robots.includes('follow'),
+        }
+      : undefined;
+
+    return {
+      title,
+      description,
+      keywords: keywords ? keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : undefined,
+      authors: author ? [{ name: author }] : undefined,
+      alternates: { canonical },
+      openGraph,
+      twitter,
+      robots: robotsObj,
+    };
   } catch {}
   return {};
 }
