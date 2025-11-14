@@ -1,6 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
-import PublishedClient from "./PublishedClient";
+import PublishedServer from "../PublishedServer";
 
 // With Next.js 15, params is a Promise in RSC. Unwrap with React.use.
 export default async function PublishedPage({ params }: { params: Promise<{ slug: string[] }> }) {
@@ -14,7 +14,25 @@ export default async function PublishedPage({ params }: { params: Promise<{ slug
       initialData = json?.data ?? null;
     }
   } catch {}
-  return <PublishedClient slugParts={slug || []} initialData={initialData} />;
+  if (!initialData) {
+    return (
+      <div className="min-h-[60vh] grid place-items-center text-center text-gray-600">
+        <div>
+          <div className="text-lg font-medium text-gray-900">Page not published</div>
+          <div className="text-sm">This page has no published content yet.</div>
+        </div>
+      </div>
+    );
+  }
+  const scriptBeforeBody = initialData?.root?.props?.scriptBeforeBody;
+  const scriptAfterBody = initialData?.root?.props?.scriptAfterBody;
+  return (
+    <>
+      {scriptBeforeBody ? <div dangerouslySetInnerHTML={{ __html: scriptBeforeBody }} /> : null}
+      <PublishedServer data={initialData} />
+      {scriptAfterBody ? <div dangerouslySetInnerHTML={{ __html: scriptAfterBody }} /> : null}
+    </>
+  );
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string[] }> }): Promise<Metadata> {
