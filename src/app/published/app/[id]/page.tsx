@@ -1,25 +1,25 @@
 import React from "react";
 import type { Metadata } from "next";
-import PublishedClient from "../[...slug]/PublishedClient";
+import PublishedClient from "../../[...slug]/PublishedClient";
 
-export default async function PublishedPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function PublishedUUIDHomePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   let initialData: any = null;
   try {
-    const url = `/api/puck/published/${encodeURIComponent(slug)}`;
+    const url = `/api/puck/published/app/${encodeURIComponent(id)}`;
     const res = await fetch(url, { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
       initialData = json?.data ?? null;
     }
   } catch {}
-  return <PublishedClient slugParts={[slug]} initialData={initialData} />;
+  return <PublishedClient slugParts={["app", id]} initialData={initialData} />;
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   try {
-    const { slug } = await params;
-    const url = `/api/puck/published/${encodeURIComponent(slug)}`;
+    const { id } = await params;
+    const url = `/api/puck/published/app/${encodeURIComponent(id)}`;
     const res = await fetch(url, { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();

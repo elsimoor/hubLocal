@@ -712,9 +712,29 @@ function PuckEditor() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        const url = `/published/${slug.split('/').map(encodeURIComponent).join('/')}`;
-                        try { window.open(url, '_blank'); } catch { router.push(url); }
+                      onClick={async () => {
+                        try {
+                          // slug is like "appSlug/page"; we resolve appId by listing user's apps
+                          const parts = (slug || '').split('/');
+                          const appSlug = parts[0] || '';
+                          const pagePart = parts.slice(1).join('/') || 'home';
+                          let url = `/published/${parts.map(encodeURIComponent).join('/')}`; // fallback
+                          if (appSlug) {
+                            try {
+                              const res = await fetch('/api/apps', { cache: 'no-store' });
+                              const json = await res.json();
+                              const list = Array.isArray(json?.apps) ? json.apps : [];
+                              const mine = list.find((a: any) => a?.slug === appSlug);
+                              if (mine?._id) {
+                                url = `/published/app/${encodeURIComponent(mine._id)}/${pagePart.split('/').map(encodeURIComponent).join('/')}`;
+                              }
+                            } catch {}
+                          }
+                          try { window.open(url, '_blank'); } catch { router.push(url); }
+                        } catch {
+                          const url = `/published/${slug.split('/').map(encodeURIComponent).join('/')}`;
+                          try { window.open(url, '_blank'); } catch { router.push(url); }
+                        }
                       }}
                       className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
                     >

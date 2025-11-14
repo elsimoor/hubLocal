@@ -75,8 +75,8 @@ import { ActionStateProvider } from "@/lib/puck/actions";
 //
 import { config as publishedConfig } from "@/lib/puck/config";
 
-export default function PublishedClient({ slugParts }: { slugParts: string[] }) {
-  const [data, setData] = useState<any>(null);
+export default function PublishedClient({ slugParts, initialData }: { slugParts: string[]; initialData?: any }) {
+  const [data, setData] = useState<any>(initialData ?? null);
   // Hold any custom components loaded from the API.
   const [customComponents, setCustomComponents] = useState<any[]>([]);
 
@@ -84,6 +84,7 @@ export default function PublishedClient({ slugParts }: { slugParts: string[] }) 
     let active = true;
     (async () => {
       try {
+        if (initialData) return; // already have server-fetched data
         const url = "/api/puck/published/" + slugParts.map(encodeURIComponent).join("/");
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("not found");
@@ -104,7 +105,7 @@ export default function PublishedClient({ slugParts }: { slugParts: string[] }) 
       }
     })();
     return () => { active = false; };
-  }, [JSON.stringify(slugParts)]);
+  }, [JSON.stringify(slugParts), !!initialData]);
 
   // Load public and user‑specific custom components on mount.  These
   // definitions are merged into the static Puck configuration
@@ -269,8 +270,17 @@ export default function PublishedClient({ slugParts }: { slugParts: string[] }) 
     } catch {}
   }, [JSON.stringify(data?.root?.props?.viewport), frameWidth]);
 
+  const scriptBeforeBody = data?.root?.props?.scriptBeforeBody;
+  const scriptAfterBody = data?.root?.props?.scriptAfterBody;
+
   return (
     <div className="min-h-[100dvh] bg-gray-50">
+      {scriptBeforeBody ? (
+        <div
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: scriptBeforeBody }}
+        />
+      ) : null}
       <div
         className={typeof frameWidth === "number" ? "mx-auto py-6" : "mx-auto py-6 px-4"}
         style={typeof frameWidth === "number" ? { width: frameWidth } : undefined}
@@ -283,6 +293,12 @@ export default function PublishedClient({ slugParts }: { slugParts: string[] }) 
           <div className="text-sm text-gray-600">Chargement…</div>
         )}
       </div>
+      {scriptAfterBody ? (
+        <div
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: scriptAfterBody }}
+        />
+      ) : null}
     </div>
   );
 }

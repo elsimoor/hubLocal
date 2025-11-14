@@ -208,6 +208,16 @@ export const config = {
         label: "Meta Description (SEO)",
         defaultValue: "Page description for search engines",
       },
+      scriptBeforeBody: {
+        type: "textarea",
+        label: "Script tags before body",
+        defaultValue: "",
+      },
+      scriptAfterBody: {
+        type: "textarea",
+        label: "Script tags after body",
+        defaultValue: "",
+      },
       viewport: {
         type: "select",
         label: "Viewport Mode",

@@ -71,7 +71,7 @@ export default function AppPagesPage() {
                   <div className="text-xs text-gray-500">{p.status} • {p.updatedAt ? new Date(p.updatedAt).toLocaleString() : ""}</div>
                   <div className="mt-2 flex items-center gap-3">
                     <Link href={`/dashboard/puck?slug=${encodeURIComponent(app.slug + "/" + p.pageSlug)}`} className="text-sm text-indigo-600 hover:underline">Edit</Link>
-                    <Link href={`/published/${app.slug}/${p.pageSlug}`} className="text-sm text-gray-700 hover:underline" target="_blank">Open</Link>
+                    <Link href={`/published/app/${app._id}/${p.pageSlug}`} className="text-sm text-gray-700 hover:underline" target="_blank">Open</Link>
                   </div>
                 </div>
               ))}
