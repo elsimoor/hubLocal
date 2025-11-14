@@ -151,6 +151,7 @@ export default function AppsDashboardPage() {
       }
       const res = await fetch("/api/apps", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error("Create failed");
+      // @ts-ignore
       setForm({ name: "", slug: "", description: "", icon: "" });
       setSlugTouched(false);
       await loadApps();

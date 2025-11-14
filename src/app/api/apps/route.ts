@@ -26,7 +26,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session:any = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const name = String(body?.name || "").slice(0, 120);
