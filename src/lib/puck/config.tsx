@@ -249,20 +249,6 @@ export const config = {
           },
           {
             label: "Geometric Flowers",
-        pageFont: {
-          type: "select",
-          label: "Page Font",
-          options: [
-            { label: "Default (Inter)", value: "var(--font-inter, Arial, Helvetica, sans-serif)" },
-            { label: "Lora (Serif)", value: "var(--font-lora, Georgia, serif)" },
-            { label: "Playfair Display", value: "var(--font-playfair, 'Playfair Display', serif)" },
-            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
-            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
-            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
-            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
-          ],
-          defaultValue: "var(--font-inter, Arial, Helvetica, sans-serif)",
-        },
             value:
               "radial-gradient(circle at 20% 80%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em),radial-gradient(circle at 80% 20%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em),radial-gradient(circle at 50% 50%, #1a1a1a 0%, #1a1a1a 1em, transparent 1em)",
           },
@@ -429,6 +415,20 @@ export const config = {
         ],
         defaultValue: "none",
       },
+      pageFont: {
+        type: "select",
+        label: "Page Font",
+        options: [
+          { label: "Default (Inter)", value: "var(--font-inter, Arial, Helvetica, sans-serif)" },
+          { label: "Lora (Serif)", value: "var(--font-lora, Georgia, serif)" },
+          { label: "Playfair Display", value: "var(--font-playfair, 'Playfair Display', serif)" },
+          { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+          { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+          { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+          { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+        ],
+        defaultValue: "var(--font-inter, Arial, Helvetica, sans-serif)",
+      },
     },
     defaultProps: {
       title: "My Page",
@@ -437,7 +437,7 @@ export const config = {
       theme: "light",
       backgroundPattern: "none",
     },
-    render: ({ children, title, description, viewport, theme, backgroundPattern }: any) => {
+    render: ({ children, title, description, viewport, theme, backgroundPattern, pageFont }: any) => {
       return (
         <div
           data-theme={theme}
@@ -448,6 +448,7 @@ export const config = {
             backgroundAttachment: backgroundPattern !== "none" ? "fixed" : undefined,
             backgroundSize: backgroundPattern !== "none" ? "200px 200px" : undefined,
             minHeight: "100vh",
+            fontFamily: typeof pageFont === 'string' ? pageFont : undefined,
           }}
         >
           {/* Page metadata can be accessed programmatically */}
@@ -971,6 +972,21 @@ export const config = {
         paddingY: { type: "number", label: "Padding Y (px)", defaultValue: 48 },
         paddingX: { type: "number", label: "Padding X (px)", defaultValue: 24 },
         editingPadding: { type: "number", label: "Editing extra padding (px)", defaultValue: 8 },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       render: ({
         columns,
@@ -983,6 +999,7 @@ export const config = {
         paddingY,
         paddingX,
         editingPadding,
+        fontFamily,
         puck,
       }: any) => {
         const path = getPathFromPuck(puck)
@@ -993,6 +1010,7 @@ export const config = {
           background: background || undefined,
           color: textColor || undefined,
           padding: `${(paddingY || 0) + (isEditing && editingPadding ? editingPadding : 0)}px ${(paddingX || 0) + (isEditing && editingPadding ? editingPadding : 0)}px`,
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const final = isSelected ? { ...style, ...outlineForSelected } : style
         const onMouseDown = (e: any) => {
@@ -2215,6 +2233,21 @@ export const config = {
       fields: {
         label: { type: "text", label: "Label", defaultValue: "Get started" },
         href: { type: "text", label: "URL", defaultValue: "#" },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
         variant: {
           type: "select",
           label: "Variant",
@@ -2335,7 +2368,7 @@ export const config = {
           getItemSummary: (a: any) => a?.type || "action",
         },
       },
-      render: ({ label, href, variant, size, rounded, actions, puck }: any) => {
+      render: ({ label, href, variant, size, rounded, fontFamily, actions, puck }: any) => {
         // Grab the ActionState context. Passing this context to runActions ensures
         // that flags and toggle actions work reliably when buttons are clicked.
         const actionState = useActionState()
@@ -2367,6 +2400,7 @@ export const config = {
           textDecoration: "none",
           boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
           cursor: "pointer",
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
@@ -2520,6 +2554,21 @@ export const config = {
           label: "Image height (px)",
           defaultValue: 400,
         },
+        fontFamily: {
+          type: "select",
+          label: "Font (title/subtitle)",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       render: (props: any) => {
         const {
@@ -2545,6 +2594,7 @@ export const config = {
           imagePosition,
           imageWidth,
           imageHeight,
+          fontFamily,
           puck,
         } = props || {}
         // Compute hero image element once. If no src is provided then heroImage is null.
@@ -2655,6 +2705,7 @@ export const config = {
                       lineHeight: 1.2,
                       fontWeight: 700,
                       marginBottom: 12,
+                      fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
                     }}
                   >
                     {title}
@@ -2667,6 +2718,7 @@ export const config = {
                       lineHeight: 1.6,
                       opacity: 0.9,
                       marginBottom: 16,
+                      fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
                     }}
                   >
                     {subtitle}
@@ -2868,6 +2920,21 @@ export const config = {
           ],
           defaultValue: "center",
         },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       defaultProps: {
         items: [
@@ -2875,7 +2942,7 @@ export const config = {
           { quote: "Our marketing team loves using this editor!", author: "John Smith" },
         ],
       },
-      render: ({ items, background, textColor, align, puck }: any) => {
+      render: ({ items, background, textColor, align, fontFamily, puck }: any) => {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
@@ -2884,6 +2951,7 @@ export const config = {
           color: textColor || undefined,
           padding: "2rem 1rem",
           textAlign: align || "center",
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
@@ -2924,6 +2992,21 @@ export const config = {
           defaultItemProps: { label: "", url: "" },
           getItemSummary: (props: any) => props?.label || "Link",
         },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       defaultProps: {
         items: [
@@ -2931,11 +3014,11 @@ export const config = {
           { label: "GitHub", url: "https://github.com/measuredco/puck" },
         ],
       },
-      render: ({ title, items, puck }: any) => {
+      render: ({ title, items, fontFamily, puck }: any) => {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: any = {}
+        const base: any = { fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -2980,6 +3063,21 @@ export const config = {
         },
         columns: { type: "number", label: "Columns", defaultValue: 5 },
         gap: { type: "number", label: "Gap (px)", defaultValue: 16 },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       defaultProps: {
         items: [
@@ -3010,7 +3108,7 @@ export const config = {
           },
         ],
       },
-      render: ({ items, columns, gap, puck }: any) => {
+      render: ({ items, columns, gap, fontFamily, puck }: any) => {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
@@ -3018,6 +3116,7 @@ export const config = {
           display: "grid",
           gridTemplateColumns: `repeat(${columns || 1}, minmax(0, 1fr))`,
           gap: gap ? `${gap}px` : undefined,
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
@@ -3096,6 +3195,21 @@ export const config = {
           ],
           defaultValue: "right",
         },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
         links: {
           type: "array",
           label: "Links",
@@ -3139,6 +3253,7 @@ export const config = {
           collapseAt,
           menuButtonLabel,
           mobileMenuPosition,
+          fontFamily,
           links,
           puck,
         } = props || {}
@@ -3157,6 +3272,7 @@ export const config = {
           justifyContent: "space-between",
           gap: gap ?? 12,
           position: "relative",
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const navStyle = isSelected ? { ...baseNav, ...outlineForSelected } : baseNav
         const onMouseDown = (e: any) => {
@@ -3315,12 +3431,27 @@ export const config = {
         },
         color: { type: "text", label: "Colour", defaultValue: "#111827" },
         fontSize: { type: "number", label: "Font size (px)", defaultValue: 20 },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
-      render: ({ text, speed, loop, loopDelay, cursor, color, fontSize, puck }: any) => {
+      render: ({ text, speed, loop, loopDelay, cursor, color, fontSize, fontFamily, puck }: any) => {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: any = {}
+        const base: any = { fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -3386,12 +3517,27 @@ export const config = {
       fields: {
         url: { type: "text", label: "Spotify URL", defaultValue: "" },
         height: { type: "number", label: "Height (px)", defaultValue: 352 },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
-      render: ({ url, height, puck }: any) => {
+      render: ({ url, height, fontFamily, puck }: any) => {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
-        const base: any = { width: "100%" }
+        const base: any = { width: "100%", fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -3451,8 +3597,23 @@ export const config = {
         url: { type: "text", label: "Article URL", defaultValue: "" },
         description: { type: "textarea", label: "Description", defaultValue: "" },
         image: { type: "text", label: "Image URL", defaultValue: "" },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
-      render: ({ title, url, description, image, puck }: any) => {
+      render: ({ title, url, description, image, fontFamily, puck }: any) => {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
@@ -3463,6 +3624,7 @@ export const config = {
           display: "flex",
           gap: 16,
           alignItems: "flex-start",
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
@@ -3547,6 +3709,21 @@ export const config = {
         padding: { type: "number", label: "Padding (px)", defaultValue: 16 },
         borderRadius: { type: "number", label: "Border radius (px)", defaultValue: 8 },
         border: { type: "text", label: "Border", defaultValue: "" },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       render: ({
         header: HeaderSlot,
@@ -3556,6 +3733,7 @@ export const config = {
         padding,
         borderRadius,
         border,
+        fontFamily,
         puck,
       }: any) => {
         const path = getPathFromPuck(puck)
@@ -3566,6 +3744,7 @@ export const config = {
           padding: typeof padding === "number" ? `${padding}px` : undefined,
           borderRadius: typeof borderRadius === "number" ? `${borderRadius}px` : undefined,
           border: border || undefined,
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
@@ -3619,8 +3798,23 @@ export const config = {
         },
         body: { type: "textarea", label: "Request body (JSON)", defaultValue: "" },
         property: { type: "text", label: "Response property path", defaultValue: "" },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
-      render: ({ url, method, body, property, puck }: any) => {
+      render: ({ url, method, body, property, fontFamily, puck }: any) => {
         const [data, setData] = useState<any>(null)
         const [error, setError] = useState<any>(null)
         const [loading, setLoading] = useState<boolean>(false)
@@ -3662,7 +3856,7 @@ export const config = {
         const pathId = getPathFromPuck(puck)
         const isSelected = selectionStore.has(pathId)
         const isEditing = isEditingFromPuck(puck)
-        const base: any = { width: "100%" }
+        const base: any = { width: "100%", fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -3764,6 +3958,21 @@ export const config = {
           defaultItemProps: { label: "Dashboard", href: "#", target: "_self", active: "false" },
           getItemSummary: (it: any) => it?.label || "Item",
         },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       render: (props: any) => {
         const {
@@ -3776,6 +3985,7 @@ export const config = {
           controlFlag,
           defaultOpen,
           items,
+          fontFamily,
           puck,
         } = props || {}
         const { ref, width } = useElementWidth<HTMLDivElement>()
@@ -3813,6 +4023,7 @@ export const config = {
           display: collapsed && !isOpen ? "none" : "flex",
           flexDirection: "column",
           gap: 8,
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const asideStyle = isSelected ? { ...baseAside, ...outlineForSelected } : baseAside
         const onMouseDown = (e: any) => {
@@ -3905,6 +4116,21 @@ export const config = {
         title: { type: "text", label: "Title", defaultValue: "Modal title" },
         description: { type: "textarea", label: "Description", defaultValue: "" },
         children: { type: "slot", label: "Content" },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
         closeOnOverlay: {
           type: "select",
           label: "Close on overlay",
@@ -4079,6 +4305,7 @@ export const config = {
           title,
           description,
           children: Content,
+          fontFamily,
           closeOnOverlay,
           showCloseButton,
           closeLabel,
@@ -4136,6 +4363,7 @@ export const config = {
           maxHeight: "90vh",
           overflowY: "auto",
           boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const wrapperStyle = isSelected ? { ...styleOverlay, ...outlineForSelected } : styleOverlay
         const onMouseDown = (e: any) => {
@@ -4243,12 +4471,27 @@ export const config = {
           },
           defaultItemProps: { title: "Section title" },
         },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       defaultProps: {
         allowMultiple: "false",
         items: [{ title: "Accordion Item 1" }, { title: "Accordion Item 2" }],
       },
-      render: ({ allowMultiple, items, puck }: any) => {
+      render: ({ allowMultiple, items, fontFamily, puck }: any) => {
         const [openIndexes, setOpenIndexes] = React.useState<number[]>([])
         const allowMulti = String(allowMultiple || "false") !== "false"
         const isEditing = isEditingFromPuck(puck)
@@ -4265,7 +4508,7 @@ export const config = {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const editing = isEditing
-        const base: any = { width: "100%" }
+        const base: any = { width: "100%", fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
           e.stopPropagation()
@@ -4330,8 +4573,23 @@ export const config = {
           ],
           defaultValue: "false",
         },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
-      render: ({ label, flag, defaultChecked, puck }: any) => {
+      render: ({ label, flag, defaultChecked, fontFamily, puck }: any) => {
         const { flags, setFlag } = useActionState()
         const flagName = String(flag || "switchFlag").trim() || "switchFlag"
         const defaultVal = String(defaultChecked || "false") !== "false"
@@ -4364,7 +4622,7 @@ export const config = {
           <div ref={puck?.dragRef} data-puck-path={path || undefined} style={style} onMouseDown={onMouseDown}>
             <label style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
               <input type="checkbox" checked={checked} onChange={toggle} style={{ cursor: "pointer" }} />
-              {label}
+              <span style={{ fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }}>{label}</span>
             </label>
           </div>
         )
@@ -4447,6 +4705,21 @@ export const config = {
         tab2Content: { type: "slot", label: "Tab 2 content" },
         tab3Title: { type: "text", label: "Tab 3 title", defaultValue: "Tab 3" },
         tab3Content: { type: "slot", label: "Tab 3 content" },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       defaultProps: {
         defaultTab: 0,
@@ -4464,6 +4737,7 @@ export const config = {
         tab2Content: Tab2Content,
         tab3Title,
         tab3Content: Tab3Content,
+        fontFamily,
         puck,
       }: any) => {
         const [activeTab, setActiveTab] = React.useState<number>(() => {
@@ -4500,6 +4774,7 @@ export const config = {
                 justifyContent: tabsAlign || "flex-start",
                 flexWrap: "wrap",
                 marginBottom: "16px",
+                fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
               }}
             >
               {tabs.map((tab: any, idx: number) => {
@@ -4601,6 +4876,21 @@ export const config = {
           ],
           defaultValue: "true",
         },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       defaultProps: {
         label: "Pick a color",
@@ -4608,7 +4898,7 @@ export const config = {
         flag: "selectedColor",
         showHex: "true",
       },
-      render: ({ label, defaultColor, flag, showHex, puck }: any) => {
+      render: ({ label, defaultColor, flag, showHex, fontFamily, puck }: any) => {
         const { flags, setFlag } = useActionState()
         const flagName = String(flag || "selectedColor").trim()
         const [color, setColor] = React.useState<string>(() => {
@@ -4631,6 +4921,7 @@ export const config = {
           padding: "12px",
           border: "1px solid #e5e7eb",
           borderRadius: "8px",
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
@@ -4702,13 +4993,28 @@ export const config = {
           ],
           defaultValue: "false",
         },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Monospace (Default)", value: "monospace" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "monospace",
+        },
       },
       defaultProps: {
         showType: "true",
         showId: "true",
         showPath: "false",
       },
-      render: ({ showType, showId, showPath, puck }: any) => {
+      render: ({ showType, showId, showPath, fontFamily, puck }: any) => {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
@@ -4717,7 +5023,7 @@ export const config = {
           background: "#f9fafb",
           border: "1px solid #e5e7eb",
           borderRadius: "8px",
-          fontFamily: "monospace",
+          fontFamily: fontFamily || 'monospace',
           fontSize: "12px",
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
@@ -4772,6 +5078,21 @@ export const config = {
         counterFlag: { type: "text", label: "Shared flag name", defaultValue: "sharedCount" },
         initialValue: { type: "number", label: "Initial value", defaultValue: 0 },
         step: { type: "number", label: "Increment step", defaultValue: 1 },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       defaultProps: {
         label: "Counter",
@@ -4779,7 +5100,7 @@ export const config = {
         initialValue: 0,
         step: 1,
       },
-      render: ({ label, counterFlag, initialValue, step, puck }: any) => {
+      render: ({ label, counterFlag, initialValue, step, fontFamily, puck }: any) => {
         // Use local state instead of flags since setFlag expects boolean
         const [currentValue, setCurrentValue] = React.useState<number>(() => {
           return typeof initialValue === "number" ? initialValue : 0
@@ -4808,6 +5129,7 @@ export const config = {
           border: "1px solid #e5e7eb",
           borderRadius: "8px",
           alignItems: "center",
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
@@ -4820,7 +5142,7 @@ export const config = {
         return (
           <div ref={puck?.dragRef} data-puck-path={path || undefined} style={style} onMouseDown={onMouseDown}>
             {label && <div style={{ fontWeight: 600, fontSize: "14px" }}>{label}</div>}
-            <div style={{ fontSize: "32px", fontWeight: 700, color: "#3b82f6" }}>{currentValue}</div>
+            <div style={{ fontSize: "32px", fontWeight: 700, color: "#3b82f6", fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }}>{currentValue}</div>
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 type="button"
@@ -4868,7 +5190,7 @@ export const config = {
                 +
               </button>
             </div>
-            <div style={{ fontSize: "12px", color: "#9ca3af", fontStyle: "italic" }}>Counter value: {currentValue}</div>
+            <div style={{ fontSize: "12px", color: "#9ca3af", fontStyle: "italic", fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }}>Counter value: {currentValue}</div>
           </div>
         )
       },
@@ -4895,6 +5217,21 @@ export const config = {
         },
         selectedId: { type: "text", label: "Selected ID", defaultValue: "" },
         flag: { type: "text", label: "Store selection in flag", defaultValue: "selectedData" },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
+        },
       },
       defaultProps: {
         label: "Select Data",
@@ -4902,7 +5239,7 @@ export const config = {
         selectedId: "",
         flag: "selectedData",
       },
-      render: ({ label, dataType, selectedId, flag, puck }: any) => {
+      render: ({ label, dataType, selectedId, flag, fontFamily, puck }: any) => {
         const [selected, setSelected] = React.useState<string>(selectedId || "")
         const [data, setData] = React.useState<any[]>([])
 
@@ -4942,6 +5279,7 @@ export const config = {
           padding: "12px",
           border: "1px solid #e5e7eb",
           borderRadius: "8px",
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
@@ -5000,6 +5338,21 @@ export const config = {
             { label: "Juice", value: "juice" },
           ],
           defaultValue: "water",
+        },
+        fontFamily: {
+          type: "select",
+          label: "Font",
+          options: [
+            { label: "Inherit (Page)", value: "inherit" },
+            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
+            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
+            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: "inherit",
         },
       },
       resolveFields: (data: any) => {
@@ -5108,7 +5461,7 @@ export const config = {
         sugar: "no",
         juiceType: "orange",
       },
-      render: ({ drink, waterType, coffeeType, milk, teaType, sugar, juiceType, puck }: any) => {
+      render: ({ drink, waterType, coffeeType, milk, teaType, sugar, juiceType, fontFamily, puck }: any) => {
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
@@ -5117,6 +5470,7 @@ export const config = {
           background: "#f9fafb",
           border: "1px solid #e5e7eb",
           borderRadius: "8px",
+          fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
         }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
         const onMouseDown = (e: any) => {
