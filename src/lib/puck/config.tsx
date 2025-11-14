@@ -573,7 +573,7 @@ export const config = {
           label: "Categories (optional preset)",
           getItemSummary: (item: any, i: number) => item?.name ? `${item.name}` : `Category ${i + 1}`,
           defaultItemProps: { name: "All" },
-          fields: {
+          arrayFields: {
             name: { type: "text", label: "Name", defaultValue: "All" },
           },
         },
@@ -591,7 +591,7 @@ export const config = {
           label: "Creators (optional preset)",
           getItemSummary: (item: any, i: number) => item?.name ? `${item.name}` : `Creator ${i + 1}`,
           defaultItemProps: { name: "" },
-          fields: {
+          arrayFields: {
             name: { type: "text", label: "Name", defaultValue: "" },
           },
         },
@@ -632,7 +632,7 @@ export const config = {
             creator: "",
             category: "",
           },
-          fields: {
+          arrayFields: {
             title: { type: "text", label: "Title", defaultValue: "Product" },
             price: { type: "number", label: "Price", defaultValue: 0 },
             url: { type: "text", label: "URL", defaultValue: "" },
