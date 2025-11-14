@@ -99,7 +99,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return {
       title,
       description,
-      keywords: keywords ? keywords.split(',').map(k => k.trim()).filter(Boolean) : undefined,
+      keywords: keywords ? keywords.split(',').map((k:any) => k.trim()).filter(Boolean) : undefined,
       authors: author ? [{ name: author }] : undefined,
       alternates: { canonical },
       openGraph,
