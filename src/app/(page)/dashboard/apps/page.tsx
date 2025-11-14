@@ -10,6 +10,8 @@ type AppItem = {
   description?: string;
   icon?: string;
   updatedAt?: string;
+  visibility?: "private" | "public";
+  isTemplate?: boolean;
 };
 
 type TemplateItem = {
@@ -19,25 +21,28 @@ type TemplateItem = {
   description?: string;
   icon?: string;
   updatedAt?: string;
+  visibility?: "private" | "public";
+  isTemplate?: boolean;
 };
 
 export default function AppsDashboardPage() {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [myTemplates, setMyTemplates] = useState<TemplateItem[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", slug: "", description: "", icon: "", visibility: 'private' as 'private' | 'public' });
+  const [form, setForm] = useState({ name: "", slug: "", description: "", icon: "", visibility: "private" as "private" | "public" });
   const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [makePublicTemplate, setMakePublicTemplate] = useState(false);
-  const [activeTab, setActiveTab] = useState<'apps' | 'templates'>('apps');
+  const [activeTab, setActiveTab] = useState<"apps" | "templates" | "myTemplates">("apps");
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [cloneTemplateData, setCloneTemplateData] = useState<TemplateItem | null>(null);
-  const [cloneForm, setCloneForm] = useState({ name: '', slug: '', description: '', icon: '', visibility: 'private' as 'private' | 'public' });
+  const [cloneForm, setCloneForm] = useState({ name: "", slug: "", description: "", icon: "", visibility: "private" as "private" | "public" });
   const [showEditModal, setShowEditModal] = useState(false);
   const [editAppData, setEditAppData] = useState<AppItem | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', description: '', icon: '', visibility: 'private' as 'private' | 'public' });
+  const [editForm, setEditForm] = useState({ name: "", description: "", icon: "", visibility: "private" as "private" | "public" });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteAppData, setDeleteAppData] = useState<AppItem | null>(null);
 
@@ -51,6 +56,9 @@ export default function AppsDashboardPage() {
       const res = await fetch("/api/apps", { cache: "no-store" });
       const json = await res.json();
       setApps(json.apps || []);
+      if (Array.isArray(json.myTemplates)) {
+        setMyTemplates(json.myTemplates);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -58,9 +66,26 @@ export default function AppsDashboardPage() {
     }
   }
 
+  async function loadMyTemplates() {
+    // Load all of the current user's apps and then filter to any that are marked as templates.
+    // This will include templates created before or after the new UI.
+    try {
+      const res = await fetch("/api/apps", { cache: "no-store" });
+      const json = await res.json();
+      if (Array.isArray(json.myTemplates)) {
+        setMyTemplates(json.myTemplates);
+      } else {
+        const allApps: AppItem[] = json.apps || [];
+        setMyTemplates(allApps.filter((a) => a.isTemplate));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   function openEdit(app: AppItem) {
     setEditAppData(app);
-    setEditForm({ name: app.name, description: app.description || '', icon: app.icon || '', visibility: 'private' }); // visibility not stored per app card yet
+    setEditForm({ name: app.name, description: app.description || '', icon: app.icon || '', visibility: (app.visibility || 'private') });
     setShowEditModal(true);
   }
 
@@ -119,7 +144,11 @@ export default function AppsDashboardPage() {
     }
   }
 
-  useEffect(() => { loadApps(); loadTemplates(); }, []);
+  useEffect(() => {
+    loadApps();
+    loadTemplates();
+    loadMyTemplates();
+  }, []);
 
   // Auto-suggest slug from name until user manually edits slug
   useEffect(() => {
@@ -139,23 +168,20 @@ export default function AppsDashboardPage() {
       if (!slug) { setError("Le slug est requis."); return; }
       const body: any = { ...form, slug };
       if (makePublicTemplate && !fromTemplateId) {
+        // Creating a template directly (use current visibility choice: private or public)
         body.isTemplate = true;
-        body.visibility = 'public';
       }
       if (fromTemplateId) {
         body.fromTemplateId = fromTemplateId;
-        body.visibility = form.visibility; // ensure user selection respected
-      } else {
-        // regular app creation, allow visibility choice
-        body.visibility = form.visibility;
+        body.visibility = form.visibility; // ensure user selection respected when cloning
       }
       const res = await fetch("/api/apps", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error("Create failed");
-      // @ts-ignore
-      setForm({ name: "", slug: "", description: "", icon: "" });
+      setForm({ name: "", slug: "", description: "", icon: "", visibility: 'private' });
       setSlugTouched(false);
       await loadApps();
       await loadTemplates();
+      await loadMyTemplates();
     } catch (e) {
       console.error(e);
       setError("Échec de la création. Vérifiez que le slug n'existe pas déjà.");
@@ -211,8 +237,30 @@ export default function AppsDashboardPage() {
             <p className="text-sm text-gray-600 mt-1">Gérez vos applications ou démarrez à partir d’un modèle public.</p>
           </div>
           <div className="flex gap-2 text-sm">
-            <button onClick={() => setActiveTab('apps')} className={`px-3 py-1.5 rounded-md border ${activeTab==='apps' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-300'}`}>Mes Apps</button>
-            <button onClick={() => setActiveTab('templates')} className={`px-3 py-1.5 rounded-md border ${activeTab==='templates' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-300'}`}>Templates Publics</button>
+            <button
+              onClick={() => setActiveTab("apps")}
+              className={`px-3 py-1.5 rounded-md border ${
+                activeTab === "apps" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 border-gray-300"
+              }`}
+            >
+              Mes Apps
+            </button>
+            <button
+              onClick={() => setActiveTab("myTemplates")}
+              className={`px-3 py-1.5 rounded-md border ${
+                activeTab === "myTemplates" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 border-gray-300"
+              }`}
+            >
+              Mes Templates
+            </button>
+            <button
+              onClick={() => setActiveTab("templates")}
+              className={`px-3 py-1.5 rounded-md border ${
+                activeTab === "templates" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 border-gray-300"
+              }`}
+            >
+              Templates Publics
+            </button>
           </div>
         </div>
 
@@ -238,24 +286,32 @@ export default function AppsDashboardPage() {
               <input className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-gray-300" placeholder="Optionnel" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            <label className="inline-flex items-center gap-2 text-xs text-gray-700">
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-700">
+            <label className="inline-flex items-center gap-2">
               <input type="checkbox" checked={makePublicTemplate} onChange={(e) => setMakePublicTemplate(e.target.checked)} />
-              Rendre cette app un template public
+              Créer en tant que template
             </label>
-            {!makePublicTemplate && (
-              <label className="inline-flex items-center gap-2 text-xs text-gray-700">
-                Visibilité:
-                <select value={form.visibility} onChange={(e)=> setForm(f=>({...f, visibility: e.target.value as 'private' | 'public'}))} className="border rounded px-1 py-0.5 text-xs">
-                  <option value="private">Privée</option>
-                  <option value="public">Publique</option>
-                </select>
-              </label>
-            )}
+            <label className="inline-flex items-center gap-2">
+              Visibilité:
+              <select
+                value={form.visibility}
+                onChange={(e) => setForm((f) => ({ ...f, visibility: e.target.value as "private" | "public" }))}
+                className="border rounded px-1 py-0.5 text-xs"
+              >
+                <option value="private">Privée</option>
+                <option value="public">Publique</option>
+              </select>
+            </label>
           </div>
           {error && <div className="text-sm text-red-600 mt-2">{error}</div>}
           <div className="mt-3 flex items-center gap-2">
-            <button onClick={() => createApp()} disabled={creating} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50">{creating ? "Création…" : makePublicTemplate ? "Créer le template" : "Créer l’app"}</button>
+            <button
+              onClick={() => createApp()}
+              disabled={creating}
+              className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50"
+            >
+              {creating ? "Création…" : makePublicTemplate ? "Créer le template" : "Créer l’app"}
+            </button>
             <Link href="/dashboard/puck" className="text-sm text-gray-700 underline decoration-gray-300 hover:decoration-gray-500">Ouvrir l’éditeur Puck</Link>
           </div>
         </div>
@@ -285,6 +341,22 @@ export default function AppsDashboardPage() {
                   <div>
                     <div className="font-medium">{app.name}</div>
                     <div className="text-xs text-gray-500">/{app.slug}</div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {app.visibility && (
+                        <span
+                          className={`inline-block px-2 py-0.5 text-[10px] rounded-full border ${
+                            app.visibility === "public"
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : "bg-gray-100 text-gray-600 border-gray-200"
+                          }`}
+                        >
+                          {app.visibility === "public" ? "Publique" : "Privée"}
+                        </span>
+                      )}
+                      {app.isTemplate && (
+                        <span className="inline-block px-2 py-0.5 text-[10px] rounded-full border bg-indigo-50 text-indigo-700 border-indigo-200">Template</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="text-sm text-gray-600 line-clamp-2 min-h-[2rem]">{app.description || ""}</div>
@@ -300,7 +372,65 @@ export default function AppsDashboardPage() {
         </div>
         )}
 
-        {activeTab === 'templates' && (
+        {activeTab === "myTemplates" && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {loadingTemplates ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 shadow animate-pulse">
+                <div className="h-6 w-2/3 bg-gray-200 rounded mb-2" />
+                <div className="h-4 w-1/2 bg-gray-200 rounded mb-4" />
+                <div className="h-8 w-full bg-gray-200 rounded" />
+              </div>
+            ))
+          ) : myTemplates.length === 0 ? (
+            <div className="col-span-full">
+              <div className="border border-dashed rounded-xl p-8 bg-white text-center text-sm text-gray-600">
+                Aucun template (privé ou public) pour le moment. Créez un template via l’onglet "Mes Apps".
+              </div>
+            </div>
+          ) : (
+            myTemplates.map((tpl) => (
+              <div key={tpl._id} className="bg-white border border-gray-200 rounded-xl p-4 shadow flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  {tpl.icon ? <img src={tpl.icon} alt="" className="w-10 h-10 rounded" /> : <div className="w-10 h-10 rounded bg-gray-100" />}
+                  <div>
+                    <div className="font-medium">{tpl.name}</div>
+                    <div className="text-xs text-gray-500">/{tpl.slug}</div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {tpl.visibility && (
+                        <span
+                          className={`inline-block px-2 py-0.5 text-[10px] rounded-full border ${
+                            tpl.visibility === "public"
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : "bg-gray-100 text-gray-600 border-gray-200"
+                          }`}
+                        >
+                          {tpl.visibility === "public" ? "Publique" : "Privée"}
+                        </span>
+                      )}
+                      <span className="inline-block px-2 py-0.5 text-[10px] rounded-full border bg-indigo-50 text-indigo-700 border-indigo-200">
+                        Template
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 line-clamp-2 min-h-[2rem]">{tpl.description || ""}</div>
+                <div className="mt-auto flex items-center gap-2">
+                  <button
+                    disabled={creating}
+                    onClick={() => cloneTemplate(tpl)}
+                    className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50"
+                  >
+                    {creating ? "Clonage…" : "Utiliser ce template"}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        )}
+
+        {activeTab === "templates" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {loadingTemplates ? (
             Array.from({ length: 3 }).map((_, i) => (
@@ -324,6 +454,9 @@ export default function AppsDashboardPage() {
                   <div>
                     <div className="font-medium">{tpl.name}</div>
                     <div className="text-xs text-gray-500">/{tpl.slug}</div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <span className="inline-block px-2 py-0.5 text-[10px] rounded-full border bg-indigo-50 text-indigo-700 border-indigo-200">Template Public</span>
+                    </div>
                   </div>
                 </div>
                 <div className="text-sm text-gray-600 line-clamp-2 min-h-[2rem]">{tpl.description || ""}</div>

@@ -76,8 +76,9 @@ export async function DELETE(
     await sessionDb.withTransaction(async () => {
       await AppModel.deleteOne({ _id: id, ownerEmail: session.user.email }, { session: sessionDb });
       const regex = new RegExp(`^${slug}/?.*`);
-      // Delete home doc (exact slug) and all prefixed pages
-      await PuckDocModel.deleteMany({ ownerEmail: session.user.email, slug: { $in: [slug], $regex: regex } }, { session: sessionDb });
+      // Delete home doc and prefixed pages in two safe operations (avoid invalid mixed $in/$regex)
+      await PuckDocModel.deleteMany({ ownerEmail: session.user.email, slug: slug }, { session: sessionDb });
+      await PuckDocModel.deleteMany({ ownerEmail: session.user.email, slug: { $regex: regex } }, { session: sessionDb });
     });
     return NextResponse.json({ ok: true });
   } catch (e) {

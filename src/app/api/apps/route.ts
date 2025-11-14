@@ -18,11 +18,14 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const templatesParam = searchParams.get("templates");
   if (templatesParam === "public") {
+    // Show all public templates, including user's own
     const templates = await AppModel.find({ isTemplate: true, visibility: "public" }).sort({ updatedAt: -1 }).lean();
     return NextResponse.json({ templates });
   }
-  const apps = await AppModel.find({ ownerEmail: session.user.email, isTemplate: { $ne: true } }).sort({ updatedAt: -1 }).lean();
-  return NextResponse.json({ apps });
+  const apps = await AppModel.find({ ownerEmail: session.user.email }).sort({ updatedAt: -1 }).lean();
+  const myTemplates = apps.filter((a: any) => a.isTemplate === true);
+  const myApps = apps.filter((a: any) => a.isTemplate !== true);
+  return NextResponse.json({ apps: myApps, myTemplates });
 }
 
 export async function POST(req: Request) {
