@@ -1,6 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import PublishedServer from "../../PublishedServer";
+import PuckRenderWrapper from "../../PuckRenderWrapper";
 
 export default async function PublishedUUIDHomePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params;
@@ -49,7 +50,9 @@ export default async function PublishedUUIDHomePage({ params, searchParams }: { 
         </div>
       ) : null}
       {scriptBeforeBody ? <div dangerouslySetInnerHTML={{ __html: scriptBeforeBody }} /> : null}
-      <PublishedServer data={initialData} />
+      { (sp && (sp["debug"] === "1" || sp["debug"] === "true"))
+        ? <PublishedServer data={initialData} showTypes={true} />
+        : <PuckRenderWrapper data={initialData} /> }
       {scriptAfterBody ? <div dangerouslySetInnerHTML={{ __html: scriptAfterBody }} /> : null}
     </>
   );
@@ -58,13 +61,15 @@ export default async function PublishedUUIDHomePage({ params, searchParams }: { 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   try {
     const { id } = await params;
-    const url = `/api/puck/published/app/${encodeURIComponent(id)}`;
+    const base = process.env.NEXT_PUBLIC_SITE_URL || `http://localhost:3000`;
+    const url = `${base}/api/puck/published/app/${encodeURIComponent(id)}`;
     const res = await fetch(url, { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
       const description = json?.data?.root?.props?.description;
       if (typeof description === "string" && description.trim()) {
-        return { description };
+        const title = json?.data?.root?.props?.title;
+        return { description, title };
       }
     }
   } catch {}

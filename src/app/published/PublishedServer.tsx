@@ -21,6 +21,12 @@ function getChildren(n: any): any[] {
   if (isArrayLike(n.children)) return n.children as any[];
   if (isArrayLike(n.content)) return n.content as any[];
   if (isArrayLike(n?.props?.children)) return n.props.children as any[];
+  if (n?.zones && typeof n.zones === "object") {
+    const zones = n.zones as Record<string, any>;
+    if (isArrayLike(zones.children)) return zones.children as any[];
+    // Flatten any array-like zones
+    return Object.values(zones).filter(isArrayLike).flat();
+  }
   if (n?.slots && typeof n.slots === "object") {
     // Prefer a slot named "children" when present; otherwise flatten all slots
     const slots = n.slots as Record<string, any>;
@@ -129,7 +135,8 @@ function renderNode(node: any, key?: React.Key): React.ReactNode {
       );
     }
     case "Grid":
-    case "GridContainer": {
+    case "GridContainer":
+    case "Grid Container": {
       const cols = Math.max(1, Math.min(Number(props.columns) || 3, 12));
       const style: React.CSSProperties = { display: "grid", gap: "1rem", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` };
       return (
@@ -139,18 +146,47 @@ function renderNode(node: any, key?: React.Key): React.ReactNode {
       );
     }
     case "FlexContainer":
+    case "Flex Container":
     case "ResponsiveFlex": {
-      return (
-        <div key={key} className="flex flex-wrap gap-4 items-start">
-          {children.map((c, i) => renderNode(c, i))}
-        </div>
-      );
+      const dir = String(props.direction || props.flexDirection || "row");
+      const justify = String(props.justify || props.justifyContent || "flex-start");
+      const align = String(props.align || props.alignItems || "stretch");
+      const wrap = String(props.wrap || "wrap");
+      const gap = Number(props.gap || 16);
+      const style: React.CSSProperties = {
+        display: "flex",
+        flexDirection: dir as any,
+        justifyContent: justify as any,
+        alignItems: align as any,
+        flexWrap: wrap as any,
+        gap,
+      };
+      return <div key={key} style={style}>{children.map((c, i) => renderNode(c, i))}</div>;
+    }
+    case "FlexItem":
+    case "Flex Item": {
+      const grow = Number(props.grow ?? 0);
+      const shrink = Number(props.shrink ?? 1);
+      const basis = props.basis ?? "auto";
+      const minWidth = props.minWidth != null ? Number(props.minWidth) : undefined;
+      const style: React.CSSProperties = {
+        flexGrow: grow,
+        flexShrink: shrink,
+        flexBasis: basis,
+        minWidth: typeof minWidth === "number" ? `${minWidth}px` : undefined,
+      };
+      return <div key={key} style={style}>{children.map((c, i) => renderNode(c, i))}</div>;
     }
     case "Heading": {
-      const level = Number(props.level) || 1;
-      const Tag = (level >= 1 && level <= 6 ? (`h${level}` as const) : "h2");
+      const lvlRaw = Number(props.level) || 1;
+      const level = Math.min(6, Math.max(1, lvlRaw));
       const txt = String(textFromProps(props) || "Heading");
-      return <Tag key={key} className="font-semibold text-gray-900">{txt}</Tag>;
+      if (level === 1) return <h1 key={key} className="font-semibold text-gray-900">{txt}</h1>;
+      if (level === 2) return <h2 key={key} className="font-semibold text-gray-900">{txt}</h2>;
+      if (level === 3) return <h3 key={key} className="font-semibold text-gray-900">{txt}</h3>;
+      if (level === 4) return <h4 key={key} className="font-semibold text-gray-900">{txt}</h4>;
+      if (level === 5) return <h5 key={key} className="font-semibold text-gray-900">{txt}</h5>;
+      return <h6 key={key} className="font-semibold text-gray-900">{txt}</h6>;
     }
     case "Text": {
       const txt = String(textFromProps(props) || "");
@@ -219,7 +255,7 @@ function renderNode(node: any, key?: React.Key): React.ReactNode {
   }
 }
 
-export default function PublishedServer({ data }: { data: any }) {
+export default function PublishedServer({ data, showTypes }: { data: any; showTypes?: boolean }) {
   const root = data?.root || {};
   const rp = root?.props || {};
 
@@ -243,10 +279,28 @@ export default function PublishedServer({ data }: { data: any }) {
     }
   }
 
+  // Build a light debug summary of node types (first two levels)
+  let debugSummary: any = null;
+  if (showTypes) {
+    try {
+      const types = children.map((c: any) => ({
+        type: String(c?.type || ""),
+        children: getChildren(c).map((cc: any) => String(cc?.type || "")),
+      }));
+      debugSummary = { rootChildren: types };
+    } catch {}
+  }
+
   return (
     <div className="min-h-[100dvh] bg-gray-50" style={{ background: backgroundPattern, backgroundAttachment: backgroundPattern ? "fixed" : undefined, backgroundSize: backgroundPattern ? "200px 200px" : undefined }}>
       {/* pre-body scripts (as requested) will be injected by page if needed */}
       <div className={typeof frameWidth === "number" ? "mx-auto py-6" : "mx-auto py-6 px-4"} style={typeof frameWidth === "number" ? { width: frameWidth } : undefined}>
+        {debugSummary ? (
+          <div className="mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <div className="font-medium mb-1">Nodes</div>
+            <pre className="whitespace-pre-wrap break-words">{JSON.stringify(debugSummary, null, 2)}</pre>
+          </div>
+        ) : null}
         {children.map((c: any, i: number) => renderNode(c, i))}
       </div>
     </div>
