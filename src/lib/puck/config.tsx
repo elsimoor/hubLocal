@@ -5181,7 +5181,7 @@ export const config = {
         const currentIndex = items.length ? safeIndex : 0
 
         const path = puck?.path?.join(".") || ""
-        const isEditing = puck?.isEditing
+        const isEditing = isEditingFromPuck(puck)
 
         const handleDragStart = (e: React.DragEvent, idx: number) => {
           setDraggedIndex(idx)
