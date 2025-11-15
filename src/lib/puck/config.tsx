@@ -367,52 +367,52 @@ export const config = {
           { label: 'Pattern 90', value: 'conic-gradient(at calc(50%/3) calc(50%/3),#0000 75%,#556270 0)' },
           { label: 'Pattern 91', value: 'conic-gradient(from 60deg at 56.25% calc(425%/6),#ECBE13 0)' },
           { label: 'Pattern 92', value: 'conic-gradient(at 80% 20%,#DFBA69 12.5%,#5A2E2E 0 25%)' },
-          {  label: 'Pattern 93', value: 'conic-gradient(from 30deg at 80%, #ff9f6a 60deg,#1f5e79 0 120deg)' },
-          {  label: 'Pattern 94', value: 'calc( 80px/4) calc(80px/ 4) /calc(2*80px) 80px conic-gradient(at 62.5% 25%,#59A80F 0)' },
-          {  label: 'Pattern 95', value: 'conic-gradient(at 80% 80%,#99B2B7 75%,#0000 0), #EDC951' },
-          {  label: 'Pattern 96', value: 'radial-gradient(#0000 50%,#0002 54%,#DAD8A7 57%)' },
-          {  label: 'Pattern 97', value: 'radial-gradient(30% 30% at 0% 30%,#0000 66%,#3B2D38 68% 98%)' },
-          {  label: 'Pattern 98', value: 'conic-gradient(from -112.5deg at 25% 25%,#DCD1B4 0), #DCD1B4' },
-          {  label: 'Pattern 99', value: 'linear-gradient( 60deg, #0000 45%,#88ABC2 46% 54%,#0000 55%)' },
-          {  label: 'Pattern 100', value: 'conic-gradient(at 40% 40%,#0000 75%,#5E4352 0)' },
-          {  label: 'Pattern 101', value: 'conic-gradient(from 15deg at 86.6%, #955E3E 25%,#F1D4AF 0 150deg)' },
-          {  label: 'Pattern 102', value: 'conic-gradient(from 120deg at 50% 87.5%,#acc4a3 120deg,#0000 0)' },
-          {  label: 'Pattern 103', value: 'conic-gradient(at 50% 50px 0), #CCC68D' },
-          {  label: 'Pattern 104', value: 'radial-gradient(at 100% 0,#0000 17.5%,#e7525b 18% 35%)' },
-          {  label: 'Pattern 105', value: 'repeating-conic-gradient(#655643 0 30deg,#0000 0 150deg,#80BCA3 0 50%)' },
-          {  label: 'Pattern 106', value: 'conic-gradient(from 60deg at calc(3.866*41px),#5E8C6A 60deg,#0000 0)' },
-          {  label: 'Pattern 107', value: 'radial-gradient(60px,#542437 49%,#0000 50%)' },
-          {  label: 'Pattern 108', value: 'conic-gradient(at calc(100%/3) 25%,#0000 75%,#696758 0)' },
-          {  label: 'Pattern 109', value: 'radial-gradient(#0000 64%,#C5BC8E 65%)' },
-          {  label: 'Pattern 110', value: 'conic-gradient(from 45deg at 50% 35%,#0000 75%,#ADD8E6 0)' },
-          {  label: 'Pattern 111', value: 'repeating-conic-gradient(#DCD1B4 0 25%,#0000 0 50%)' },
-          {  label: 'Pattern 112', value: 'repeating-conic-gradient(#ECD078 0 25%,#0000 0 50%)' },
-          {  label: 'Pattern 113', value: 'conic-gradient(from 45deg at 75% 75%,#CF4647 25%,#524656 0 50%)' },
-          {  label: 'Pattern 114', value: 'linear-gradient(45deg,#73C8A9 20%,#0000 0 45%,#633D2E 0 70%)' },
-          {  label: 'Pattern 115', value: 'conic-gradient(from 45deg at 75% 75%,#EFD9B4 25%,#0000 0)' },
-          {  label: 'Pattern 116', value: 'conic-gradient(at calc(200%/3) 10%,#D3E2B6 0)' },
-          {  label: 'Pattern 117', value: 'radial-gradient(calc(1.5*40px) at 37.5% 0%,#0000 39%,#73C8A9 40% 93%)' },
-          {  label: 'Pattern 118', value: 'conic-gradient(from 135deg at 87.5% 37.5%,#0000 75%,#78dbf0 0)' },
-          {  label: 'Pattern 119', value: 'repeating-conic-gradient(from -15deg,#67917A 0 60deg,#0000 0 50%)' },
-          {  label: 'Pattern 120', value: 'linear-gradient(45deg,#0000 71%,#73C8A9 0 79%,#0000 0)' },
-          {  label: 'Pattern 121', value: 'radial-gradient(at 0 100%,#DFBA69 35%,#0000 calc(35% + 1px))' },
-          {  label: 'Pattern 122', value: 'calc(104px/ 2) 104px/calc(2*52px) calc(2*52px) radial-gradient(at 100% 0,#F67280 17.5%)' },
-          {  label: 'Pattern 123', value: 'conic-gradient(from -45deg at 30%,#0000 75%,#78dbf0 0)' },
-          {  label: 'Pattern 124', value: 'calc(2*30px) calc(5*30px) 60px conic-gradient(from -45deg at 50% calc(50%/3))' },
-          {  label: 'Pattern 125', value: 'conic-gradient(from 45deg at 70%,#8A9B0F 25%,#0000 0)' },
-          {  label: 'Pattern 126', value: 'conic-gradient(at 90% 40%,#0000 75%,#774F38 0), #F1D4AF' },
-          {  label: 'Pattern 127', value: 'linear-gradient(-45deg,#0000 48%,#F8EDD1 0 52%,#0000 0)' },
-          {  label: 'Pattern 128', value: 'conic-gradient(#c0b299 0),conic-gradient(#a4a9aa 0) calc(2*50px) 0' },
-          {  label: 'Pattern 129', value: 'conic-gradient(from -45deg at 75% 62.5%,#1C2130 0 25%,#0000 0)' },
-          {  label: 'Pattern 130', value: 'conic-gradient(at 78% 3%,#2B4E72 0)' },
-          {  label: 'Pattern 131', value: 'linear-gradient(-45deg,#0000 1.3%,#78dbf0 0 32%,#0000 0)' },
-          {  label: 'Pattern 132', value: 'radial-gradient(closest-corner at-25% 25%,#FF714B 99%,#0000 101%)' },
-          {  label: 'Pattern 133', value: 'repeating-conic-gradient(from 45deg,#000 0 25%,#fff 0 50%)' },
-          {  label: 'Pattern 134', value: 'conic-gradient(at 12.5% 62.5%,#0000 75%,#CFF09E 0)' },
-          {  label: 'Pattern 135', value: 'repeating-linear-gradient(#0000 0 48%,#6B5344 0 50%)' },
-          {  label: 'Pattern 136', value: 'conic-gradient(#5B7C8D 25%,#0000 0 50%,#EDF6EE 0 75%)' },
-          {  label: 'Pattern 137', value: 'radial-gradient(#DDD9AB 34%,#0000 36%)' },
-          {  label: 'Pattern 138', value: 'radial-gradient(50px at 100% 100%,#9D2053 99%,#0000 101%)' },
+          { label: 'Pattern 93', value: 'conic-gradient(from 30deg at 80%, #ff9f6a 60deg,#1f5e79 0 120deg)' },
+          { label: 'Pattern 94', value: 'calc( 80px/4) calc(80px/ 4) /calc(2*80px) 80px conic-gradient(at 62.5% 25%,#59A80F 0)' },
+          { label: 'Pattern 95', value: 'conic-gradient(at 80% 80%,#99B2B7 75%,#0000 0), #EDC951' },
+          { label: 'Pattern 96', value: 'radial-gradient(#0000 50%,#0002 54%,#DAD8A7 57%)' },
+          { label: 'Pattern 97', value: 'radial-gradient(30% 30% at 0% 30%,#0000 66%,#3B2D38 68% 98%)' },
+          { label: 'Pattern 98', value: 'conic-gradient(from -112.5deg at 25% 25%,#DCD1B4 0), #DCD1B4' },
+          { label: 'Pattern 99', value: 'linear-gradient( 60deg, #0000 45%,#88ABC2 46% 54%,#0000 55%)' },
+          { label: 'Pattern 100', value: 'conic-gradient(at 40% 40%,#0000 75%,#5E4352 0)' },
+          { label: 'Pattern 101', value: 'conic-gradient(from 15deg at 86.6%, #955E3E 25%,#F1D4AF 0 150deg)' },
+          { label: 'Pattern 102', value: 'conic-gradient(from 120deg at 50% 87.5%,#acc4a3 120deg,#0000 0)' },
+          { label: 'Pattern 103', value: 'conic-gradient(at 50% 50px 0), #CCC68D' },
+          { label: 'Pattern 104', value: 'radial-gradient(at 100% 0,#0000 17.5%,#e7525b 18% 35%)' },
+          { label: 'Pattern 105', value: 'repeating-conic-gradient(#655643 0 30deg,#0000 0 150deg,#80BCA3 0 50%)' },
+          { label: 'Pattern 106', value: 'conic-gradient(from 60deg at calc(3.866*41px),#5E8C6A 60deg,#0000 0)' },
+          { label: 'Pattern 107', value: 'radial-gradient(60px,#542437 49%,#0000 50%)' },
+          { label: 'Pattern 108', value: 'conic-gradient(at calc(100%/3) 25%,#0000 75%,#696758 0)' },
+          { label: 'Pattern 109', value: 'radial-gradient(#0000 64%,#C5BC8E 65%)' },
+          { label: 'Pattern 110', value: 'conic-gradient(from 45deg at 50% 35%,#0000 75%,#ADD8E6 0)' },
+          { label: 'Pattern 111', value: 'repeating-conic-gradient(#DCD1B4 0 25%,#0000 0 50%)' },
+          { label: 'Pattern 112', value: 'repeating-conic-gradient(#ECD078 0 25%,#0000 0 50%)' },
+          { label: 'Pattern 113', value: 'conic-gradient(from 45deg at 75% 75%,#CF4647 25%,#524656 0 50%)' },
+          { label: 'Pattern 114', value: 'linear-gradient(45deg,#73C8A9 20%,#0000 0 45%,#633D2E 0 70%)' },
+          { label: 'Pattern 115', value: 'conic-gradient(from 45deg at 75% 75%,#EFD9B4 25%,#0000 0)' },
+          { label: 'Pattern 116', value: 'conic-gradient(at calc(200%/3) 10%,#D3E2B6 0)' },
+          { label: 'Pattern 117', value: 'radial-gradient(calc(1.5*40px) at 37.5% 0%,#0000 39%,#73C8A9 40% 93%)' },
+          { label: 'Pattern 118', value: 'conic-gradient(from 135deg at 87.5% 37.5%,#0000 75%,#78dbf0 0)' },
+          { label: 'Pattern 119', value: 'repeating-conic-gradient(from -15deg,#67917A 0 60deg,#0000 0 50%)' },
+          { label: 'Pattern 120', value: 'linear-gradient(45deg,#0000 71%,#73C8A9 0 79%,#0000 0)' },
+          { label: 'Pattern 121', value: 'radial-gradient(at 0 100%,#DFBA69 35%,#0000 calc(35% + 1px))' },
+          { label: 'Pattern 122', value: 'calc(104px/ 2) 104px/calc(2*52px) calc(2*52px) radial-gradient(at 100% 0,#F67280 17.5%)' },
+          { label: 'Pattern 123', value: 'conic-gradient(from -45deg at 30%,#0000 75%,#78dbf0 0)' },
+          { label: 'Pattern 124', value: 'calc(2*30px) calc(5*30px) 60px conic-gradient(from -45deg at 50% calc(50%/3))' },
+          { label: 'Pattern 125', value: 'conic-gradient(from 45deg at 70%,#8A9B0F 25%,#0000 0)' },
+          { label: 'Pattern 126', value: 'conic-gradient(at 90% 40%,#0000 75%,#774F38 0), #F1D4AF' },
+          { label: 'Pattern 127', value: 'linear-gradient(-45deg,#0000 48%,#F8EDD1 0 52%,#0000 0)' },
+          { label: 'Pattern 128', value: 'conic-gradient(#c0b299 0),conic-gradient(#a4a9aa 0) calc(2*50px) 0' },
+          { label: 'Pattern 129', value: 'conic-gradient(from -45deg at 75% 62.5%,#1C2130 0 25%,#0000 0)' },
+          { label: 'Pattern 130', value: 'conic-gradient(at 78% 3%,#2B4E72 0)' },
+          { label: 'Pattern 131', value: 'linear-gradient(-45deg,#0000 1.3%,#78dbf0 0 32%,#0000 0)' },
+          { label: 'Pattern 132', value: 'radial-gradient(closest-corner at-25% 25%,#FF714B 99%,#0000 101%)' },
+          { label: 'Pattern 133', value: 'repeating-conic-gradient(from 45deg,#000 0 25%,#fff 0 50%)' },
+          { label: 'Pattern 134', value: 'conic-gradient(at 12.5% 62.5%,#0000 75%,#CFF09E 0)' },
+          { label: 'Pattern 135', value: 'repeating-linear-gradient(#0000 0 48%,#6B5344 0 50%)' },
+          { label: 'Pattern 136', value: 'conic-gradient(#5B7C8D 25%,#0000 0 50%,#EDF6EE 0 75%)' },
+          { label: 'Pattern 137', value: 'radial-gradient(#DDD9AB 34%,#0000 36%)' },
+          { label: 'Pattern 138', value: 'radial-gradient(50px at 100% 100%,#9D2053 99%,#0000 101%)' },
         ],
         defaultValue: "none",
       },
@@ -805,18 +805,18 @@ export const config = {
 
             {showCategories && allCategories.length ? (
               <div className="flex flex-wrap gap-2 mb-3">
-                <button onClick={() => setActiveCategory(null)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCategory===null ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>All</button>
+                <button onClick={() => setActiveCategory(null)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCategory === null ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>All</button>
                 {allCategories.map((c: string, i: number) => (
-                  <button key={i} onClick={() => setActiveCategory(c===activeCategory?null:c)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCategory===c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>{c}</button>
+                  <button key={i} onClick={() => setActiveCategory(c === activeCategory ? null : c)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCategory === c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>{c}</button>
                 ))}
               </div>
             ) : null}
 
             {showCreators && allCreators.length ? (
               <div className="flex flex-wrap gap-2 mb-4">
-                <button onClick={() => setActiveCreator(null)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCreator===null ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>All creators</button>
+                <button onClick={() => setActiveCreator(null)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCreator === null ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>All creators</button>
                 {allCreators.map((c: string, i: number) => (
-                  <button key={i} onClick={() => setActiveCreator(c===activeCreator?null:c)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCreator===c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>{c}</button>
+                  <button key={i} onClick={() => setActiveCreator(c === activeCreator ? null : c)} className={`px-3 py-1.5 rounded-full text-sm border ${activeCreator === c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>{c}</button>
                 ))}
               </div>
             ) : null}
@@ -834,7 +834,7 @@ export const config = {
                       (window as any).dataLayer?.push({ event: 'shop_outbound_click', ...payload });
                       window.dispatchEvent(new CustomEvent('shop:outbound-click', { detail: payload }));
                     }
-                  } catch {}
+                  } catch { }
                 };
                 return (
                   <a key={idx} href={c?.url || '#'} target={c?.url ? '_blank' : undefined} rel={c?.url ? 'noopener noreferrer' : undefined} className="group block" onClick={trackClick}>
@@ -5114,12 +5114,17 @@ export const config = {
           ],
           defaultValue: "flex-start",
         },
-        tab1Title: { type: "text", label: "Tab 1 title", defaultValue: "Tab 1" },
-        tab1Content: { type: "slot", label: "Tab 1 content" },
-        tab2Title: { type: "text", label: "Tab 2 title", defaultValue: "Tab 2" },
-        tab2Content: { type: "slot", label: "Tab 2 content" },
-        tab3Title: { type: "text", label: "Tab 3 title", defaultValue: "Tab 3" },
-        tab3Content: { type: "slot", label: "Tab 3 content" },
+        tabs: {
+          type: "array",
+          label: "Tabs",
+          getItemSummary: (item: any, i: number) => item?.title ? `${i + 1}. ${item.title}` : `Tab ${i + 1}`,
+          defaultItemProps: { title: "Tab", key: "" },
+          arrayFields: {
+            title: { type: "text", label: "Title", defaultValue: "Tab" },
+            key: { type: "text", label: "Key (unique)", defaultValue: "tab-1" },
+            content: { type: "slot", label: "Content" },
+          },
+        },
         fontFamily: {
           type: "select",
           label: "Font",
@@ -5135,48 +5140,130 @@ export const config = {
           ],
           defaultValue: "inherit",
         },
+        tabStyle: {
+          type: "select",
+          label: "Tab Style",
+          options: [
+            { label: "Underline", value: "underline" },
+            { label: "Pills", value: "pills" },
+            { label: "Cards", value: "cards" },
+          ],
+          defaultValue: "pills",
+        },
       },
       defaultProps: {
         defaultTab: 0,
         tabsAlign: "flex-start",
-        tab1Title: "Tab 1",
-        tab2Title: "Tab 2",
-        tab3Title: "Tab 3",
+        tabs: [
+          { title: "Tab 1", key: "tab-1" },
+          { title: "Tab 2", key: "tab-2" },
+          { title: "Tab 3", key: "tab-3" },
+        ],
+        tabStyle: "pills",
       },
       render: ({
         defaultTab,
         tabsAlign,
-        tab1Title,
-        tab1Content: Tab1Content,
-        tab2Title,
-        tab2Content: Tab2Content,
-        tab3Title,
-        tab3Content: Tab3Content,
+        tabs = [],
         fontFamily,
+        tabStyle,
         puck,
       }: any) => {
         const [activeTab, setActiveTab] = React.useState<number>(() => {
           return typeof defaultTab === "number" ? defaultTab : 0
         })
+        const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null)
+        const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
+        const [hoverIndex, setHoverIndex] = React.useState<number | null>(null)
 
-        const tabs = [
-          { title: tab1Title, content: Tab1Content },
-          { title: tab2Title, content: Tab2Content },
-          { title: tab3Title, content: Tab3Content },
-        ]
+        const items = Array.isArray(tabs) ? tabs : []
+        const safeIndex = Math.max(0, Math.min(activeTab, Math.max(items.length - 1, 0)))
+        const currentIndex = items.length ? safeIndex : 0
 
         const path = puck?.path?.join(".") || ""
         const isEditing = puck?.isEditing
 
+        const handleDragStart = (e: React.DragEvent, idx: number) => {
+          setDraggedIndex(idx)
+          e.dataTransfer.effectAllowed = "move"
+        }
+
+        const handleDragOver = (e: React.DragEvent, idx: number) => {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = "move"
+          setDragOverIndex(idx)
+        }
+
+        const handleDrop = (e: React.DragEvent, idx: number) => {
+          e.preventDefault()
+          if (draggedIndex !== null && draggedIndex !== idx) {
+            const newTabs = [...items]
+            const draggedItem = newTabs[draggedIndex]
+            newTabs.splice(draggedIndex, 1)
+            newTabs.splice(idx, 0, draggedItem)
+
+            // Update through puck if available
+            if (puck?.setFieldValue) {
+              puck.setFieldValue("tabs", newTabs)
+            }
+          }
+          setDraggedIndex(null)
+          setDragOverIndex(null)
+        }
+
+        const handleDragEnd = () => {
+          setDraggedIndex(null)
+          setDragOverIndex(null)
+        }
+
         const outlineForSelected = {
           outline: "2px solid #6366f1",
           outlineOffset: 2,
-          borderRadius: "4px",
+          borderRadius: "8px",
         }
 
-        const isSelected = false // You'd implement this with your selection store
+        const isSelected = false
         const base: any = { width: "100%" }
         const style = isSelected ? { ...base, ...outlineForSelected } : base
+
+        const getTabButtonStyle = (isActive: boolean, isHovered: boolean) => {
+          const baseStyle = {
+            padding: "12px 20px",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: isActive ? 600 : 500,
+            transition: "all 0.3s ease",
+            borderRadius: "8px",
+            fontSize: "14px",
+          }
+
+          if (tabStyle === "underline") {
+            return {
+              ...baseStyle,
+              background: "transparent",
+              color: isActive ? "#3b82f6" : "#9ca3af",
+              borderBottom: isActive ? "3px solid #3b82f6" : "2px solid transparent",
+              borderRadius: "0",
+            }
+          } else if (tabStyle === "cards") {
+            return {
+              ...baseStyle,
+              background: isActive ? "#3b82f6" : "#f3f4f6",
+              color: isActive ? "#ffffff" : "#6b7280",
+              boxShadow: isActive ? "0 4px 12px rgba(59, 130, 246, 0.3)" : "none",
+              transform: isHovered && isActive ? "translateY(-2px)" : "translateY(0)",
+            }
+          } else {
+            // pills (default)
+            return {
+              ...baseStyle,
+              background: isActive ? "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" : "#f3f4f6",
+              color: isActive ? "#ffffff" : "#6b7280",
+              boxShadow: isActive ? "0 4px 12px rgba(59, 130, 246, 0.3)" : "none",
+              transform: isHovered && isActive ? "scale(1.05)" : "scale(1)",
+            }
+          }
+        }
 
         return (
           <div ref={puck?.dragRef} data-puck-path={path || undefined} style={style}>
@@ -5184,79 +5271,105 @@ export const config = {
             <div
               style={{
                 display: "flex",
-                gap: "4px",
-                borderBottom: "2px solid #e5e7eb",
+                gap: "8px",
+                borderBottom: tabStyle === "underline" ? "2px solid #e5e7eb" : "none",
                 justifyContent: tabsAlign || "flex-start",
                 flexWrap: "wrap",
-                marginBottom: "16px",
+                marginBottom: "24px",
                 fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
+                padding: tabStyle === "cards" ? "8px" : "0",
+                background: tabStyle === "cards" ? "#f9fafb" : "transparent",
+                borderRadius: tabStyle === "cards" ? "12px" : "0",
               }}
             >
-              {tabs.map((tab: any, idx: number) => {
+              {items.map((tab: any, idx: number) => {
                 const isActive = activeTab === idx
+                const isOver = dragOverIndex === idx
+                const isDragging = draggedIndex === idx
+                const isHovered = hoverIndex === idx
+
                 return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setActiveTab(idx)}
+                  <div
+                    key={`${idx}-${tab?.key || 'tab'}`}
+                    draggable={isEditing}
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    onMouseEnter={() => setHoverIndex(idx)}
+                    onMouseLeave={() => setHoverIndex(null)}
                     style={{
-                      padding: "12px 20px",
-                      border: "none",
-                      background: isActive ? "#3b82f6" : "transparent",
-                      color: isActive ? "#ffffff" : "#6b7280",
-                      fontWeight: isActive ? 600 : 400,
-                      cursor: "pointer",
-                      borderRadius: "4px 4px 0 0",
-                      transition: "all 0.2s",
+                      opacity: isDragging ? 0.5 : 1,
+                      background: isOver && !isDragging ? "rgba(59, 130, 246, 0.1)" : "transparent",
+                      borderRadius: "8px",
+                      transition: "all 0.2s ease",
                     }}
                   >
-                    {tab?.title || `Tab ${idx + 1}`}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab(idx)}
+                      style={{
+                        ...getTabButtonStyle(isActive, isHovered),
+                        cursor: isEditing ? "move" : "pointer",
+                      }}
+                      title={isEditing ? "Drag to reorder" : tab?.title}
+                    >
+                      {tab?.title || `Tab ${idx + 1}`}
+                    </button>
+                  </div>
                 )
               })}
             </div>
 
-            {/* Tab content areas - each tab is independently draggable */}
-            <div style={{ padding: "16px" }}>
-              {tabs.map((tab: any, idx: number) => {
+            {/* Tab content areas - each tab independently draggable */}
+            <div style={{ padding: "24px 0" }}>
+              {items.map((tab: any, idx: number) => {
                 const isActive = activeTab === idx
                 const TabContent = tab?.content
 
                 return (
                   <div
-                    key={idx}
+                    key={`${idx}-${tab?.key || 'tab'}`}
                     style={{
-                      display: isEditing || isActive ? "block" : "none",
+                      display: isEditing || currentIndex === idx ? "block" : "none",
+                      animation: isActive ? "fadeIn 0.3s ease" : "none",
                       ...(isEditing && {
-                        marginBottom: "16px",
+                        marginBottom: "24px",
                         border: "2px dashed #3b82f6",
-                        padding: "16px",
-                        borderRadius: "4px",
-                        background: "#f0f4ff",
+                        padding: "20px",
+                        borderRadius: "12px",
+                        background: "linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%)",
                       }),
                     }}
                   >
                     {isEditing && (
                       <div
                         style={{
-                          paddingBottom: "8px",
-                          fontWeight: 600,
+                          paddingBottom: "12px",
+                          fontWeight: 700,
                           color: "#3b82f6",
                           fontSize: "14px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
                         }}
                       >
-                        📑 {tab?.title || `Tab ${idx + 1}`}
+                        <span>📑</span>
+                        {tab?.title || `Tab ${idx + 1}`}
                       </div>
                     )}
                     <div
                       style={
                         isEditing
                           ? {
-                            minHeight: "80px",
+                            minHeight: "100px",
                             background: "#fff",
-                            padding: "8px",
-                            borderRadius: "4px",
+                            padding: "16px",
+                            borderRadius: "8px",
                             border: "1px solid #e5e7eb",
+                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
                           }
                           : {}
                       }
@@ -5267,6 +5380,19 @@ export const config = {
                 )
               })}
             </div>
+
+            <style>{`
+            @keyframes fadeIn {
+              from {
+                opacity: 0;
+                transform: translateY(4px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+          `}</style>
           </div>
         )
       },
