@@ -4340,8 +4340,8 @@ export const config = {
           type: "select",
           label: "Default open",
           options: [
-            { label: "Yes", value: "true" },
             { label: "No", value: "false" },
+            { label: "Yes", value: "true" },
           ],
           defaultValue: "true",
         },
@@ -5100,302 +5100,317 @@ export const config = {
      * Each tab has a title and content that displays when selected.
      */
     Tabs: {
-      label: "Tabs",
-      inline: true,
-      fields: {
-        defaultTab: { type: "number", label: "Default tab index", defaultValue: 0 },
-        tabsAlign: {
-          type: "select",
-          label: "Tabs alignment",
-          options: [
-            { label: "Left", value: "flex-start" },
-            { label: "Center", value: "center" },
-            { label: "Right", value: "flex-end" },
-          ],
-          defaultValue: "flex-start",
-        },
-        tabs: {
-          type: "array",
-          label: "Tabs",
-          getItemSummary: (item: any, i: number) => item?.title ? `${i + 1}. ${item.title}` : `Tab ${i + 1}`,
-          defaultItemProps: { title: "Tab", key: "" },
-          arrayFields: {
-            title: { type: "text", label: "Title", defaultValue: "Tab" },
-            key: { type: "text", label: "Key (unique)", defaultValue: "tab-1" },
-            content: { type: "slot", label: "Content" },
+      label: 'Tabs',
+        inline: true,
+        fields: {
+          defaultTab: { type: 'number', label: 'Default tab index', defaultValue: 0 },
+          tabsAlign: {
+            type: 'select',
+            label: 'Tabs alignment',
+            options: [
+              { label: 'Left', value: 'flex-start' },
+              { label: 'Center', value: 'center' },
+              { label: 'Right', value: 'flex-end' },
+            ],
+            defaultValue: 'flex-start',
+          },
+          tabs: {
+            type: 'array',
+            label: 'Tabs',
+            getItemSummary: (item, i) => item?.title ? `${i + 1}. ${item.title}` : `Tab ${i + 1}`,
+            // When adding a new tab, default the title; Puck will assign an internal key.
+            defaultItemProps: { title: 'Tab' },
+            arrayFields: {
+              title: { type: 'text', label: 'Title', defaultValue: 'Tab' },
+              content: { type: 'slot', label: 'Content' },
+            },
+          },
+          fontFamily: {
+            type: 'select',
+            label: 'Font',
+            options: [
+              { label: 'Inherit (Page)', value: 'inherit' },
+              { label: 'Inter', value: 'var(--font-inter, Arial, sans-serif)' },
+              { label: 'Lora', value: 'var(--font-lora, Georgia, serif)' },
+              { label: 'Playfair', value: "var(--font-playfair, 'Playfair Display', serif)" },
+              { label: 'Source Sans 3', value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+              { label: 'Poppins', value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+              { label: 'Fira Code', value: "var(--font-fira-code, 'Fira Code', monospace)" },
+              { label: 'Roboto Mono', value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+            ],
+            defaultValue: 'inherit',
+          },
+          tabStyle: {
+            type: 'select',
+            label: 'Tab Style',
+            options: [
+              { label: 'Underline', value: 'underline' },
+              { label: 'Pills', value: 'pills' },
+              { label: 'Cards', value: 'cards' },
+            ],
+            defaultValue: 'pills',
           },
         },
-        fontFamily: {
-          type: "select",
-          label: "Font",
-          options: [
-            { label: "Inherit (Page)", value: "inherit" },
-            { label: "Inter", value: "var(--font-inter, Arial, sans-serif)" },
-            { label: "Lora", value: "var(--font-lora, Georgia, serif)" },
-            { label: "Playfair", value: "var(--font-playfair, 'Playfair Display', serif)" },
-            { label: "Source Sans 3", value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
-            { label: "Poppins", value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
-            { label: "Fira Code", value: "var(--font-fira-code, 'Fira Code', monospace)" },
-            { label: "Roboto Mono", value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+        defaultProps: {
+          defaultTab: 0,
+          tabsAlign: 'flex-start',
+          // Predefined keys for default tabs so Puck can identify them immediately.
+          tabs: [
+            // { title: 'Tab 1', key: 'tab-1' },
+
           ],
-          defaultValue: "inherit",
+          tabStyle: 'pills',
         },
-        tabStyle: {
-          type: "select",
-          label: "Tab Style",
-          options: [
-            { label: "Underline", value: "underline" },
-            { label: "Pills", value: "pills" },
-            { label: "Cards", value: "cards" },
-          ],
-          defaultValue: "pills",
-        },
-      },
-      defaultProps: {
-        defaultTab: 0,
-        tabsAlign: "flex-start",
-        tabs: [
-          { title: "Tab 1", key: "tab-1" },
-          { title: "Tab 2", key: "tab-2" },
-          { title: "Tab 3", key: "tab-3" },
-        ],
-        tabStyle: "pills",
-      },
-      render: ({
-        defaultTab,
-        tabsAlign,
-        tabs = [],
-        fontFamily,
-        tabStyle,
-        puck,
-      }: any) => {
-        const [activeTab, setActiveTab] = React.useState<number>(() => {
-          return typeof defaultTab === "number" ? defaultTab : 0
-        })
-        const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null)
-        const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
-        const [hoverIndex, setHoverIndex] = React.useState<number | null>(null)
-
-        const items = Array.isArray(tabs) ? tabs : []
-        const safeIndex = Math.max(0, Math.min(activeTab, Math.max(items.length - 1, 0)))
-        const currentIndex = items.length ? safeIndex : 0
-
-        const path = puck?.path?.join(".") || ""
-        const isEditing = isEditingFromPuck(puck)
-
-        const handleDragStart = (e: React.DragEvent, idx: number) => {
-          setDraggedIndex(idx)
-          e.dataTransfer.effectAllowed = "move"
-        }
-
-        const handleDragOver = (e: React.DragEvent, idx: number) => {
-          e.preventDefault()
-          e.dataTransfer.dropEffect = "move"
-          setDragOverIndex(idx)
-        }
-
-        const handleDrop = (e: React.DragEvent, idx: number) => {
-          e.preventDefault()
-          if (draggedIndex !== null && draggedIndex !== idx) {
-            const newTabs = [...items]
-            const draggedItem = newTabs[draggedIndex]
-            newTabs.splice(draggedIndex, 1)
-            newTabs.splice(idx, 0, draggedItem)
-
-            // Update through puck if available
-            if (puck?.setFieldValue) {
-              puck.setFieldValue("tabs", newTabs)
+        render: ({ defaultTab, tabsAlign, tabs = [], fontFamily, tabStyle, puck }:any) => {
+          const [activeTab, setActiveTab] = React.useState(() => (typeof defaultTab === 'number' ? defaultTab : 0));
+          const [draggedIndex, setDraggedIndex] = React.useState(null);
+          const [dragOverIndex, setDragOverIndex] = React.useState(null);
+          const [hoverIndex, setHoverIndex] = React.useState(null);
+      
+          // On mount, persist the default tabs into Puck’s state and assign keys if missing.
+          React.useEffect(() => {
+            if (!puck?.setFieldValue) return;
+            // Only run once on mount.  Copy the current array of tabs into state,
+            // assigning fallback keys to any tab without a key.
+            const itemsWithKeys = (tabs || []).map((tab, idx) => ({
+              ...tab,
+              key: tab?.key || `tab-${idx + 1}`,
+            }));
+            puck.setFieldValue('tabs', itemsWithKeys);
+          }, []); // empty dependency ensures this runs once
+      
+          // If tabs prop changes (e.g. after reorder), always work with an array.
+          const items = Array.isArray(tabs) ? tabs : [];
+          const currentIndex = items.length ? Math.min(activeTab, items.length - 1) : 0;
+          const isEditing = puck?.isEditing ?? false;
+      
+          // Drag handlers
+          const handleDragStart = (e, idx) => {
+            setDraggedIndex(idx);
+            e.dataTransfer.effectAllowed = 'move';
+          };
+      
+          const handleDragOver = (e, idx) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setDragOverIndex(idx);
+          };
+      
+          const handleDrop = (e, idx) => {
+            e.preventDefault();
+            if (draggedIndex !== null && draggedIndex !== idx) {
+              const newTabs = [...items];
+              const [draggedItem] = newTabs.splice(draggedIndex, 1);
+              newTabs.splice(idx, 0, draggedItem);
+              // Save the new order into Puck’s state.  Do not preserve React’s fallback keys.
+              if (puck?.setFieldValue) {
+                puck.setFieldValue('tabs', newTabs);
+              }
             }
-          }
-          setDraggedIndex(null)
-          setDragOverIndex(null)
-        }
-
-        const handleDragEnd = () => {
-          setDraggedIndex(null)
-          setDragOverIndex(null)
-        }
-
-        const outlineForSelected = {
-          outline: "2px solid #6366f1",
-          outlineOffset: 2,
-          borderRadius: "8px",
-        }
-
-        const isSelected = false
-        const base: any = { width: "100%" }
-        const style = isSelected ? { ...base, ...outlineForSelected } : base
-
-        const getTabButtonStyle = (isActive: boolean, isHovered: boolean) => {
-          const baseStyle = {
-            padding: "12px 20px",
-            border: "none",
-            cursor: "pointer",
-            fontWeight: isActive ? 600 : 500,
-            transition: "all 0.3s ease",
-            borderRadius: "8px",
-            fontSize: "14px",
-          }
-
-          if (tabStyle === "underline") {
+            setDraggedIndex(null);
+            setDragOverIndex(null);
+          };
+      
+          const handleDragEnd = () => {
+            setDraggedIndex(null);
+            setDragOverIndex(null);
+          };
+      
+          // Styling helpers
+          const getTabButtonStyle = (isActive, isHovered) => {
+            const base = {
+              padding: '12px 20px',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: isActive ? 600 : 500,
+              transition: 'all 0.3s ease',
+              borderRadius: '8px',
+              fontSize: '14px',
+            };
+            if (tabStyle === 'underline') {
+              return {
+                ...base,
+                background: 'transparent',
+                color: isActive ? '#3b82f6' : '#9ca3af',
+                borderBottom: isActive ? '3px solid #3b82f6' : '2px solid transparent',
+                borderRadius: 0,
+              };
+            }
+            if (tabStyle === 'cards') {
+              return {
+                ...base,
+                background: isActive ? '#3b82f6' : '#f3f4f6',
+                color: isActive ? '#ffffff' : '#6b7280',
+                boxShadow: isActive ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+                transform: isHovered && isActive ? 'translateY(-2px)' : 'translateY(0)',
+              };
+            }
+            // Default to "pills"
             return {
-              ...baseStyle,
-              background: "transparent",
-              color: isActive ? "#3b82f6" : "#9ca3af",
-              borderBottom: isActive ? "3px solid #3b82f6" : "2px solid transparent",
-              borderRadius: "0",
-            }
-          } else if (tabStyle === "cards") {
-            return {
-              ...baseStyle,
-              background: isActive ? "#3b82f6" : "#f3f4f6",
-              color: isActive ? "#ffffff" : "#6b7280",
-              boxShadow: isActive ? "0 4px 12px rgba(59, 130, 246, 0.3)" : "none",
-              transform: isHovered && isActive ? "translateY(-2px)" : "translateY(0)",
-            }
-          } else {
-            // pills (default)
-            return {
-              ...baseStyle,
-              background: isActive ? "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" : "#f3f4f6",
-              color: isActive ? "#ffffff" : "#6b7280",
-              boxShadow: isActive ? "0 4px 12px rgba(59, 130, 246, 0.3)" : "none",
-              transform: isHovered && isActive ? "scale(1.05)" : "scale(1)",
-            }
-          }
-        }
-
-        return (
-          <div ref={puck?.dragRef} data-puck-path={path || undefined} style={style}>
-            {/* Tab buttons */}
-            <div
-              style={{
-                display: "flex",
-                gap: "8px",
-                borderBottom: tabStyle === "underline" ? "2px solid #e5e7eb" : "none",
-                justifyContent: tabsAlign || "flex-start",
-                flexWrap: "wrap",
-                marginBottom: "24px",
-                fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
-                padding: tabStyle === "cards" ? "8px" : "0",
-                background: tabStyle === "cards" ? "#f9fafb" : "transparent",
-                borderRadius: tabStyle === "cards" ? "12px" : "0",
-              }}
-            >
-              {items.map((tab: any, idx: number) => {
-                const isActive = activeTab === idx
-                const isOver = dragOverIndex === idx
-                const isDragging = draggedIndex === idx
-                const isHovered = hoverIndex === idx
-
-                return (
-                  <div
-                    key={`${idx}-${tab?.key || 'tab'}`}
-                    draggable={isEditing}
-                    onDragStart={(e) => handleDragStart(e, idx)}
-                    onDragOver={(e) => handleDragOver(e, idx)}
-                    onDrop={(e) => handleDrop(e, idx)}
-                    onDragEnd={handleDragEnd}
-                    onMouseEnter={() => setHoverIndex(idx)}
-                    onMouseLeave={() => setHoverIndex(null)}
-                    style={{
-                      opacity: isDragging ? 0.5 : 1,
-                      background: isOver && !isDragging ? "rgba(59, 130, 246, 0.1)" : "transparent",
-                      borderRadius: "8px",
-                      transition: "all 0.2s ease",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab(idx)}
-                      style={{
-                        ...getTabButtonStyle(isActive, isHovered),
-                        cursor: isEditing ? "move" : "pointer",
-                      }}
-                      title={isEditing ? "Drag to reorder" : tab?.title}
-                    >
-                      {tab?.title || `Tab ${idx + 1}`}
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Tab content areas - each tab independently draggable */}
-            <div style={{ padding: "24px 0" }}>
-              {items.map((tab: any, idx: number) => {
-                const isActive = activeTab === idx
-                const TabContent = tab?.content
-
-                return (
-                  <div
-                    key={`${idx}-${tab?.key || 'tab'}`}
-                    style={{
-                      display: isEditing || currentIndex === idx ? "block" : "none",
-                      animation: isActive ? "fadeIn 0.3s ease" : "none",
-                      ...(isEditing && {
-                        marginBottom: "24px",
-                        border: "2px dashed #3b82f6",
-                        padding: "20px",
-                        borderRadius: "12px",
-                        background: "linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%)",
-                      }),
-                    }}
-                  >
-                    {isEditing && (
-                      <div
-                        style={{
-                          paddingBottom: "12px",
-                          fontWeight: 700,
-                          color: "#3b82f6",
-                          fontSize: "14px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        <span>📑</span>
-                        {tab?.title || `Tab ${idx + 1}`}
-                      </div>
-                    )}
+              ...base,
+              background: isActive ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : '#f3f4f6',
+              color: isActive ? '#ffffff' : '#6b7280',
+              boxShadow: isActive ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+              transform: isHovered && isActive ? 'scale(1.05)' : 'scale(1)',
+            };
+          };
+      
+          return (
+            <div ref={puck?.dragRef} data-puck-path={puck?.path?.join('.') || undefined} style={{ width: '100%' }}>
+              {/* Tab buttons */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '8px',
+                  borderBottom: tabStyle === 'underline' ? '2px solid #e5e7eb' : 'none',
+                  justifyContent: tabsAlign || 'flex-start',
+                  flexWrap: 'wrap',
+                  marginBottom: '24px',
+                  fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
+                  padding: tabStyle === 'cards' ? '8px' : '0',
+                  background: tabStyle === 'cards' ? '#f9fafb' : 'transparent',
+                  borderRadius: tabStyle === 'cards' ? '12px' : '0',
+                }}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (!items.length) return;
+                  if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    setActiveTab((prev) => (prev + 1) % items.length);
+                  } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    setActiveTab((prev) => (prev - 1 + items.length) % items.length);
+                  }
+                }}
+              >
+                {items.map((tab, idx) => {
+                  const isActive = activeTab === idx;
+                  const isOver = dragOverIndex === idx;
+                  const isDragging = draggedIndex === idx;
+                  const isHovered = hoverIndex === idx;
+                  const key = tab?.key ?? idx;
+                  return (
                     <div
-                      style={
-                        isEditing
-                          ? {
-                            minHeight: "100px",
-                            background: "#fff",
-                            padding: "16px",
-                            borderRadius: "8px",
-                            border: "1px solid #e5e7eb",
-                            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
-                          }
-                          : {}
-                      }
+                      key={`${key}-btn`}
+                      draggable={isEditing}
+                      onDragStart={(e) => handleDragStart(e, idx)}
+                      onDragOver={(e) => handleDragOver(e, idx)}
+                      onDrop={(e) => handleDrop(e, idx)}
+                      onDragEnd={handleDragEnd}
+                      onMouseEnter={() => setHoverIndex(idx)}
+                      onMouseLeave={() => setHoverIndex(null)}
+                      style={{
+                        opacity: isDragging ? 0.5 : 1,
+                        background: isOver && !isDragging ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                        borderRadius: '8px',
+                        transition: 'all 0.2s ease',
+                      }}
                     >
-                      {typeof TabContent === "function" ? <TabContent /> : null}
+                      <button
+                        type='button'
+                        onClick={() => setActiveTab(idx)}
+                        style={{
+                          ...getTabButtonStyle(isActive, isHovered),
+                          cursor: isEditing ? 'move' : 'pointer',
+                        }}
+                        title={isEditing ? 'Drag to reorder' : tab?.title}
+                      >
+                        {tab?.title || `Tab ${idx + 1}`}
+                      </button>
                     </div>
-                  </div>
-                )
-              })}
+                  );
+                })}
+              </div>
+              {/* Tab content areas */}
+              <div style={{ padding: '24px 0' }}>
+                {items.map((tab, idx) => {
+                  const isActive = activeTab === idx;
+                  const TabContent = tab?.content;
+                  const key = tab?.key ?? idx;
+                  return (
+                    <div
+                      key={`${key}-content`}
+                      style={{
+                        display: isEditing || currentIndex === idx ? 'block' : 'none',
+                        animation: isActive ? 'fadeIn 0.3s ease' : 'none',
+                        ...(isEditing && {
+                          marginBottom: '24px',
+                          border: '2px dashed #3b82f6',
+                          padding: '20px',
+                          borderRadius: '12px',
+                          background: 'linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%)',
+                        }),
+                      }}
+                    >
+                      {isEditing && (
+                        <div
+                          style={{
+                            paddingBottom: '12px',
+                            fontWeight: 700,
+                            color: '#3b82f6',
+                            fontSize: '14px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                        >
+                          <span>📑</span>
+                          {tab?.title || `Tab ${idx + 1}`}
+                        </div>
+                      )}
+                      <div
+                        style={
+                          isEditing
+                            ? {
+                                minHeight: '100px',
+                                background: '#fff',
+                                padding: '16px',
+                                borderRadius: '8px',
+                                border: '1px solid #e5e7eb',
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                              }
+                            : {}
+                        }
+                      >
+                        {typeof TabContent === 'function' ? (
+                          <TabContent />
+                        ) : isEditing ? (
+                          <div
+                            style={{
+                              minHeight: '80px',
+                              display: 'grid',
+                              placeItems: 'center',
+                              color: '#6b7280',
+                              fontSize: 12,
+                              fontStyle: 'italic',
+                            }}
+                          >
+                            Drop components here
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* fade in animation */}
+              <style>{`
+                @keyframes fadeIn {
+                  from {
+                    opacity: 0;
+                    transform: translateY(4px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+              `}</style>
             </div>
-
-            <style>{`
-            @keyframes fadeIn {
-              from {
-                opacity: 0;
-                transform: translateY(4px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-          `}</style>
-          </div>
-        )
-      },
+          );
+        },
     },
 
     /**
