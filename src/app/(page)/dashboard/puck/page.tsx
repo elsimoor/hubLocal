@@ -2,7 +2,11 @@
 
 import React, { Suspense } from "react";
 // Importez Puck, mais PAS createUsePuck
-import { Puck } from "@measured/puck";
+// Import both the editor (Puck) and the runtime renderer (Render).  Render is
+// required so that we can display the latest version of a saved group within
+// the editor without copying its tree into every page.  See the dynamic
+// group registration below for details.
+import { Puck, Render } from "@measured/puck";
 import "@measured/puck/puck.css";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -13,6 +17,9 @@ import { Maximize2, Minimize2 } from "lucide-react";
 // Importez le hook usePuck partagé
 import { usePuck } from "@/lib/puck/puck-context";
 import { ActionStateProvider } from "@/lib/puck/actions";
+import { selectionStore } from "@/lib/puck/selectionStore";
+import { parseIndexFromPath } from "@/lib/puck/selectionStore";
+import { hydrateGroupProps, normalizeGroupTree, summarizeGroupTree } from "@/lib/puck/group-helpers";
 
 /**
  * PuckPage renders a simple visual editor powered by the open‑source Puck
@@ -49,7 +56,10 @@ function PuckEditor() {
 
   // Dynamically loaded custom components and editor ref
   const [customComponents, setCustomComponents] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [groupsInjectedForSlug, setGroupsInjectedForSlug] = useState<string>("");
   const editorRef = useRef<HTMLDivElement>(null);
+  const lastPuckPathRef = useRef<string | null>(null);
 
   // State and handlers for the multi‑step modal used to create custom components
   const [showModal, setShowModal] = useState(false);
@@ -77,6 +87,97 @@ function PuckEditor() {
 
   // Docs modal state for "How to use" guide per custom component
   const [showDocsModal, setShowDocsModal] = useState(false);
+  // Flag to avoid repeatedly upgrading legacy group references.  Once a page
+  // has been upgraded for a given slug we won’t attempt to upgrade again.
+  const [groupsUpgraded, setGroupsUpgraded] = useState(false);
+
+  // -----------------------------------------------------------------------------
+  // Global click fallback for selection
+  // -----------------------------------------------------------------------------
+  // Some components defined in the Puck config do not attach their own
+  // onMouseDown handler to update the selectionStore.  When those blocks are
+  // clicked, the selectionStore remains empty, which breaks the "Save as
+  // Group" feature.  To capture clicks on any block, we listen for the
+  // mousedown event on the document.  When a user clicks somewhere in the
+  // preview, we find the nearest ancestor with a `data-puck-path` attribute
+  // and store that path as the last clicked element.  This value is saved
+  // both in a React ref (lastPuckPathRef) and in a global variable
+  // (window.__LAST_PUCK_PATH__) so that the save handler can fall back to it
+  // when the selection store returns no items.
+  useEffect(() => {
+    const handler = (e: any) => {
+      try {
+        // Find the nearest element with a data-puck-path attribute
+        const el = (e.target as HTMLElement)?.closest?.('[data-puck-path]');
+        const path = el?.getAttribute?.('data-puck-path');
+        if (path) {
+          lastPuckPathRef.current = path;
+          if (typeof window !== 'undefined') {
+            (window as any).__LAST_PUCK_PATH__ = path;
+          }
+          // Debug: log each time a path is captured via the global mousedown handler
+          try {
+            console.log('[PuckDebug] Global mousedown captured path:', path);
+          } catch {}
+        }
+      } catch {
+        // Do nothing if the target isn’t an HTMLElement
+      }
+    };
+    // Use capture phase so we run before Puck’s own event handlers
+    document.addEventListener('mousedown', handler, true);
+    return () => document.removeEventListener('mousedown', handler, true);
+  }, []);
+
+  // When the document data changes, update the fallback path if no selection
+  // is currently stored.  This effect inspects the current editor data and
+  // attempts to derive a sensible default path pointing at the last top‑level
+  // node.  This path is saved into both lastPuckPathRef and
+  // window.__LAST_PUCK_PATH__ so that the "Save as Group" handler can
+  // recover a selection even when the selectionStore is empty.  Without this
+  // fallback the handler would throw an error and prompt the user to click
+  // a block.  By pre‑populating the last path we ensure that at least one
+  // element will be grouped when the user clicks "Save as Group" with no
+  // explicit selection.  This is particularly useful when components
+  // neglect to set data‑puck‑path or attach onMouseDown handlers.
+  useEffect(() => {
+    try {
+      // Only update if the data has a root and no selection is currently
+      // stored in the selectionStore.  If there is a selection we don’t
+      // override it.
+      if (!selectionStore.size() && data && typeof window !== 'undefined') {
+        let defaultPath: string | null = null;
+        // Determine where the top‑level array of nodes is stored.  Blocks may
+        // reside under data.content or data.root.content, depending on the
+        // version of Puck.  Inspect both locations.
+        const doc: any = data as any;
+        let content: any[] | null = null;
+        if (Array.isArray(doc?.content)) {
+          content = doc.content;
+        } else if (Array.isArray(doc?.root?.content)) {
+          content = doc.root.content;
+        }
+        if (content && content.length > 0) {
+          const idx = content.length - 1;
+          if (Array.isArray(doc?.content)) {
+            defaultPath = `content.${idx}`;
+          } else {
+            defaultPath = `root.content.${idx}`;
+          }
+        }
+        if (defaultPath) {
+          lastPuckPathRef.current = defaultPath;
+          (window as any).__LAST_PUCK_PATH__ = defaultPath;
+          // Debug: log whenever the fallback path effect updates the last path
+          try {
+            console.log('[PuckDebug] Fallback effect set last path to', defaultPath);
+          } catch {}
+        }
+      }
+    } catch {
+      // Ignore any errors deriving the fallback path
+    }
+  }, [data]);
 
   // Simple toast system
   const [toasts, setToasts] = useState<{ id: number; text: string; type?: 'success' | 'error' }[]>([]);
@@ -188,6 +289,38 @@ function PuckEditor() {
     }
   };
 
+  // Fetch groups (public + mine)
+  useEffect(() => {
+    let isCancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/groups", { cache: "no-store" });
+        if (!res.ok) throw new Error("Failed to load groups");
+        const json = await res.json();
+        if (!isCancelled) {
+          const list = Array.isArray(json?.groups) ? json.groups : [];
+          setGroups(list);
+          try {
+            const summaries = list.map((g: any) => {
+              const { contentCount, childTypes } = summarizeGroupTree(g?.tree);
+              return {
+                id: g?._id,
+                name: g?.name,
+                contentCount,
+                childTypes,
+              };
+            });
+            console.log('[GroupDebug] Loaded groups summary:', summaries);
+          } catch {}
+        }
+      } catch (e) {
+        console.error("Error fetching groups", e);
+        if (!isCancelled) setGroups([]);
+      }
+    })();
+    return () => { isCancelled = true; };
+  }, [slug]);
+
   useEffect(() => {
     let isCancelled = false;
     (async () => {
@@ -219,6 +352,134 @@ function PuckEditor() {
     if (!nextConfig.categories.manual) {
       nextConfig.categories.manual = { title: "Personnalisé", components: [] };
     }
+    // Ensure a category for saved groups exists
+    if (!nextConfig.categories.groups) {
+      nextConfig.categories.groups = { title: "Saved Groups", components: [], defaultExpanded: true };
+    }
+
+    // Register dynamic Group palette items – one per saved group
+    if (Array.isArray(groups)) {
+      groups.forEach((g: any) => {
+        const key = `Group_${String(g._id)}`;
+        if (!nextConfig.categories.groups.components.includes(key)) {
+          nextConfig.categories.groups.components.push(key);
+        }
+        if (!nextConfig.components[key]) {
+          const hydrateProps = (props: any = {}) =>
+            hydrateGroupProps(g?.tree, props, { title: g?.name, groupId: String(g?._id || '') });
+          nextConfig.components[key] = {
+            label: String(g.name || 'Group'),
+            inline: true,
+            fields: {
+              title: { type: 'text', label: 'Title', defaultValue: g?.name || 'Group' },
+              background: { type: 'text', label: 'Background', defaultValue: '' },
+              padding: { type: 'number', label: 'Padding (px)', defaultValue: 16 },
+              borderRadius: { type: 'number', label: 'Radius (px)', defaultValue: 12 },
+              content: { type: 'slot', label: 'Content' },
+            },
+            defaultProps: {
+              title: g?.name || 'Group',
+              background: '',
+              padding: 16,
+              borderRadius: 12,
+              content: [],
+            },
+            resolveData: async ({ props }: { props: any }) => {
+              const nextProps = hydrateProps(props);
+              try {
+                console.log('[PuckDebug] resolveData for group', g?._id || '', 'content nodes:', nextProps?.content?.length || 0);
+              } catch {}
+              return { props: nextProps };
+            },
+            render: ({ title, background, padding, borderRadius, content: ContentSlot, puck }: any) => {
+              const baseStyle: React.CSSProperties = {
+                width: '100%',
+                background: background || undefined,
+                padding: typeof padding === 'number' ? `${padding}px` : undefined,
+                borderRadius: typeof borderRadius === 'number' ? `${borderRadius}px` : undefined,
+                border: '1px solid #e5e7eb',
+              };
+              let path: string | undefined;
+              try {
+                const p: any = puck || {};
+                if (Array.isArray(p.path)) path = p.path.join('.');
+                else if (typeof p.path === 'string') path = p.path;
+                else if (typeof p.node?.path === 'string') path = p.node.path;
+              } catch {
+                path = undefined;
+              }
+              const isSelected = selectionStore.has(path);
+              const isEditing = !!puck?.isEditing;
+              const outlineStyle: React.CSSProperties = isSelected
+                ? { outline: '2px solid #6366f1', outlineOffset: 2 }
+                : {};
+              const onMouseDown = (e: any) => {
+                e.stopPropagation();
+                if (!path) return;
+                if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true);
+                else selectionStore.toggle(path, false);
+                lastPuckPathRef.current = path;
+              };
+              const contentCount = Array.isArray((puck as any)?.node?.props?.content)
+                ? (puck as any).node.props.content.length
+                : 0;
+              try {
+                console.log('[GroupDebug] Rendering group', String(g?._id || ''), {
+                  name: g?.name,
+                  version: g?.version,
+                  contentCount,
+                });
+              } catch {}
+              return (
+                <div
+                  ref={puck?.dragRef}
+                  data-puck-path={path || undefined}
+                  data-puck-component={`Group:${g?.name || ''}`}
+                  data-group-child-count={contentCount}
+                  style={{ ...baseStyle, ...outlineStyle }}
+                  onMouseDown={onMouseDown}
+                >
+                  <div style={{ paddingBottom: 8, fontWeight: 700 }}>
+                    {title || g?.name || 'Group'}
+                  </div>
+                  <div
+                    style={
+                      isEditing
+                        ? {
+                            minHeight: 80,
+                            background: '#fff',
+                            border: '1px dashed #c7d2fe',
+                            padding: 12,
+                            borderRadius: 8,
+                          }
+                        : {}
+                    }
+                  >
+                    {typeof ContentSlot === 'function' ? (
+                      <ContentSlot />
+                    ) : (
+                      <div
+                        style={{
+                          minHeight: 60,
+                          display: 'grid',
+                          placeItems: 'center',
+                          color: '#6b7280',
+                          fontSize: 12,
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        Drop components here
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            },
+          };
+        }
+      });
+    }
+
     if (!Array.isArray(customComponents) || customComponents.length === 0) {
       return nextConfig;
     }
@@ -422,7 +683,7 @@ function PuckEditor() {
       }
     });
     return nextConfig;
-  }, [customComponents]);
+  }, [customComponents, groups]);
 
   // Helper to render a preview of a custom component example using the same
   // placeholder replacement logic as the runtime renderer.
@@ -505,6 +766,12 @@ function PuckEditor() {
         e.preventDefault();
         e.stopPropagation();
       }
+      // Track last clicked puck path to support Save-as-Group fallback
+      const el = target?.closest?.('[data-puck-path]') as HTMLElement | null;
+      if (el) {
+        const p = el.getAttribute('data-puck-path');
+        if (p) lastPuckPathRef.current = p;
+      }
     };
     const node = editorRef.current;
     if (node) {
@@ -543,6 +810,176 @@ function PuckEditor() {
       active = false;
     };
   }, [slug]);
+
+  // Helper: get value at path from Puck data (e.g. "root.content.2")
+  const getValueAtPath = (rootData: any, path: string) => {
+    try {
+      const parts = String(path || "").split(".").filter(Boolean);
+      let current: any = rootData;
+      for (const p of parts) {
+        if (current == null) return undefined;
+        const idx = Number(p);
+        if (Number.isFinite(idx) && Array.isArray(current)) {
+          current = current[idx];
+        } else {
+          current = current[p as any];
+        }
+      }
+      return current;
+    } catch {
+      return undefined;
+    }
+  };
+
+  // Helper: shallow clone of data with a node appended to root.content if not present
+  const appendNodeToRoot = (doc: any, node: any) => {
+    const next = { ...(doc || {}) };
+    const root = { ...(next.root || {}) };
+    const content = Array.isArray(root.content) ? [...root.content] : [];
+    content.push(node);
+    root.content = content;
+    next.root = root;
+    return next;
+  };
+
+  // Helper: immutable set by path (dot-notation)
+  const setValueAtPath = (rootData: any, path: string, value: any) => {
+    try {
+      const parts = String(path || "").split('.').filter(Boolean);
+      if (!parts.length) return rootData;
+      const next = { ...(rootData || {}) } as any;
+      let current = next as any;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const p = parts[i];
+        const idx = Number(p);
+        if (Number.isFinite(idx) && Array.isArray(current)) {
+          current[idx] = Array.isArray(current[idx]) ? [...current[idx]] : { ...(current[idx] || {}) };
+          current = current[idx];
+        } else {
+          const v = current[p];
+          current[p] = Array.isArray(v) ? [...v] : { ...(v || {}) };
+          current = current[p];
+        }
+      }
+      const last = parts[parts.length - 1];
+      const lastIdx = Number(last);
+      if (Number.isFinite(lastIdx) && Array.isArray(current)) {
+        const arr = [...current];
+        arr[lastIdx] = value;
+        return setValueAtPath(rootData, parts.slice(0, -1).join('.'), arr);
+      }
+      current[last] = value;
+      return next;
+    } catch {
+      return rootData;
+    }
+  };
+
+  // Group selected sibling nodes under a single Group wrapper and return new doc
+  const groupSelectedIntoNode = (doc: any, paths: string[], name: string) => {
+    if (!paths?.length) return doc;
+    const { ok, parent } = selectionStore.sameParent(paths);
+    if (!ok || !parent) return doc;
+    const parentArray = getValueAtPath(doc, parent);
+    if (!Array.isArray(parentArray)) return doc;
+    const indices = paths
+      .map((p) => parseIndexFromPath(p))
+      .filter((n): n is number => typeof n === 'number')
+      .sort((a, b) => a - b);
+    if (!indices.length) return doc;
+    const nodes = indices.map((i) => parentArray[i]);
+    const groupNode: any = {
+      type: 'Group',
+      props: { title: name, showTitle: 'false', padding: 16, borderRadius: 12 },
+      content: nodes,
+    };
+    const remaining = parentArray.filter((_: any, idx: number) => !indices.includes(idx));
+    const insertAt = indices[0];
+    const newParent = [...remaining.slice(0, insertAt), groupNode, ...remaining.slice(insertAt)];
+    const next = setValueAtPath(doc, parent, newParent);
+    return next;
+  };
+
+  // Auto-inject autoInclude groups into current document once per slug
+  useEffect(() => {
+    if (!data || !groups || groupsInjectedForSlug === slug) return;
+    const auto = groups.filter((g: any) => !!g.autoInclude);
+    if (!auto.length) {
+      setGroupsInjectedForSlug(slug);
+      return;
+    }
+    try {
+      let next = data;
+      const existingList: any[] = Array.isArray(next?.root?.content) ? next.root.content : [];
+      for (const g of auto) {
+        // Do not duplicate group auto inclusion.  If a node with a matching
+        // __groupId exists we skip it.  Otherwise insert a lightweight
+        // reference node that uses the dynamic component defined in
+        // mergedConfig (`Group_<id>`).  The node stores the group id on
+        // `__groupId` so legacy pages can still be upgraded.
+        const already = existingList.some(
+          (n: any) => n && typeof n === 'object' && n.__groupId === String(g._id)
+        );
+        if (!already) {
+          const node = {
+            type: `Group_${String(g._id)}`,
+            props: {},
+            __groupId: String(g._id),
+          };
+          next = appendNodeToRoot(next, node);
+        }
+      }
+      if (next !== data) {
+        setData(next);
+      }
+      setGroupsInjectedForSlug(slug);
+    } catch (e) {
+      console.warn('Failed to auto-inject groups', e);
+    }
+  }, [data, groups, slug, groupsInjectedForSlug]);
+
+  // Upgrade legacy group nodes in the document.  Older versions of the
+  // application stored groups by copying the group tree directly into the
+  // page and setting the `__groupId` property.  This effect converts such
+  // nodes into lightweight references (type: `Group_<id>`) so that they use
+  // the dynamic Group component defined in mergedConfig.  The upgrade is
+  // performed once per document per slug.
+  useEffect(() => {
+    if (!data || !groups || groupsUpgraded) return;
+    try {
+      // Deep clone the data to avoid mutating state directly
+      const clone = JSON.parse(JSON.stringify(data));
+      let changed = false;
+      function traverse(node: any) {
+        if (!node || typeof node !== 'object') return;
+        // If the node has a __groupId and its type does not already refer to
+        // a dynamic group component, convert it into a reference and remove
+        // its content to avoid duplication.
+        if (node.__groupId && (!node.type || !String(node.type).startsWith('Group_'))) {
+          node.type = `Group_${String(node.__groupId)}`;
+          delete node.content;
+          changed = true;
+        }
+        // Traverse children recursively
+        const content = node.content;
+        if (Array.isArray(content)) {
+          content.forEach((child) => traverse(child));
+        } else if (content && typeof content === 'object') {
+          traverse(content);
+        }
+      }
+      if (clone && clone.root) {
+        traverse(clone.root);
+      }
+      if (changed) {
+        setData(clone);
+      }
+    } catch (e) {
+      console.warn('Failed to upgrade group references', e);
+    } finally {
+      setGroupsUpgraded(true);
+    }
+  }, [data, groups, groupsUpgraded]);
 
   async function saveDoc(nextData: any, status: "draft" | "published") {
     try {
@@ -590,6 +1027,11 @@ function PuckEditor() {
             key={`${slug}:${customComponents?.length ?? 0}`}
             config={mergedConfig as any}
             data={data}
+            onChange={(d: any) => {
+              // Ensure the editor data is always defined to avoid errors
+              // when Puck.Outline tries to read `data` on undefined.
+              setData(d || {});
+            }}
             viewports={[
               { width: 360, height: "auto", label: "Mobile" },
               { width: 768, height: "auto", label: "Tablet" },
@@ -709,6 +1151,237 @@ function PuckEditor() {
                       >
                         {saving === "published" ? "Publishing…" : "Publish"}
                       </button>
+                    </div>
+                    {/* Groups controls */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        title="Save selection as Group"
+                        onClick={async () => {
+                          try {
+                            // Debug: log the current state of selectionStore and related
+                            // references before computing the selected paths.
+                            try {
+                              console.log('[PuckDebug] Save as Group invoked');
+                              console.log('[PuckDebug] selectionStore.get():', selectionStore.get());
+                              console.log('[PuckDebug] lastPuckPathRef.current:', lastPuckPathRef.current);
+                              if (typeof window !== 'undefined') {
+                                console.log('[PuckDebug] window.__LAST_PUCK_PATH__:', (window as any).__LAST_PUCK_PATH__);
+                              }
+                              console.log('[PuckDebug] current document:', current);
+                            } catch {}
+                            const sel = selectionStore.get();
+                            let paths = Array.isArray(sel) ? sel.slice() : [];
+                            try {
+                              console.log('[PuckDebug] initial paths from selection:', paths);
+                            } catch {}
+                            // Fallback: if nothing is in the selection store, use the
+                            // last recorded path from either the local ref or the
+                            // global window variable (__LAST_PUCK_PATH__).  This helps
+                            // capture selections that may not have set data-puck-path
+                            // attributes.
+                            if (!paths || paths.length === 0) {
+                              // If nothing is selected, attempt to use the last
+                              // recorded path or compute a default path.  First
+                              // check our stored refs, then compute a fallback
+                              // from the current document.  This ensures we
+                              // always have at least one path to group.
+                              let last = lastPuckPathRef.current;
+                              try {
+                                if (!last && typeof window !== 'undefined') {
+                                  last = (window as any).__LAST_PUCK_PATH__ || null;
+                                }
+                              } catch {}
+                              if (last) {
+                                paths = [String(last)];
+                                try {
+                                  console.log('[PuckDebug] Using last path from ref/globals:', last, '→ paths', paths);
+                                } catch {}
+                              } else {
+                                // Derive a fallback path pointing at the last
+                                // top‑level node in the current document.  Puck
+                                // stores top level components inside root.content.
+                                try {
+                                  // Determine where the top‑level array of nodes is stored.
+                                  const rootObj: any = (current as any) || {};
+                                  // Puck documents may store blocks in current.content or current.root.content
+                                  let content: any[] | null = null;
+                                  if (Array.isArray(rootObj?.content)) {
+                                    content = rootObj.content;
+                                  } else if (Array.isArray(rootObj?.root?.content)) {
+                                    content = rootObj.root.content;
+                                  }
+                                  if (content && content.length > 0) {
+                                    const idx = content.length - 1;
+                                    // Choose the appropriate path prefix.  When blocks
+                                    // live directly under current.content, prefix with "content".
+                                    // Otherwise fallback to "root.content" when stored there.
+                                    if (Array.isArray(rootObj?.content)) {
+                                      paths = [`content.${idx}`];
+                                    } else {
+                                      paths = [`root.content.${idx}`];
+                                    }
+                                    try {
+                                      console.log('[PuckDebug] Computed fallback path from document:', paths);
+                                    } catch {}
+                                  }
+                                } catch {}
+                              }
+                            }
+                            if (!paths || paths.length === 0) {
+                              showToast('Click a block first, then Save as Group', 'error');
+                              return;
+                            }
+                            try {
+                              console.log('[PuckDebug] Final resolved paths:', paths);
+                            } catch {}
+                            // If multiple, ensure same parent
+                            if (paths.length > 1) {
+                              const { ok } = selectionStore.sameParent(paths);
+                              if (!ok) {
+                                showToast('Selections must share the same parent', 'error');
+                                return;
+                              }
+                            }
+                            const selectedNodes = paths.map((p) => getValueAtPath(current, p)).filter((n) => n && typeof n === 'object');
+                            try {
+                              console.log('[PuckDebug] Selected nodes for grouping:', selectedNodes);
+                            } catch {}
+                            if (!selectedNodes.length) {
+                              showToast('Unsupported selection', 'error');
+                              return;
+                            }
+                            const name = prompt('Group name');
+                            if (!name) return;
+                            const vis = confirm('Make this group public and auto-include across all apps? Click OK for Yes, Cancel for No.');
+                            let groupTree: any;
+                            /*
+                             * Build the group tree.  When only a single node is selected
+                             * and that node contains its own `content` array (for example,
+                             * when the user selects a Group wrapper), we flatten the
+                             * selection by saving the children of that node directly.
+                             * Otherwise we save the selected node(s) as is.  The saved
+                             * structure always includes a `root` object so that Puck’s
+                             * internals can reliably find `data.root.content`.  Without
+                             * the root property Puck may throw a runtime error when
+                             * reading `data` on undefined.
+                             */
+                            if (paths.length === 1) {
+                              const node = selectedNodes[0];
+                              let savedContent: any[] = [];
+                              if (node && typeof node === 'object' && Array.isArray((node as any).content)) {
+                                // Use the node's children directly
+                                savedContent = (node as any).content;
+                              } else {
+                                // Otherwise wrap the node in an array
+                                savedContent = [node];
+                              }
+                              groupTree = { root: { content: savedContent } };
+                            } else {
+                              groupTree = { root: { content: selectedNodes } };
+                            }
+                            // Debug: log the computed group tree before saving
+                            try {
+                              console.log('[PuckDebug] groupTree ready to save:', groupTree);
+                            } catch {}
+                            const res = await fetch('/api/groups', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ name, tree: groupTree, public: vis, autoInclude: vis }),
+                            });
+                            // Debug: log the raw response status
+                            try {
+                              console.log('[PuckDebug] POST /api/groups status:', res.status, res.ok);
+                            } catch {}
+                            let createdGroup: any = null;
+                            if (!res.ok) {
+                              const j = await res.json().catch(() => ({}));
+                              throw new Error(j?.error || 'Failed to save group');
+                            } else {
+                              try {
+                                const json = await res.json().catch(() => ({}));
+                                createdGroup = json?.group || null;
+                                console.log('[PuckDebug] Saved group response:', json);
+                              } catch {}
+                            }
+                            showToast('Group saved', 'success');
+                            // Optionally replace current selection by a single Group node in the document
+                            const shouldReplace = confirm('Replace current selection in the page with the grouped block?');
+                            if (shouldReplace) {
+                              const nextDoc = groupSelectedIntoNode(current, paths, name);
+                              setData(nextDoc);
+                            }
+                            // Refresh groups list
+                            try {
+                              const g = await fetch('/api/groups', { cache: 'no-store' }).then((r) => r.json());
+                              setGroups(Array.isArray(g?.groups) ? g.groups : []);
+                              // Debug: log groups after refresh
+                              try {
+                                console.log('[PuckDebug] Fetched groups after saving:', g);
+                              } catch {}
+                            } catch {}
+                          } catch (e: any) {
+                            console.error(e);
+                            showToast(String(e?.message || e), 'error');
+                          }
+                        }}
+                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                      >
+                        Save as Group
+                      </button>
+                      <div className="relative group">
+                        <button
+                          type="button"
+                          className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                          title="Insert a saved Group at the end"
+                        >
+                          Insert Group ▾
+                        </button>
+                        <div className="absolute hidden group-hover:block right-0 mt-1 w-72 bg-white border border-gray-200 rounded-md shadow-md z-10 max-h-80 overflow-auto">
+                          {groups.length === 0 ? (
+                            <div className="p-3 text-sm text-gray-600">No groups yet.</div>
+                          ) : (
+                            groups.map((g: any) => {
+                              const summary = summarizeGroupTree(g?.tree);
+                              const blockLabel = `${summary.contentCount} block${summary.contentCount === 1 ? '' : 's'}`;
+                              return (
+                                <button
+                                  key={g._id}
+                                  type="button"
+                                  onClick={() => {
+                                    try {
+                                      try {
+                                        console.log('[GroupDebug] Inserting group', String(g?._id || ''), {
+                                          name: g?.name,
+                                          contentCount: summary.contentCount,
+                                          childTypes: summary.childTypes,
+                                        });
+                                      } catch {}
+                                      // Insert a lightweight reference node instead of copying the tree.
+                                      const node = {
+                                        type: `Group_${String(g._id)}`,
+                                        props: {},
+                                        __groupId: String(g._id),
+                                      };
+                                      const next = appendNodeToRoot(current, node);
+                                      setData(next);
+                                      showToast('Inserted group');
+                                    } catch (e: any) {
+                                      console.error(e);
+                                      showToast('Failed to insert group', 'error');
+                                    }
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                >
+                                  {g.name}
+                                  <span className="ml-2 text-xs text-gray-500">{blockLabel}</span>
+                                  {g.autoInclude ? <span className="ml-2 text-xs text-gray-500">auto</span> : null}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <button
                       type="button"

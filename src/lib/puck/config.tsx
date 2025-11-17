@@ -8,7 +8,7 @@ import { DropZone } from "@measured/puck"
 // controlling UI state (e.g. whether a modal is open) and runActions
 // executes an array of actions defined in fields such as Button.actions.
 import { useActionState, runActions } from "./actions"
-import { selectionStore } from "./selectionStore"
+import { selectionStore, useSelectedPaths } from "./selectionStore"
 
 // Helper functions for selection highlighting.
 const outlineForSelected: any = { outline: "2px solid #6366f1", outlineOffset: 2 }
@@ -172,8 +172,20 @@ export const config = {
     },
     widgets: {
       title: "Visual Widgets",
-      components: ["Card", "ColorBox", "ColorPickerBox", "QrCode", "SpotifyCard", "ExternalPost", "Shop"],
-      defaultExpanded: false,
+      components: [
+        "Card",
+        "ColorBox",
+        "ColorPickerBox",
+        "QrCode",
+        "SpotifyCard",
+        "ExternalPost",
+        "Shop",
+        // Added Stats from the imported configuration. This component displays
+        // numerical data with labels in a responsive grid.
+        "Stats",
+      ],
+      // Expand widgets by default so newly added components such as Stats are visible
+      defaultExpanded: true,
     },
     animations: {
       title: "Animations & Effects",
@@ -187,13 +199,22 @@ export const config = {
     },
     structure: {
       title: "Structure & Organization",
-      components: ["Accordion", "Tabs"],
+      components: ["Accordion", "Tabs", "Group"],
       defaultExpanded: false,
     },
     custom: {
       title: "Custom Components",
-      components: ["Testimonials", "LinksList", "Logos", "SelectedInfo"],
-      defaultExpanded: false,
+      components: [
+        "Testimonials",
+        "LinksList",
+        "Logos",
+        "SelectedInfo",
+        // Template acts as a generic wrapper for nested content and is added
+        // from the imported configuration.
+        "Template",
+      ],
+      // Expand custom components by default so Template is visible
+      defaultExpanded: true,
     },
   },
   // Root defines the page level fields and wrapper.
@@ -760,8 +781,21 @@ export const config = {
           }
         };
 
+        // Selection wiring
+        const path = getPathFromPuck(puck)
+        const _sel = useSelectedPaths()
+        const isEditing = isEditingFromPuck(puck)
+        const isSelected = selectionStore.has(path)
+        const baseStyle: any = { fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }
+        const style = isSelected ? { ...baseStyle, ...outlineForSelected } : baseStyle
+        const onMouseDown = (e: any) => {
+          e.stopPropagation()
+          // Allow selection even when not in editing state so grouping works immediately.
+          if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
+          else selectionStore.toggle(path, false)
+        }
         return (
-          <section style={{ fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined }}>
+          <section ref={puck?.dragRef} data-puck-path={path || undefined} style={style} onMouseDown={onMouseDown}>
             {showDisclaimerBool && disclaimerText ? (
               <div className="text-center text-gray-600 text-sm mb-3">{disclaimerText}</div>
             ) : null}
@@ -947,7 +981,6 @@ export const config = {
         const style = isSelected ? { ...base, ...outlineForSelected, ...hint } : { ...base, ...hint }
         const onMouseDown = (e: any) => {
           e.stopPropagation()
-          if (!isEditing) return
           if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
           else selectionStore.toggle(path, false)
         }
@@ -1031,7 +1064,6 @@ export const config = {
         }
         const onMouseDown = (e: any) => {
           e.stopPropagation()
-          if (!isEditing) return
           if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
           else selectionStore.toggle(path, false)
         }
@@ -1760,6 +1792,7 @@ export const config = {
         if (width >= tabletBp && typeof gapTablet === "number") gap = gapTablet
         if (width >= desktopBp && typeof gapDesktop === "number") gap = gapDesktop
         const path = getPathFromPuck(puck)
+        const _sel = useSelectedPaths()
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
         const extraPad = isEditing && editingPadding ? editingPadding : 0
@@ -2359,9 +2392,42 @@ export const config = {
     Space: {
       label: "Space",
       inline: true,
-      fields: { size: { type: "number", label: "Height (px)", defaultValue: 16 } },
-      render: ({ size, puck }: any) => {
-        const base: any = { height: size ? `${size}px` : "16px" }
+      /**
+       * Updated space component to support horizontal, vertical or both directions and
+       * to select the spacing size via a number. This offers greater flexibility
+       * compared with the original implementation which only set vertical height.
+       */
+      fields: {
+        size: {
+          type: "number",
+          label: "Size (px)",
+          defaultValue: 16,
+        },
+        direction: {
+          type: "select",
+          label: "Direction",
+          options: [
+            { label: "Both", value: "" },
+            { label: "Vertical", value: "vertical" },
+            { label: "Horizontal", value: "horizontal" },
+          ],
+          defaultValue: "",
+        },
+      },
+      defaultProps: {
+        size: 16,
+        direction: "",
+      },
+      render: ({ size, direction, puck }: any) => {
+        // Determine width/height based on selected direction. When direction is blank (both),
+        // apply the size to both dimensions.
+        const height = direction === "horizontal" ? undefined : size ? `${size}px` : "16px"
+        const width = direction === "vertical" ? undefined : size ? `${size}px` : "16px"
+        const base: any = {
+          height,
+          width,
+          display: "block",
+        }
         const path = getPathFromPuck(puck)
         const isSelected = selectionStore.has(path)
         const isEditing = isEditingFromPuck(puck)
@@ -5117,7 +5183,7 @@ export const config = {
           tabs: {
             type: 'array',
             label: 'Tabs',
-            getItemSummary: (item, i) => item?.title ? `${i + 1}. ${item.title}` : `Tab ${i + 1}`,
+            getItemSummary: (item: any, i: number) => item?.title ? `${i + 1}. ${item.title}` : `Tab ${i + 1}`,
             // When adding a new tab, default the title; Puck will assign an internal key.
             defaultItemProps: { title: 'Tab' },
             arrayFields: {
@@ -5163,16 +5229,16 @@ export const config = {
         },
         render: ({ defaultTab, tabsAlign, tabs = [], fontFamily, tabStyle, puck }:any) => {
           const [activeTab, setActiveTab] = React.useState(() => (typeof defaultTab === 'number' ? defaultTab : 0));
-          const [draggedIndex, setDraggedIndex] = React.useState(null);
-          const [dragOverIndex, setDragOverIndex] = React.useState(null);
-          const [hoverIndex, setHoverIndex] = React.useState(null);
+          const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
+          const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
+          const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
       
           // On mount, persist the default tabs into Puck’s state and assign keys if missing.
           React.useEffect(() => {
             if (!puck?.setFieldValue) return;
             // Only run once on mount.  Copy the current array of tabs into state,
             // assigning fallback keys to any tab without a key.
-            const itemsWithKeys = (tabs || []).map((tab, idx) => ({
+            const itemsWithKeys = (tabs || []).map((tab: any, idx: number) => ({
               ...tab,
               key: tab?.key || `tab-${idx + 1}`,
             }));
@@ -5185,18 +5251,18 @@ export const config = {
           const isEditing = puck?.isEditing ?? false;
       
           // Drag handlers
-          const handleDragStart = (e, idx) => {
+          const handleDragStart = (e: any, idx: number) => {
             setDraggedIndex(idx);
             e.dataTransfer.effectAllowed = 'move';
           };
       
-          const handleDragOver = (e, idx) => {
+          const handleDragOver = (e: any, idx: number) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             setDragOverIndex(idx);
           };
       
-          const handleDrop = (e, idx) => {
+          const handleDrop = (e: any, idx: number) => {
             e.preventDefault();
             if (draggedIndex !== null && draggedIndex !== idx) {
               const newTabs = [...items];
@@ -5217,7 +5283,7 @@ export const config = {
           };
       
           // Styling helpers
-          const getTabButtonStyle = (isActive, isHovered) => {
+          const getTabButtonStyle = (isActive: boolean, isHovered: boolean) => {
             const base = {
               padding: '12px 20px',
               border: 'none',
@@ -5283,7 +5349,7 @@ export const config = {
                   }
                 }}
               >
-                {items.map((tab, idx) => {
+                {items.map((tab:any, idx:any) => {
                   const isActive = activeTab === idx;
                   const isOver = dragOverIndex === idx;
                   const isDragging = draggedIndex === idx;
@@ -5411,6 +5477,88 @@ export const config = {
             </div>
           );
         },
+    },
+
+    /**
+     * Group container. A generic wrapper that can hold arbitrary child content.
+     * Can be used to compose reusable groups of UI.
+     */
+    Group: {
+      label: 'Group',
+      inline: true,
+      fields: {
+        title: { type: 'text', label: 'Title', defaultValue: 'Group' },
+        description: { type: 'text', label: 'Description', defaultValue: '' },
+        background: { type: 'text', label: 'Background', defaultValue: '' },
+        padding: { type: 'number', label: 'Padding (px)', defaultValue: 16 },
+        borderRadius: { type: 'number', label: 'Radius (px)', defaultValue: 12 },
+        showTitle: {
+          type: 'select',
+          label: 'Show title',
+          options: [
+            { label: 'Yes', value: 'true' },
+            { label: 'No', value: 'false' },
+          ],
+          defaultValue: 'true',
+        },
+        content: { type: 'slot', label: 'Content' },
+      },
+      defaultProps: {
+        title: 'Group',
+        description: '',
+        background: '',
+        padding: 16,
+        borderRadius: 12,
+        showTitle: 'true',
+      },
+      render: ({ title, description, background, padding, borderRadius, showTitle, content: ContentSlot, puck }: any) => {
+        const path = getPathFromPuck(puck)
+        const _sel = useSelectedPaths()
+        const isSelected = selectionStore.has(path)
+        const isEditing = isEditingFromPuck(puck)
+        const base: any = {
+          width: '100%',
+          background: background || undefined,
+          padding: typeof padding === 'number' ? `${padding}px` : undefined,
+          borderRadius: typeof borderRadius === 'number' ? `${borderRadius}px` : undefined,
+          border: '1px solid #e5e7eb',
+        }
+        const style = isSelected ? { ...base, ...outlineForSelected } : base
+        const onMouseDown = (e: any) => {
+          e.stopPropagation()
+          // Allow selection even when not in explicit editing mode so that
+          // clicking a Group once is enough for "Save as Group".
+          if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
+          else selectionStore.toggle(path, false)
+        }
+        try {
+          // Debug: log base Group render details: whether content slot is a function and the title
+          console.log('[PuckDebug] base Group render', {
+            title,
+            hasContentSlot: typeof ContentSlot === 'function',
+            contentSlotType: typeof ContentSlot,
+          })
+        } catch {}
+        return (
+          <div ref={puck?.dragRef} data-puck-path={path || undefined} style={style} onMouseDown={onMouseDown}>
+            {String(showTitle) === 'true' && (
+              <div style={{ paddingBottom: 8 }}>
+                <div style={{ fontWeight: 700 }}>{title || 'Group'}</div>
+                {description ? (
+                  <div style={{ color: '#6b7280', fontSize: 12 }}>{description}</div>
+                ) : null}
+              </div>
+            )}
+            <div style={isEditing ? { minHeight: 80, background: '#fff', border: '1px dashed #c7d2fe', padding: 12, borderRadius: 8 } : {}}>
+              {typeof ContentSlot === 'function' ? (
+                <ContentSlot />
+              ) : isEditing ? (
+                <div style={{ minHeight: 60, display: 'grid', placeItems: 'center', color: '#6b7280', fontSize: 12, fontStyle: 'italic' }}>Drop components here</div>
+              ) : null}
+            </div>
+          </div>
+        )
+      },
     },
 
     /**
@@ -5618,6 +5766,203 @@ export const config = {
             ) : (
               <div style={{ color: "#9ca3af", fontStyle: "italic" }}>No component selected</div>
             )}
+          </div>
+        )
+      },
+    },
+
+    /**
+     * Stats component for displaying simple numerical values with labels in a responsive grid.
+     * Each item consists of a value (description) and a label (title). Users can adjust the
+     * number of columns and the gap between items. When selected in the editor the component
+     * shows a purple outline, consistent with other components.
+     */
+    Stats: {
+      label: "Stats",
+      fields: {
+        items: {
+          type: "array",
+          label: "Stats",
+          arrayFields: {
+            title: { type: "text", label: "Label", defaultValue: "Stat" },
+            description: { type: "text", label: "Value", defaultValue: "1,000" },
+          },
+          defaultItemProps: { title: "Stat", description: "1,000" },
+          getItemSummary: (item: any, i: number) =>
+            item?.title && item?.description
+              ? `${item.title} (${item.description})`
+              : `Item #${i + 1}`,
+        },
+        columns: { type: "number", label: "Columns", defaultValue: 3 },
+        gap: { type: "number", label: "Gap (px)", defaultValue: 16 },
+      },
+      defaultProps: {
+        items: [
+          {
+            title: "Stat",
+            description: "1,000",
+          },
+        ],
+        columns: 3,
+        gap: 16,
+      },
+      render: ({ items, columns, gap, puck }: any) => {
+        const path = getPathFromPuck(puck)
+        const isSelected = selectionStore.has(path)
+        const isEditing = isEditingFromPuck(puck)
+        const base: any = {
+          display: "grid",
+          gridTemplateColumns: `repeat(${columns || 1}, minmax(0, 1fr))`,
+          gap: gap ? `${gap}px` : undefined,
+        }
+        const style = isSelected ? { ...base, ...outlineForSelected } : base
+        const onMouseDown = (e: any) => {
+          e.stopPropagation()
+          if (!isEditing) return
+          if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
+          else selectionStore.toggle(path, false)
+        }
+        const stats = Array.isArray(items) ? items : []
+        return (
+          <div
+            ref={puck?.dragRef}
+            data-puck-path={path || undefined}
+            style={style}
+            onMouseDown={onMouseDown}
+          >
+            {stats.map((item: any, idx: number) => (
+              <div key={idx} style={{ textAlign: "center", padding: "8px" }}>
+                <div
+                  style={{ fontSize: "1.5rem", fontWeight: 700 }}
+                >
+                  {item?.description}
+                </div>
+                <div style={{ opacity: 0.7, marginTop: 4 }}>{item?.title}</div>
+              </div>
+            ))}
+          </div>
+        )
+      },
+    },
+
+    /**
+     * Template component that acts as a generic wrapper for nested content. This simplified
+     * functionality found in the example configuration. This enhanced version adds a template
+     * selector so users can choose between blank and example templates. When a template is
+     * selected, the component’s children are automatically populated via resolveData.
+     */
+    Template: {
+      label: "Template",
+      fields: {
+        template: {
+          type: "select",
+          label: "Template",
+          options: [
+            { label: "Blank", value: "blank" },
+            { label: "Example 1", value: "example_1" },
+            { label: "Example 2", value: "example_2" },
+          ],
+          defaultValue: "blank",
+        },
+        children: { type: "slot", label: "Content" },
+      },
+      defaultProps: {
+        template: "blank",
+        children: [],
+      },
+      /**
+       * When the template selection changes we populate the children array with
+       * predefined content. This mimics the behaviour of the example configuration’s
+       * Template component but avoids requiring dynamic imports or complex APIs.
+       */
+      resolveData: async (data: any, { changed }: any) => {
+        if (!changed.template) return data
+        const template = data.props.template
+        let children: any[] = []
+        if (template === "example_1") {
+          children = [
+            {
+              type: "Heading",
+              props: {
+                level: "h2",
+                text: "Template example",
+                // Use default styling from the Heading component
+              },
+            },
+            {
+              type: "Text",
+              props: {
+                text: "This component uses a simple template. You can replace this content with your own.",
+              },
+            },
+          ]
+        } else if (template === "example_2") {
+          children = [
+            {
+              type: "Stack",
+              props: {
+                direction: "column",
+                gap: 24,
+                children: [
+                  {
+                    type: "Heading",
+                    props: {
+                      level: "h3",
+                      text: "Template example 2",
+                    },
+                  },
+                  {
+                    type: "Text",
+                    props: {
+                      text: "This template demonstrates a simple stack of components.",
+                    },
+                  },
+                  {
+                    type: "Button",
+                    props: {
+                      label: "Learn more",
+                      href: "#",
+                      variant: "solid",
+                    },
+                  },
+                ],
+              },
+            },
+          ]
+        }
+        return {
+          ...data,
+          props: {
+            ...data.props,
+            children,
+          },
+        }
+      },
+      render: ({ children: Content, template, puck }: any) => {
+        const path = getPathFromPuck(puck)
+        const isSelected = selectionStore.has(path)
+        const isEditing = isEditingFromPuck(puck)
+        const base: any = {
+          width: "100%",
+          // Provide a subtle border so templates are visible even when not selected
+          border: "1px dashed #e5e7eb",
+          padding: "16px",
+        }
+        const style = isSelected ? { ...base, ...outlineForSelected } : base
+        const onMouseDown = (e: any) => {
+          e.stopPropagation()
+          if (!isEditing) return
+          if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
+          else selectionStore.toggle(path, false)
+        }
+        return (
+          <div
+            ref={puck?.dragRef}
+            data-puck-path={path || undefined}
+            style={style}
+            onMouseDown={onMouseDown}
+          >
+            {typeof Content === "function" ? <Content /> : null}
           </div>
         )
       },

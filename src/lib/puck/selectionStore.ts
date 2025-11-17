@@ -56,12 +56,22 @@ export const selectionStore = {
       selectedPaths = new Set([path]);
       updateCache();
       emit();
+      // Track the last selected path globally so other parts of the editor can
+      // fallback when no selection exists.  We attach this to the window to
+      // avoid importing React refs into the store (the store has no React
+      // knowledge).  This is only executed in the browser.
+      if (typeof window !== 'undefined' && (window as any)) {
+        (window as any).__LAST_PUCK_PATH__ = path;
+      }
       return;
     }
     if (selectedPaths.has(path)) selectedPaths.delete(path);
     else selectedPaths.add(path);
     updateCache();
     emit();
+    if (typeof window !== 'undefined' && (window as any)) {
+      (window as any).__LAST_PUCK_PATH__ = path;
+    }
   },
   size() {
     return selectedPaths.size;
