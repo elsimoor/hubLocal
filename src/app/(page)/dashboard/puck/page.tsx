@@ -103,6 +103,7 @@ function PuckEditor() {
   const [pendingSharedGroups, setPendingSharedGroups] = useState<any[]>([]);
   const [manageGroupsOpen, setManageGroupsOpen] = useState(false);
   const [manageGroupsMode, setManageGroupsMode] = useState<'all' | 'pending'>('all');
+  const [selectoActive, setSelectoActive] = useState(false);
   const [groupActionLoading, setGroupActionLoading] = useState<string | null>(null);
   const [groupsInjectedForSlug, setGroupsInjectedForSlug] = useState<string>("");
   const [pendingPromptVisible, setPendingPromptVisible] = useState(false);
@@ -393,6 +394,27 @@ function PuckEditor() {
     window.addEventListener('keydown', keyHandler, true);
     return () => window.removeEventListener('keydown', keyHandler, true);
   }, [data]);
+
+  // Only enable the Selecto marquee while Shift is held so normal drags don't show the selection overlay.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setSelectoActive(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setSelectoActive(false);
+    };
+    const reset = () => setSelectoActive(false);
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
+    window.addEventListener('blur', reset);
+    window.addEventListener('mouseup', reset, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
+      window.removeEventListener('blur', reset);
+      window.removeEventListener('mouseup', reset, true);
+    };
+  }, []);
 
   // Removed aggressive fallback that auto-sets last path on data change.
   // It caused saving the last top-level block instead of the intended one.
@@ -2093,28 +2115,30 @@ function PuckEditor() {
               saveDoc(newData, "published");
             }}
           />
-          {/* Selecto integration for drag multi-select of blocks */}
-          <Selecto
-            selectableTargets={[".puck-canvas [data-puck-path]", "[data-puck-path]"]}
-            selectByClick={true}
-            selectFromInside={true}
-            toggleContinueSelect={["shift", "ctrl", "meta"]}
-            hitRate={0}
-            ratio={0}
-            onSelect={(e: any) => {
-              try {
-                const picked = e.selected.filter((el: any) => el?.getAttribute).map((el: HTMLElement) => el.getAttribute('data-puck-path')).filter((p: any) => !!p) as string[];
-                if (picked.length) {
-                  const asc = normalizeSelectionPathsToGroups(data, picked);
-                  selectionStore.set(asc);
-                  lastNonEmptySelectionRef.current = asc.slice();
-                  lastPuckPathRef.current = asc[asc.length - 1];
-                  (window as any).__LAST_PUCK_PATH__ = lastPuckPathRef.current;
-                  console.log('[PuckDebug] Selecto selected paths:', picked, 'ascended groups:', asc);
-                }
-              } catch (err) { console.warn('Selecto selection error', err); }
-            }}
-          />
+          {/* Selecto integration for drag multi-select of blocks (Shift+drag) */}
+          {selectoActive && (
+            <Selecto
+              selectableTargets={[".puck-canvas [data-puck-path]", "[data-puck-path]"]}
+              selectByClick={true}
+              selectFromInside={true}
+              toggleContinueSelect={["shift", "ctrl", "meta"]}
+              hitRate={0}
+              ratio={0}
+              onSelect={(e: any) => {
+                try {
+                  const picked = e.selected.filter((el: any) => el?.getAttribute).map((el: HTMLElement) => el.getAttribute('data-puck-path')).filter((p: any) => !!p) as string[];
+                  if (picked.length) {
+                    const asc = normalizeSelectionPathsToGroups(data, picked);
+                    selectionStore.set(asc);
+                    lastNonEmptySelectionRef.current = asc.slice();
+                    lastPuckPathRef.current = asc[asc.length - 1];
+                    (window as any).__LAST_PUCK_PATH__ = lastPuckPathRef.current;
+                    console.log('[PuckDebug] Selecto selected paths:', picked, 'ascended groups:', asc);
+                  }
+                } catch (err) { console.warn('Selecto selection error', err); }
+              }}
+            />
+          )}
           </div>
           </ActionStateProvider>
           )}
