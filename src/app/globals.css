@@ -89,6 +89,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+body.puck-editor-fullscreen {
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
 * {
   box-sizing: border-box;
   padding: 0;

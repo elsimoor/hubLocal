@@ -193,8 +193,8 @@ function DashboardShell({
         )}
         <main
           className={[
-            "flex-1 overflow-auto p-4 transition-all duration-300 ease-in-out",
-            sidebarCollapsed ? "md:ml-0" : "",
+            "flex-1 overflow-auto transition-all duration-300 ease-in-out",
+            sidebarCollapsed ? "p-0 md:ml-0" : "p-4",
           ].join(" ")}
         >
           {children}

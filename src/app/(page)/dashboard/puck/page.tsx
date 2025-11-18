@@ -84,6 +84,7 @@ function PuckEditor() {
   // N'utilisez PAS createUsePuck() ici. Utilisez le hook importé.
   const usePuckHook = usePuck; 
   const { sidebarCollapsed, setSidebarCollapsed, toggleSidebar } = useDashboardUI();
+  const isFullscreen = sidebarCollapsed;
 
 
   // Local state to store the current Puck document. Normally this would be
@@ -1152,9 +1153,23 @@ function PuckEditor() {
 
   // Sync fullscreen state from query (?fs=1)
   useEffect(() => {
-    const fs = search?.get("fs");
-    if (fs === "1") setSidebarCollapsed(true);
-  }, [search]);
+    const shouldCollapse = search?.get("fs") === "1";
+    setSidebarCollapsed(shouldCollapse);
+  }, [search, setSidebarCollapsed]);
+
+  // Ensure fullscreen is cleared when navigating away from this editor
+  useEffect(() => {
+    return () => setSidebarCollapsed(false);
+  }, [setSidebarCollapsed]);
+
+  // Add a body class so global styles can adjust overflow when fullscreen
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.classList.toggle('puck-editor-fullscreen', isFullscreen);
+    return () => {
+      document.body.classList.remove('puck-editor-fullscreen');
+    };
+  }, [isFullscreen]);
 
   // Load existing draft on mount
   useEffect(() => {
@@ -1454,9 +1469,13 @@ function PuckEditor() {
     }
   }
 
+  const outerClass = isFullscreen ? "min-h-[100dvh] bg-white" : "min-h-[100dvh] bg-gray-50";
+  const innerClass = isFullscreen ? "mx-auto w-full max-w-none py-4 px-4 md:px-8" : "mx-auto max-w-8xl py-8 px-4";
+  const editorContainerClass = isFullscreen ? "min-h-[calc(100vh-140px)]" : "";
+
   return (
-    <div className="min-h-[100dvh] bg-gray-50">
-      <div className="mx-auto max-w-8xl py-8 px-4">
+    <div className={outerClass}>
+      <div className={innerClass}>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Éditeur Puck</h1>
@@ -1500,7 +1519,7 @@ function PuckEditor() {
             </div>
           ) : (
           <ActionStateProvider>
-          <div ref={editorRef}>
+          <div ref={editorRef} className={editorContainerClass}>
           <Puck
             key={`${slug}:${customComponents?.length ?? 0}`}
             config={mergedConfig as any}
