@@ -1,4 +1,5 @@
 "use client";
+import Selecto from "react-selecto";
 
 import React, { Suspense } from "react";
 // Importez Puck, mais PAS createUsePuck
@@ -107,6 +108,14 @@ function PuckEditor() {
   const [pendingPromptVisible, setPendingPromptVisible] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const lastPuckPathRef = useRef<string | null>(null);
+  // Track the last non-empty selection set so that clicking the header (which may clear selection)
+  // still allows Save-as-Group to recover a meaningful path list.
+  const lastNonEmptySelectionRef = useRef<string[] | null>(null);
+  // Track last hovered path so that outline / hover without click still provides a fallback.
+  const lastHoverPathRef = useRef<string | null>(null);
+  const lastPointerRef = useRef<{x:number;y:number}>({x:0,y:0});
+  // Track stamped paths so we know we applied fallback attributes
+  const stampedPathsRef = useRef<string[]>([]);
 
   const fetchGroups = useCallback(async () => {
     const res = await fetch("/api/groups", { cache: "no-store" });
@@ -196,13 +205,26 @@ function PuckEditor() {
         const el = (e.target as HTMLElement)?.closest?.('[data-puck-path]');
         const path = el?.getAttribute?.('data-puck-path');
         if (path) {
-          lastPuckPathRef.current = path;
-          if (typeof window !== 'undefined') {
-            (window as any).__LAST_PUCK_PATH__ = path;
-          }
-          // Debug: log each time a path is captured via the global mousedown handler
+          // Ascend to nearest group wrapper so user intention (whole group) is honoured.
+          let ascended = path;
           try {
-            console.log('[PuckDebug] Global mousedown captured path:', path);
+            ascended = findNearestGroupPath(data, path) || path;
+          } catch {}
+          lastPuckPathRef.current = ascended;
+          if (typeof window !== 'undefined') {
+            (window as any).__LAST_PUCK_PATH__ = ascended;
+          }
+          try { console.log('[PuckDebug] Global mousedown captured path:', path, 'ascended:', ascended); } catch {}
+          // Always set selection to ascended path unless doing multi-select (modifier keys)
+          try {
+            const isMulti = e.ctrlKey || e.metaKey || e.shiftKey;
+            if (isMulti) {
+              selectionStore.toggle(ascended, true);
+            } else {
+              selectionStore.set([ascended]);
+            }
+            const selNow = selectionStore.get();
+            if (selNow && selNow.length) lastNonEmptySelectionRef.current = selNow.slice();
           } catch {}
         }
       } catch {
@@ -213,6 +235,164 @@ function PuckEditor() {
     document.addEventListener('mousedown', handler, true);
     return () => document.removeEventListener('mousedown', handler, true);
   }, []);
+
+  // Global hover tracker (pointermove) to capture last hovered block path even if not clicked.
+  useEffect(() => {
+    const hoverHandler = (e: any) => {
+      try {
+        if (typeof e.clientX === 'number' && typeof e.clientY === 'number') {
+          lastPointerRef.current = { x: e.clientX, y: e.clientY };
+        }
+        const el = (e.target as HTMLElement)?.closest?.('[data-puck-path]');
+        const path = el?.getAttribute?.('data-puck-path');
+        if (path) {
+          lastHoverPathRef.current = path;
+          (window as any).__LAST_HOVER_PATH__ = path;
+        }
+      } catch {}
+    };
+    document.addEventListener('pointermove', hoverHandler, { passive: true });
+    return () => document.removeEventListener('pointermove', hoverHandler);
+  }, []);
+
+  // Poll selectionStore to keep lastNonEmptySelectionRef in sync even if selection
+  // changes via internal Puck mechanisms we did not intercept.
+  useEffect(() => {
+    const id = setInterval(() => {
+      try {
+        const sel = selectionStore.get();
+        if (sel && sel.length) {
+          lastNonEmptySelectionRef.current = sel.slice();
+        }
+        // Active node polling fallback – record active node path even if wrapper missing
+        try {
+          const s: any = (usePuckHook as any)?._store?.getState?.() || null; // attempt to access store internals if exposed
+          const active = s?.appState?.activeNode?.path;
+          let activePath: string | undefined;
+          if (Array.isArray(active)) activePath = active.join('.'); else if (typeof active === 'string') activePath = active;
+          if (activePath && !selectionStore.has(activePath)) {
+            lastPuckPathRef.current = activePath;
+            (window as any).__LAST_ACTIVE_NODE_PATH__ = activePath;
+          }
+        } catch {}
+      } catch {}
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
+
+  // DOM path stamping: when Puck fails to render data-puck-path attributes we attempt to infer and stamp them.
+  const stampDomPaths = useCallback(() => {
+    try {
+      const root = editorRef.current;
+      if (!root || !data || !data.root || !Array.isArray(data.root.content)) return;
+      const items = data.root.content;
+      // Collect candidate elements: those with data-puck-component but lacking data-puck-path
+      const candidates = Array.from(root.querySelectorAll('[data-puck-component]')) as HTMLElement[];
+      const stamped: string[] = [];
+      candidates.forEach((el) => {
+        if (el.getAttribute('data-puck-path')) return;
+        // Attempt to match by order if number of candidates equals items length or greater
+        const parent = el.parentElement;
+        // Determine index by walking up until we find an ancestor already stamped or root
+        let idx = -1;
+        // Simple heuristic: use position in candidates list
+        idx = candidates.indexOf(el);
+        if (idx >= 0 && idx < items.length) {
+          const path = `root.content.${idx}`;
+          el.setAttribute('data-puck-path', path);
+          el.setAttribute('data-puck-autostamp', 'true');
+          stamped.push(path);
+        }
+      });
+      if (stamped.length) {
+        stampedPathsRef.current = stamped;
+        console.log('[StampDebug] Applied fallback stamping to elements:', stamped);
+      } else {
+        console.log('[StampDebug] No elements stamped (either paths present or no candidates).');
+      }
+    } catch (err) {
+      console.warn('[StampDebug] Error stamping DOM paths', err);
+    }
+  }, [data]);
+
+  // Invoke stamping after data changes (layout phase to ensure DOM rendered)
+  useEffect(() => {
+    const t = setTimeout(() => stampDomPaths(), 100); // slight delay to allow Puck render
+    return () => clearTimeout(t);
+  }, [stampDomPaths, data]);
+
+  // Install global diagnostic helper
+  useEffect(() => {
+    (window as any).___PUCK_DIAG = (label: string = 'manual') => {
+      try {
+        const sel = selectionStore.get();
+        const last = lastPuckPathRef.current;
+        const hover = lastHoverPathRef.current;
+        const active = (window as any).__LAST_ACTIVE_NODE_PATH__;
+        const pointer = lastPointerRef?.current;
+        const nodes = Array.from(document.querySelectorAll('[data-puck-path]')) as HTMLElement[];
+        const paths = nodes.map(n => n.getAttribute('data-puck-path')).filter(Boolean) as string[];
+        const groupPaths = paths.map(p => findNearestGroupPath(data, p));
+        const uniqueGroups = Array.from(new Set(groupPaths));
+        console.groupCollapsed(`[GroupDebug Diagnostics] ${label}`);
+        console.log('selectionStore.get()', sel);
+        console.log('lastPuckPathRef', last);
+        console.log('lastHoverPathRef', hover);
+        console.log('__LAST_ACTIVE_NODE_PATH__', active);
+        console.log('pointer', pointer);
+        console.log('DOM total data-puck-path elements', nodes.length);
+        if (nodes.length === 0) {
+          const rootEl = document.querySelector('[data-puck-editor-root]') || document.body;
+          console.log('No data-puck-path elements found. Inline rendering may hide path metadata. Root child count:', rootEl?.children?.length);
+        }
+        console.log('First 20 DOM paths', paths.slice(0,20));
+        console.log('Unique group wrapper candidates', uniqueGroups);
+        // For each candidate group output child count if resolvable
+        const doc = data;
+        const groupSummaries = uniqueGroups.map(gp => {
+          const node = getValueAtPath(doc, gp);
+          let childCount = 0;
+            if (node && typeof node === 'object' && Array.isArray((node as any).content)) childCount = (node as any).content.length;
+          return { path: gp, childCount, type: node && (node as any).type };
+        });
+        console.table(groupSummaries);
+        console.groupEnd();
+      } catch (err) {
+        console.warn('Diagnostics error', err);
+      }
+    };
+    return () => { try { delete (window as any).___PUCK_DIAG; } catch {} };
+  }, [data]);
+
+  // Active node sync moved inside Puck overrides to avoid using usePuck outside <Puck>.
+
+  // Debug key handler: press "g" to force selection of last hovered or active path.
+  useEffect(() => {
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'g') {
+        try {
+          const hovered = lastHoverPathRef.current;
+          const active = (window as any).__LAST_ACTIVE_NODE_PATH__ as string | undefined;
+          const candidate = hovered || active || lastPuckPathRef.current;
+          if (candidate) {
+            const ascended = findNearestGroupPath(data, candidate) || candidate;
+            selectionStore.set([ascended]);
+            lastPuckPathRef.current = ascended;
+            (window as any).__LAST_PUCK_PATH__ = ascended;
+            const selNow = selectionStore.get();
+            if (selNow && selNow.length) lastNonEmptySelectionRef.current = selNow.slice();
+            console.log('[PuckDebug] (g) forced selection of', ascended);
+          } else {
+            console.log('[PuckDebug] (g) no candidate path to force-select');
+          }
+        } catch (err) {
+          console.warn('Force select error', err);
+        }
+      }
+    };
+    window.addEventListener('keydown', keyHandler, true);
+    return () => window.removeEventListener('keydown', keyHandler, true);
+  }, [data]);
 
   // Removed aggressive fallback that auto-sets last path on data change.
   // It caused saving the last top-level block instead of the intended one.
@@ -476,7 +656,8 @@ function PuckEditor() {
             hydrateGroupProps(g?.tree, props, { title: g?.name, groupId: String(g?._id || '') });
           nextConfig.components[key] = {
             label: String(g.name || 'Group'),
-            inline: true,
+            // Use non-inline so Puck supplies a wrapper with path metadata.
+            inline: false,
             fields: {
               title: { type: 'text', label: 'Title', defaultValue: g?.name || 'Group' },
               background: { type: 'text', label: 'Background', defaultValue: '' },
@@ -511,9 +692,19 @@ function PuckEditor() {
                 const p: any = puck || {};
                 if (Array.isArray(p.path)) path = p.path.join('.');
                 else if (typeof p.path === 'string') path = p.path;
+                else if (Array.isArray(p.node?.path)) path = p.node.path.join('.');
                 else if (typeof p.node?.path === 'string') path = p.node.path;
-              } catch {
-                path = undefined;
+              } catch { path = undefined; }
+              if (!path) {
+                try {
+                  const idx = (puck as any)?.node?.index;
+                  if (typeof idx === 'number') path = `root.content.${idx}`;
+                } catch {}
+              }
+              if (!path) {
+                try { console.warn('[GroupDebug] Group render missing path for group', g?._id); } catch {}
+              } else {
+                try { console.log('[GroupDebug] Group render path resolved:', path); } catch {}
               }
               const isSelected = selectionStore.has(path);
               const isEditing = !!puck?.isEditing;
@@ -522,10 +713,15 @@ function PuckEditor() {
                 : {};
               const onMouseDown = (e: any) => {
                 e.stopPropagation();
-                if (!path) return;
+                if (!path) { try { console.warn('[GroupDebug] onMouseDown with missing path'); } catch {}; return; }
                 if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true);
                 else selectionStore.toggle(path, false);
                 lastPuckPathRef.current = path;
+                try {
+                  (window as any).__LAST_PUCK_PATH__ = path;
+                  const selNow = selectionStore.get();
+                  if (selNow && selNow.length) lastNonEmptySelectionRef.current = selNow.slice();
+                } catch {}
               };
               const contentCount = Array.isArray((puck as any)?.node?.props?.content)
                 ? (puck as any).node.props.content.length
@@ -539,6 +735,7 @@ function PuckEditor() {
               } catch {}
               return (
                 <div
+                  // When inline:false Puck wraps our component; we still add path for redundancy.
                   ref={puck?.dragRef}
                   data-puck-path={path || undefined}
                   data-puck-component={`Group:${g?.name || ''}`}
@@ -704,12 +901,53 @@ function PuckEditor() {
             ...(props?.boxShadow ? { boxShadow: props.boxShadow } : {}),
           };
           const onClick = (e: any) => { if ((props as any)?.puck?.isEditing) { e.preventDefault(); e.stopPropagation(); } };
+          // Derive puck path so custom components participate in selection & grouping
+          let path: string | undefined;
+          try {
+            const p: any = (props as any)?.puck || {};
+            if (Array.isArray(p.path)) path = p.path.join('.');
+            else if (typeof p.path === 'string') path = p.path;
+            else if (Array.isArray(p.node?.path)) path = p.node.path.join('.');
+            else if (typeof p.node?.path === 'string') path = p.node.path;
+          } catch {
+            path = undefined;
+          }
+          if (!path) {
+            try {
+              const idx = (props as any)?.puck?.node?.index;
+              if (typeof idx === 'number') path = `root.content.${idx}`;
+            } catch {}
+          }
+          if (!path) {
+            try { console.warn('[CustomDebug] Missing path for custom component', compName); } catch {}
+          } else {
+            try { console.log('[CustomDebug] Component render path resolved:', compName, path); } catch {}
+          }
+          const isSelected = !!path && selectionStore.has(path);
+          const outlineStyle: React.CSSProperties = isSelected ? { outline: '2px solid #6366f1', outlineOffset: 2 } : {};
+          const onMouseDown = (e: any) => {
+            if (!path) { try { console.warn('[CustomDebug] onMouseDown missing path', compName); } catch {}; return; }
+            // Prevent interfering with anchor navigation while editing
+            if ((props as any)?.puck?.isEditing) {
+              e.preventDefault();
+            }
+            e.stopPropagation();
+            if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true);
+            else selectionStore.toggle(path, false);
+            try { lastPuckPathRef.current = path; if (typeof window !== 'undefined') (window as any).__LAST_PUCK_PATH__ = path; } catch {}
+            try {
+              const selNow = selectionStore.get();
+              if (selNow && selNow.length) lastNonEmptySelectionRef.current = selNow.slice();
+            } catch {}
+          };
           return (
             <div
               ref={(props as any)?.puck?.dragRef}
               data-puck-component={compName}
-              style={style}
+              data-puck-path={path || undefined}
+              style={{ ...style, ...outlineStyle }}
               onClick={onClick}
+              onMouseDown={onMouseDown}
               // eslint-disable-next-line react/no-danger
               dangerouslySetInnerHTML={{ __html: hasHtml ? html : fallback }}
             />
@@ -782,7 +1020,7 @@ function PuckEditor() {
         };
         nextConfig.components[compName] = {
           label: compName,
-          inline: true,
+          inline: false,
           fields: mergedFields,
           ...compConfig,
           render: renderFn,
@@ -936,6 +1174,34 @@ function PuckEditor() {
     } catch {
       return undefined;
     }
+  };
+
+  // Helper: given a path inside the document, walk upwards until we find a node
+  // whose type is a Group wrapper ("Group" or dynamic "Group_<id>"). Returns
+  // the path of that group or the original path if none found.
+  const findNearestGroupPath = (rootData: any, path: string): string => {
+    if (!path) return path;
+    const segments = path.split('.');
+    for (let i = segments.length; i > 0; i--) {
+      const candidate = segments.slice(0, i).join('.');
+      const node = getValueAtPath(rootData, candidate);
+      if (node && typeof node === 'object') {
+        const t = String((node as any).type || '');
+        if (t === 'Group' || t.startsWith('Group_')) return candidate;
+      }
+    }
+    return path;
+  };
+
+  // Normalise a set of selection paths so each points at a group wrapper if
+  // the user clicked inside a group. This avoids accidentally saving only a
+  // child block when the intention is to save the entire group.
+  const normalizeSelectionPathsToGroups = (rootData: any, paths: string[]): string[] => {
+    const out = new Set<string>();
+    for (const p of paths) {
+      out.add(findNearestGroupPath(rootData, p));
+    }
+    return Array.from(out);
   };
 
   // Helper: shallow clone of data with a node appended to root.content if not present
@@ -1221,6 +1487,8 @@ function PuckEditor() {
               // Ensure the editor data is always defined to avoid errors
               // when Puck.Outline tries to read `data` on undefined.
               setData(d || {});
+              // Attempt immediate stamping after change
+              try { stampDomPaths(); } catch {}
             }}
             viewports={[
               { width: 360, height: "auto", label: "Mobile" },
@@ -1259,6 +1527,30 @@ function PuckEditor() {
                     if (!usp.get("slug") && slugParam) usp.set("slug", slugParam);
                     router.replace(`${base}?${usp.toString()}`, { scroll: false });
                   } catch {}
+                };
+                // Active node sync component (inside Puck context to avoid hook error)
+                const ActiveNodeSync: React.FC = () => {
+                  const localAppState = usePuckHook((s: any) => s.appState);
+                  useEffect(() => {
+                    try {
+                      const active = localAppState?.activeNode?.path;
+                      let activePath: string | undefined;
+                      if (Array.isArray(active)) activePath = active.join('.');
+                      else if (typeof active === 'string') activePath = active;
+                      if (activePath) {
+                        const ascended = findNearestGroupPath(data, activePath) || activePath;
+                        lastPuckPathRef.current = ascended;
+                        (window as any).__LAST_ACTIVE_NODE_PATH__ = ascended;
+                        if (!selectionStore.has(ascended)) {
+                          selectionStore.set([ascended]);
+                        }
+                        const selNow = selectionStore.get();
+                        if (selNow && selNow.length) lastNonEmptySelectionRef.current = selNow.slice();
+                        try { console.log('[PuckDebug] ActiveNodeSync set selection to', ascended); } catch {}
+                      }
+                    } catch {}
+                  }, [localAppState?.activeNode]);
+                  return null;
                 };
                 // Ensure the saved document stores the currently selected preview viewport
                 // width into root.props.viewport so the published page can render at the
@@ -1301,6 +1593,7 @@ function PuckEditor() {
                 // Auto-save removed per request; manual save only
                 return (
                   <>
+                    <ActiveNodeSync />
                     <div className="flex items-center gap-2 flex-wrap">
                       <button
                         type="button"
@@ -1341,6 +1634,25 @@ function PuckEditor() {
                       >
                         {saving === "published" ? "Publishing…" : "Publish"}
                       </button>
+                      {/* Selection debug panel */}
+                      <div className="flex items-center gap-1 px-2 py-1 rounded border border-dashed border-gray-300 bg-white text-[10px] text-gray-600">
+                        <span className="font-semibold">Sel:</span>
+                        <span>{(() => { try { const s = selectionStore.get(); return s && s.length ? s.join(',') : 'none'; } catch { return 'err'; } })()}</span>
+                        <span className="font-semibold ml-1">Last:</span>
+                        <span>{lastPuckPathRef.current || 'none'}</span>
+                        <span className="font-semibold ml-1">Hover:</span>
+                        <span>{lastHoverPathRef.current || 'none'}</span>
+                        <button
+                          type="button"
+                          onClick={() => { try { if (lastPuckPathRef.current) { selectionStore.set([lastPuckPathRef.current]); console.log('[PuckDebug] Force selected last path:', lastPuckPathRef.current); } } catch {} }}
+                          className="ml-2 px-1 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        >Force</button>
+                        <button
+                          type="button"
+                          onClick={() => { try { if ((window as any).___PUCK_DIAG) (window as any).___PUCK_DIAG('manual'); } catch {} }}
+                          className="ml-1 px-1 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        >Diag</button>
+                      </div>
                     </div>
                     {/* Groups controls */}
                     <div className="flex items-center gap-2">
@@ -1358,38 +1670,168 @@ function PuckEditor() {
                               if (typeof window !== 'undefined') {
                                 console.log('[PuckDebug] window.__LAST_PUCK_PATH__:', (window as any).__LAST_PUCK_PATH__);
                               }
-                              console.log('[PuckDebug] current document:', current);
+                              console.log('[PuckDebug] current document (appState.data):', current);
+                              console.log('[PuckDebug] fallback document (state data):', data);
+                              console.log('[PuckDebug] lastNonEmptySelectionRef.current:', lastNonEmptySelectionRef.current);
+                              console.log('[PuckDebug] lastHoverPathRef.current:', lastHoverPathRef.current);
                             } catch {}
+                            const doc = current || data || {};
                             const sel = selectionStore.get();
                             let paths = Array.isArray(sel) ? sel.slice() : [];
-                            try { console.log('[PuckDebug] initial paths from selection:', paths); } catch {}
-                            // Fallback hierarchy (original behavior):
-                            // 1. Explicit multi/single selection from selectionStore
-                            // 2. Last clicked element path (ref or window global)
-                            // 3. Computed last top-level block path in document
-                            if (!paths || paths.length === 0) {
+                            try { console.log('[PuckDebug] initial raw selection paths:', paths); } catch {}
+                            // Minimal fallback: use last clicked element only (no doc scan)
+                            if (!paths.length) {
+                              let last = lastPuckPathRef.current;
+                              try { if (!last && typeof window !== 'undefined') last = (window as any).__LAST_PUCK_PATH__ || null; } catch {}
+                              if (last) paths = [String(last)];
+                            }
+                            // Hover fallback if still empty
+                            if (!paths.length && lastHoverPathRef.current) {
+                              paths = [String(lastHoverPathRef.current)];
+                              try { console.log('[PuckDebug] Using hover fallback path:', paths); } catch {}
+                            }
+                            // If still empty, try last non-empty selection snapshot
+                            if (!paths.length && lastNonEmptySelectionRef.current && lastNonEmptySelectionRef.current.length) {
+                              paths = lastNonEmptySelectionRef.current.slice();
+                              try { console.log('[PuckDebug] Using lastNonEmptySelectionRef fallback:', paths); } catch {}
+                            }
+                            // Filter out empty strings then resolve each path up to its nearest group wrapper.
+                            paths = normalizeSelectionPathsToGroups(doc, paths.filter(p => !!p));
+                            try { console.log('[PuckDebug] normalized group selection paths (post-filter):', paths); } catch {}
+                            // Secondary fallback: if still empty try last clicked path ascended to group wrapper.
+                            if (!paths.length) {
                               let last = lastPuckPathRef.current;
                               try { if (!last && typeof window !== 'undefined') last = (window as any).__LAST_PUCK_PATH__ || null; } catch {}
                               if (last) {
-                                paths = [String(last)];
-                                try { console.log('[PuckDebug] Using last path from ref/globals:', last, '→ paths', paths); } catch {}
-                              } else {
-                                // Derive fallback from current document (last top-level node)
-                                try {
-                                  const rootObj: any = (current as any) || {};
-                                  let content: any[] | null = null;
-                                  if (Array.isArray(rootObj?.content)) content = rootObj.content;
-                                  else if (Array.isArray(rootObj?.root?.content)) content = rootObj.root.content;
-                                  if (content && content.length > 0) {
-                                    const idx = content.length - 1;
-                                    if (Array.isArray(rootObj?.content)) paths = [`content.${idx}`];
-                                    else paths = [`root.content.${idx}`];
-                                    try { console.log('[PuckDebug] Computed fallback path from document:', paths); } catch {}
-                                  }
-                                } catch {}
+                                const gp = findNearestGroupPath(doc, String(last));
+                                if (gp) {
+                                  paths = [gp];
+                                  try { console.log('[PuckDebug] Fallback ascended last path to group:', gp); } catch {}
+                                }
                               }
                             }
-                            if (!paths || paths.length === 0) {
+                            // Final attempt: if still empty and we have a last non-empty snapshot, ascend each.
+                            if (!paths.length && lastNonEmptySelectionRef.current && lastNonEmptySelectionRef.current.length) {
+                              const ascended = lastNonEmptySelectionRef.current.map(p => findNearestGroupPath(doc, p));
+                              if (ascended.length) {
+                                paths = Array.from(new Set(ascended));
+                                try { console.log('[PuckDebug] Ascended lastNonEmptySelectionRef paths:', paths); } catch {}
+                              }
+                            }
+                            if (!paths.length) {
+                              try { console.log('[PuckDebug] NO PATHS FINAL – will show toast.'); } catch {}
+                              // DOM scan fallback: attempt to pick an outlined or pointer-under block
+                              try {
+                                const pointer = lastPointerRef.current;
+                                const all = Array.from(document.querySelectorAll('[data-puck-path]')) as HTMLElement[];
+                                let chosen: HTMLElement | null = null;
+                                if (all.length === 0) {
+                                  console.log('[PuckDebug] No data-puck-path elements prior to scan; invoking stampDomPaths().');
+                                  stampDomPaths();
+                                }
+                                const allAfterStamp = all.length === 0 ? Array.from(document.querySelectorAll('[data-puck-path]')) as HTMLElement[] : all;
+                                // Prefer elements whose style outline matches selection color
+                                for (const el of allAfterStamp) {
+                                  const cs = getComputedStyle(el);
+                                  if (cs.outlineStyle !== 'none' && cs.outlineColor.includes('102') /* rough match for #6366f1 */) {
+                                    chosen = el; break;
+                                  }
+                                }
+                                if (!chosen) {
+                                  // Fallback: element under pointer coordinates
+                                  for (const el of allAfterStamp) {
+                                    const r = el.getBoundingClientRect();
+                                    if (pointer.x >= r.left && pointer.x <= r.right && pointer.y >= r.top && pointer.y <= r.bottom) {
+                                      chosen = el; break;
+                                    }
+                                  }
+                                }
+                                if (chosen) {
+                                  const p = chosen.getAttribute('data-puck-path');
+                                  if (p) {
+                                    const gp = findNearestGroupPath(doc, p);
+                                    paths = [gp];
+                                    console.log('[PuckDebug] DOM scan fallback selected path:', p, 'group ascended:', gp);
+                                  }
+                                }
+                                // If still empty attempt candidate group enumeration
+                                if (!paths.length) {
+                                  const uniqGroups = new Set<string>();
+                                  for (const el of allAfterStamp) {
+                                    const p = el.getAttribute('data-puck-path');
+                                    if (!p) continue;
+                                    const gp = findNearestGroupPath(doc, p);
+                                    if (gp) uniqGroups.add(gp);
+                                  }
+                                  const candidates = Array.from(uniqGroups);
+                                  if (candidates.length === 1) {
+                                    paths = [candidates[0]];
+                                    console.log('[PuckDebug] Single candidate group auto-selected:', candidates[0]);
+                                  } else if (candidates.length > 1) {
+                                    console.log('[PuckDebug] Multiple candidate groups found:', candidates);
+                                    const pick = prompt('Multiple groups found. Enter index to save:\n' + candidates.map((c,i)=>`${i}: ${c}`).join('\n'));
+                                    const idx = pick != null ? Number(pick) : -1;
+                                    if (Number.isFinite(idx) && idx >=0 && idx < candidates.length) {
+                                      paths = [candidates[idx]];
+                                      console.log('[PuckDebug] User selected candidate index', idx, 'path', candidates[idx]);
+                                    }
+                                  }
+                                }
+                              } catch {}
+                            }
+                            if (!paths.length) {
+                              // Data-driven fallback: enumerate doc.root.content or doc.content
+                              try {
+                                const contentArray = Array.isArray(doc?.root?.content)
+                                  ? { arr: doc.root.content, prefix: 'root.content' }
+                                  : Array.isArray(doc?.content)
+                                    ? { arr: doc.content, prefix: 'content' }
+                                    : null;
+                                if (contentArray) {
+                                  const { arr, prefix } = contentArray;
+                                  type Candidate = { path: string; type: string; label: string };
+                                  const groupCandidates: Candidate[] = [];
+                                  const allCandidates: Candidate[] = [];
+                                  const describeNode = (node: any): string => {
+                                    if (!node || typeof node !== 'object') return '';
+                                    const props = (node as any).props || {};
+                                    const hint = props?.name || props?.title || props?.label || props?.heading || props?.text || '';
+                                    return hint ? String(hint) : '';
+                                  };
+                                  arr.forEach((node: any, i: number) => {
+                                    const path = `${prefix}.${i}`;
+                                    const type = node && typeof node === 'object' ? String(node.type || 'Node') : 'Node';
+                                    const entry: Candidate = { path, type, label: describeNode(node) };
+                                    if (type === 'Group' || type.startsWith('Group_')) groupCandidates.push(entry);
+                                    allCandidates.push(entry);
+                                  });
+                                  const prioritized = groupCandidates.length ? groupCandidates : allCandidates;
+                                  if (prioritized.length === 1) {
+                                    paths = [prioritized[0].path];
+                                    console.log('[PuckDebug] Data fallback auto-selected single candidate:', prioritized[0]);
+                                  } else if (prioritized.length > 1) {
+                                    const menu = prioritized.map((c, idx) => `${idx}: ${c.path} – ${c.type}${c.label ? ` (${c.label})` : ''}`).join('\n');
+                                    console.log('[PuckDebug] Data fallback requires manual selection. Candidates:', prioritized);
+                                    const pick = prompt('Multiple blocks found. Enter index to save:\n' + menu);
+                                    const idx = pick != null ? Number(pick) : NaN;
+                                    if (Number.isFinite(idx) && idx >= 0 && idx < prioritized.length) {
+                                      paths = [prioritized[idx].path];
+                                      console.log('[PuckDebug] Data fallback user selected candidate:', prioritized[idx]);
+                                    } else {
+                                      console.warn('[PuckDebug] Data fallback selection cancelled or invalid');
+                                    }
+                                  } else {
+                                    console.log('[PuckDebug] Data fallback found array but no candidates; prefix', prefix);
+                                  }
+                                } else {
+                                  console.log('[PuckDebug] Data fallback: no root.content or content array present');
+                                }
+                              } catch (err) {
+                                console.warn('[PuckDebug] Data fallback enumeration error', err);
+                              }
+                            }
+                            if (!paths.length) {
+                              try { if ((window as any).___PUCK_DIAG) (window as any).___PUCK_DIAG('auto'); } catch {}
                               showToast('Click a block first, then Save as Group', 'error');
                               return;
                             }
@@ -1404,7 +1846,17 @@ function PuckEditor() {
                                 return;
                               }
                             }
-                            const selectedNodes = paths.map((p) => getValueAtPath(current, p)).filter((n) => n && typeof n === 'object');
+                            // Fetch nodes; if any path no longer resolves to a node, filter it out.
+                            let selectedNodes = paths.map((p) => getValueAtPath(doc, p)).filter((n, idx) => {
+                              if (!n || typeof n !== 'object') return false;
+                              // Exclude root doc object (no type) unless explicitly a group wrapper
+                              const t = String((n as any).type || '');
+                              if (!t && paths[idx] === '') return false;
+                              return true;
+                            });
+                            // If multiple paths collapsed onto the same group wrapper, deduplicate the node list.
+                            const seen = new Set<any>();
+                            selectedNodes = selectedNodes.filter((n) => { if (seen.has(n)) return false; seen.add(n); return true; });
                             try {
                               console.log('[PuckDebug] Selected nodes for grouping:', selectedNodes);
                             } catch {}
@@ -1484,7 +1936,7 @@ function PuckEditor() {
                             // Optionally replace current selection by a single Group node in the document
                             const shouldReplace = confirm('Replace current selection in the page with the grouped block?');
                             if (shouldReplace) {
-                              const nextDoc = groupSelectedIntoNode(current, paths, name);
+                              const nextDoc = groupSelectedIntoNode(doc, paths, name);
                               setData(nextDoc);
                             }
                             // Refresh groups list
@@ -1498,6 +1950,7 @@ function PuckEditor() {
                             } catch {}
                           } catch (e: any) {
                             console.error(e);
+                            try { if ((window as any).___PUCK_DIAG) (window as any).___PUCK_DIAG('exception:' + (e?.message || 'unknown')); } catch {}
                             showToast(String(e?.message || e), 'error');
                           }
                         }}
@@ -1638,6 +2091,28 @@ function PuckEditor() {
             onPublish={(newData) => {
               // Persist and mark as published
               saveDoc(newData, "published");
+            }}
+          />
+          {/* Selecto integration for drag multi-select of blocks */}
+          <Selecto
+            selectableTargets={[".puck-canvas [data-puck-path]", "[data-puck-path]"]}
+            selectByClick={true}
+            selectFromInside={true}
+            toggleContinueSelect={["shift", "ctrl", "meta"]}
+            hitRate={0}
+            ratio={0}
+            onSelect={(e: any) => {
+              try {
+                const picked = e.selected.filter((el: any) => el?.getAttribute).map((el: HTMLElement) => el.getAttribute('data-puck-path')).filter((p: any) => !!p) as string[];
+                if (picked.length) {
+                  const asc = normalizeSelectionPathsToGroups(data, picked);
+                  selectionStore.set(asc);
+                  lastNonEmptySelectionRef.current = asc.slice();
+                  lastPuckPathRef.current = asc[asc.length - 1];
+                  (window as any).__LAST_PUCK_PATH__ = lastPuckPathRef.current;
+                  console.log('[PuckDebug] Selecto selected paths:', picked, 'ascended groups:', asc);
+                }
+              } catch (err) { console.warn('Selecto selection error', err); }
             }}
           />
           </div>
