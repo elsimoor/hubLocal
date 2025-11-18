@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { GroupModel } from "@/lib/models/Group";
+import { GroupSubscriptionModel } from "@/lib/models/GroupSubscription";
+import mongoose from "mongoose";
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,17 +15,44 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const ownerOnly = url.searchParams.get("ownerOnly") === "1";
+    const publicOnly = url.searchParams.get("public") === "1";
 
-    const query: any = {};
-    if (ownerOnly) {
-      query.ownerEmail = email;
-    } else {
-      // visible groups: public OR owner
-      query.$or = [{ public: true }, { ownerEmail: email }];
+    // For unauthenticated callers (e.g. published pages), expose public groups only.
+    if (!email || publicOnly) {
+      const publicGroups = await GroupModel.find({ public: true }).sort({ updatedAt: -1 }).lean();
+      return NextResponse.json({ groups: publicGroups });
     }
 
-    const groups = await GroupModel.find(query).sort({ updatedAt: -1 }).lean();
-    return NextResponse.json({ groups });
+    const groupsQuery: any = { ownerEmail: email };
+    if (ownerOnly) {
+      const groups = await GroupModel.find(groupsQuery).sort({ updatedAt: -1 }).lean();
+      return NextResponse.json({ groups, pendingSharedGroups: [] });
+    }
+
+    const groups = await GroupModel.find(groupsQuery).sort({ updatedAt: -1 }).lean();
+
+    // Determine which public groups from other owners still need approval
+    const existingSubs = await GroupSubscriptionModel.find({ userEmail: email })
+      .select("groupId")
+      .lean();
+    const seenIds = new Set(
+      existingSubs
+        .map((sub) => (sub.groupId ? (sub.groupId as mongoose.Types.ObjectId).toString() : null))
+        .filter(Boolean)
+    );
+    const pendingQuery: any = {
+      public: true,
+      ownerEmail: { $ne: email },
+      $or: [{ sourceGroupId: { $exists: false } }, { sourceGroupId: null }],
+    };
+    if (seenIds.size > 0) {
+      pendingQuery._id = {
+        $nin: Array.from(seenIds).map((id) => new mongoose.Types.ObjectId(id as string)),
+      };
+    }
+    const pendingSharedGroups = await GroupModel.find(pendingQuery).sort({ updatedAt: -1 }).lean();
+
+    return NextResponse.json({ groups, pendingSharedGroups });
   } catch (e: any) {
     console.error(e);
     return NextResponse.json({ error: e?.message || "Failed to fetch groups" }, { status: 500 });

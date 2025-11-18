@@ -11,6 +11,8 @@ const GroupSchema = new Schema(
     // Optional notes/description
     description: { type: String, default: "" },
     version: { type: Number, default: 1 },
+    sourceGroupId: { type: Schema.Types.ObjectId, ref: "Group", default: null },
+    sourceOwnerEmail: { type: String, default: null },
   },
   { timestamps: true }
 );

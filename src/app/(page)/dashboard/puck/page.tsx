@@ -6,9 +6,10 @@ import React, { Suspense } from "react";
 // required so that we can display the latest version of a saved group within
 // the editor without copying its tree into every page.  See the dynamic
 // group registration below for details.
+import { createPortal } from 'react-dom';
 import { Puck, Render } from "@measured/puck";
 import "@measured/puck/puck.css";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 // Importez la configuration
 import { config } from "@/lib/puck/config";
@@ -20,6 +21,38 @@ import { ActionStateProvider } from "@/lib/puck/actions";
 import { selectionStore } from "@/lib/puck/selectionStore";
 import { parseIndexFromPath } from "@/lib/puck/selectionStore";
 import { hydrateGroupProps, normalizeGroupTree, summarizeGroupTree } from "@/lib/puck/group-helpers";
+
+function extractGroupComponentIds(doc: any): string[] {
+  const ids = new Set<string>();
+  const seen = new WeakSet();
+  const visit = (value: any) => {
+    if (!value) return;
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value !== "object") return;
+    if (seen.has(value)) return;
+    seen.add(value);
+    const type = typeof (value as any)?.type === "string" ? String((value as any).type) : "";
+    if (type.startsWith("Group_")) {
+      const id = type.slice(6);
+      if (id) ids.add(id);
+    }
+    visit((value as any).content);
+    visit((value as any).children);
+    visit((value as any).root);
+    if ((value as any).props) visit((value as any).props);
+    if ((value as any).slots && typeof (value as any).slots === "object") {
+      Object.values((value as any).slots).forEach(visit);
+    }
+    if ((value as any).zones && typeof (value as any).zones === "object") {
+      Object.values((value as any).zones).forEach(visit);
+    }
+  };
+  visit(doc);
+  return Array.from(ids);
+}
 
 /**
  * PuckPage renders a simple visual editor powered by the open‑source Puck
@@ -38,6 +71,15 @@ export default function PuckPage() {
 }
 
 function PuckEditor() {
+  // Portal helper to render overlays at the document body level.
+  const Portal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    // In a client component, `document` should be available; render immediately.
+    if (typeof document !== 'undefined' && document?.body) {
+      return createPortal(children as any, document.body);
+    }
+    // Fallback (very rare): render inline so content is still visible.
+    return <>{children}</> as any;
+  };
   // N'utilisez PAS createUsePuck() ici. Utilisez le hook importé.
   const usePuckHook = usePuck; 
   const { sidebarCollapsed, setSidebarCollapsed, toggleSidebar } = useDashboardUI();
@@ -57,9 +99,52 @@ function PuckEditor() {
   // Dynamically loaded custom components and editor ref
   const [customComponents, setCustomComponents] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
+  const [pendingSharedGroups, setPendingSharedGroups] = useState<any[]>([]);
+  const [manageGroupsOpen, setManageGroupsOpen] = useState(false);
+  const [manageGroupsMode, setManageGroupsMode] = useState<'all' | 'pending'>('all');
+  const [groupActionLoading, setGroupActionLoading] = useState<string | null>(null);
   const [groupsInjectedForSlug, setGroupsInjectedForSlug] = useState<string>("");
+  const [pendingPromptVisible, setPendingPromptVisible] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const lastPuckPathRef = useRef<string | null>(null);
+
+  const fetchGroups = useCallback(async () => {
+    const res = await fetch("/api/groups", { cache: "no-store" });
+    if (!res.ok) throw new Error("Failed to load groups");
+    return res.json();
+  }, []);
+
+  const applyGroupResponse = useCallback((json: any, label: string) => {
+    const list = Array.isArray(json?.groups) ? json.groups : [];
+    setGroups(list);
+    const pending = Array.isArray(json?.pendingSharedGroups) ? json.pendingSharedGroups : [];
+    setPendingSharedGroups(pending);
+    try {
+      const summaries = list.map((g: any) => {
+        const { contentCount, childTypes } = summarizeGroupTree(g?.tree);
+        return {
+          id: g?._id,
+          name: g?.name,
+          contentCount,
+          childTypes,
+          public: !!g?.public,
+          sourceGroupId: g?.sourceGroupId,
+        };
+      });
+      console.log('[GroupDebug]', label, { ownedCount: list.length, pendingCount: pending.length, summaries });
+    } catch {}
+  }, []);
+
+  const refreshGroups = useCallback(async () => {
+    try {
+      const json = await fetchGroups();
+      applyGroupResponse(json, 'Refreshed groups');
+    } catch (e) {
+      console.error('Error refreshing groups', e);
+      setGroups([]);
+      setPendingSharedGroups([]);
+    }
+  }, [fetchGroups, applyGroupResponse]);
 
   // State and handlers for the multi‑step modal used to create custom components
   const [showModal, setShowModal] = useState(false);
@@ -188,6 +273,77 @@ function PuckEditor() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3000);
   }
 
+  const handleDeleteGroup = useCallback(async (groupId: string) => {
+    if (!groupId) return;
+    const confirmRemove = typeof window === 'undefined' ? true : window.confirm('Supprimer ce groupe enregistré ?');
+    if (!confirmRemove) return;
+    setGroupActionLoading(`delete:${groupId}`);
+    try {
+      const res = await fetch(`/api/groups/${groupId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Impossible de supprimer le groupe');
+      }
+      showToast('Groupe supprimé');
+      await refreshGroups();
+    } catch (e: any) {
+      console.error(e);
+      showToast(String(e?.message || e), 'error');
+    } finally {
+      setGroupActionLoading(null);
+    }
+  }, [refreshGroups]);
+
+  const handleAcceptSharedGroup = useCallback(async (groupId: string) => {
+    if (!groupId) return;
+    setGroupActionLoading(`accept:${groupId}`);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/accept`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Impossible d\'accepter ce groupe partagé');
+      }
+      showToast('Groupe partagé ajouté', 'success');
+      setPendingSharedGroups((prev) => prev.filter((g: any) => String(g?._id) !== groupId));
+      await refreshGroups();
+    } catch (e: any) {
+      console.error(e);
+      showToast(String(e?.message || e), 'error');
+    } finally {
+      setGroupActionLoading(null);
+    }
+  }, [refreshGroups]);
+
+  const handleDeclineSharedGroup = useCallback(async (groupId: string) => {
+    if (!groupId) return;
+    setGroupActionLoading(`decline:${groupId}`);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/decline`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Impossible de refuser ce groupe');
+      }
+      showToast('Invitation ignorée');
+      setPendingSharedGroups((prev) => prev.filter((g: any) => String(g?._id) !== groupId));
+      await refreshGroups();
+    } catch (e: any) {
+      console.error(e);
+      showToast(String(e?.message || e), 'error');
+    } finally {
+      setGroupActionLoading(null);
+    }
+  }, [refreshGroups]);
+
+  const openPendingInvitesModal = useCallback(() => {
+    setManageGroupsMode('pending');
+    setManageGroupsOpen(true);
+  }, []);
+
+  const openAllGroupsModal = useCallback(() => {
+    setManageGroupsMode('all');
+    setManageGroupsOpen(true);
+  }, []);
+
   // Client-side preview builder mirroring server defaults
   function buildPreviewFromOptions(opts: any) {
     const theme = opts.theme || 'brand';
@@ -294,32 +450,30 @@ function PuckEditor() {
     let isCancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/groups", { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to load groups");
-        const json = await res.json();
+        const json = await fetchGroups();
         if (!isCancelled) {
-          const list = Array.isArray(json?.groups) ? json.groups : [];
-          setGroups(list);
-          try {
-            const summaries = list.map((g: any) => {
-              const { contentCount, childTypes } = summarizeGroupTree(g?.tree);
-              return {
-                id: g?._id,
-                name: g?.name,
-                contentCount,
-                childTypes,
-              };
-            });
-            console.log('[GroupDebug] Loaded groups summary:', summaries);
-          } catch {}
+          applyGroupResponse(json, 'Initial load');
         }
       } catch (e) {
         console.error("Error fetching groups", e);
-        if (!isCancelled) setGroups([]);
+        if (!isCancelled) {
+          setGroups([]);
+          setPendingSharedGroups([]);
+        }
       }
     })();
-    return () => { isCancelled = true; };
-  }, [slug]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [slug, fetchGroups, applyGroupResponse]);
+
+  useEffect(() => {
+    if (pendingSharedGroups.length > 0) {
+      setPendingPromptVisible(true);
+    } else {
+      setPendingPromptVisible(false);
+    }
+  }, [pendingSharedGroups]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -981,6 +1135,66 @@ function PuckEditor() {
     }
   }, [data, groups, groupsUpgraded]);
 
+  // Rewrite legacy shared group references so they target the user's cloned copy.
+  // When a user accepts a shared group we clone it, which means previously
+  // inserted nodes that referenced the original owner id now fail to render
+  // (`Group_<sourceId>` has no config).  This effect scans the current doc for
+  // unknown ids and swaps them to the corresponding clone id (matching on
+  // `sourceGroupId`).
+  useEffect(() => {
+    if (!data || !Array.isArray(groups) || groups.length === 0) return;
+    try {
+      const ids = extractGroupComponentIds(data);
+      if (!ids.length) return;
+      const replacementMap = new Map<string, string>();
+      for (const id of ids) {
+        const owned = groups.find((g: any) => String(g?._id) === id);
+        if (owned) continue;
+        const clone = groups.find((g: any) => String(g?.sourceGroupId) === id);
+        if (clone) {
+          replacementMap.set(id, String(clone._id));
+        }
+      }
+      if (replacementMap.size === 0) return;
+
+      const cloneDoc = JSON.parse(JSON.stringify(data));
+      let changed = false;
+      const visit = (node: any) => {
+        if (!node || typeof node !== 'object') return;
+        const type = typeof node.type === 'string' ? node.type : '';
+        if (type.startsWith('Group_')) {
+          const oldId = type.slice(6);
+          const newId = replacementMap.get(oldId);
+          if (newId) {
+            node.type = `Group_${newId}`;
+            node.__groupId = newId;
+            changed = true;
+          }
+        }
+        if (Array.isArray(node.content)) {
+          node.content.forEach(visit);
+        } else if (node.content && typeof node.content === 'object') {
+          visit(node.content);
+        }
+        if (node.slots && typeof node.slots === 'object') {
+          Object.values(node.slots).forEach(visit);
+        }
+        if (node.zones && typeof node.zones === 'object') {
+          Object.values(node.zones).forEach(visit);
+        }
+        if (node.children && typeof node.children === 'object') {
+          visit(node.children);
+        }
+      };
+      visit(cloneDoc?.root);
+      if (changed) {
+        setData(cloneDoc);
+      }
+    } catch (err) {
+      console.warn('Failed to rewrite shared group references', err);
+    }
+  }, [data, groups]);
+
   async function saveDoc(nextData: any, status: "draft" | "published") {
     try {
       setSaving(status);
@@ -1014,7 +1228,30 @@ function PuckEditor() {
             Retour aux apps
           </a>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 shadow min-h-[240px]">
+        {pendingSharedGroups.length > 0 && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                {pendingSharedGroups.length === 1
+                  ? "Un nouveau groupe partagé est disponible."
+                  : `${pendingSharedGroups.length} nouveaux groupes partagés sont disponibles.`}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  try { /* noop */ } catch {}
+                  setManageGroupsMode('pending');
+                  setManageGroupsOpen(true);
+                  showToast('Examiner cliqué (modal ouvert)', 'success');
+                }}
+                className="inline-flex items-center rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
+              >
+                Examiner
+              </button>
+            </div>
+            
+          </div>
+        )}
           {loading ? (
             <div className="flex items-center justify-center min-h-[120px]">
               <div className="animate-spin rounded-full h-5 w-5 border-4 border-gray-300 border-t-gray-700 mr-3"></div>
@@ -1329,6 +1566,13 @@ function PuckEditor() {
                       >
                         Save as Group
                       </button>
+                      <button
+                        type="button"
+                        onClick={openAllGroupsModal}
+                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                      >
+                        Gérer les groupes
+                      </button>
                       <div className="relative group">
                         <button
                           type="button"
@@ -1375,6 +1619,20 @@ function PuckEditor() {
                                 >
                                   {g.name}
                                   <span className="ml-2 text-xs text-gray-500">{blockLabel}</span>
+                                  <span
+                                    className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                      g.public
+                                        ? 'bg-emerald-50 text-emerald-700'
+                                        : 'bg-gray-100 text-gray-600'
+                                    }`}
+                                  >
+                                    {g.public ? 'Public' : 'Privé'}
+                                  </span>
+                                  {g.sourceGroupId ? (
+                                    <span className="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                                      Copie partagée
+                                    </span>
+                                  ) : null}
                                   {g.autoInclude ? <span className="ml-2 text-xs text-gray-500">auto</span> : null}
                                 </button>
                               );
@@ -1450,43 +1708,550 @@ function PuckEditor() {
               default wrapper behaviour. The previous global CSS overrides have been
               removed to allow flex and grid items to size themselves naturally. */}
         </div>
-      </div>
-  {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          {/* The modal container is relative so we can overlay a spinner when generating a component */}
-          <div className="bg-white relative rounded-lg w-full max-w-xl p-5">
-            {/* Display a spinner overlay while the custom component is being generated or modified */}
-            {modalSubmitting && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
-                <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-gray-600"></div>
-                <span className="sr-only">Génération en cours…</span>
-              </div>
-            )}
-            {modalStep === 0 && (
-              <>
-                <h2 className="text-lg font-semibold mb-3">Créer ou modifier</h2>
-                <div className="flex items-center gap-6 mb-4">
-                  <label className="inline-flex items-center gap-2">
-                    <input type="radio" name="mode" value="create" checked={modalMode === 'create'} onChange={() => setModalMode('create')} />
-                    <span>Créer</span>
-                  </label>
-                  <label className="inline-flex items-center gap-2">
-                    <input type="radio" name="mode" value="modify" checked={modalMode === 'modify'} onChange={() => setModalMode('modify')} />
-                    <span>Modifier</span>
-                  </label>
-                </div>
-                {modalMode === 'modify' && (
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-1">Composant à modifier</label>
-                    <select className="w-full border border-gray-300 rounded-md p-2" value={modalTargetName} onChange={(e) => setModalTargetName(e.target.value)}>
-                      <option value="">— Choisir —</option>
-                      {customComponents.map((c: any) => (
-                        <option key={c._id} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-  )}
 
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            {/* The modal container is relative so we can overlay a spinner when generating a component */}
+            <div className="bg-white relative rounded-lg w-full max-w-xl p-5">
+              {/* Display a spinner overlay while the custom component is being generated or modified */}
+              {modalSubmitting && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-gray-600"></div>
+                  <span className="sr-only">Génération en cours…</span>
+                </div>
+              )}
+              {modalStep === 0 && (
+                <>
+                  <h2 className="text-lg font-semibold mb-3">Créer ou modifier</h2>
+                  <div className="flex items-center gap-6 mb-4">
+                    <label className="inline-flex items-center gap-2">
+                      <input type="radio" name="mode" value="create" checked={modalMode === 'create'} onChange={() => setModalMode('create')} />
+                      <span>Créer</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input type="radio" name="mode" value="modify" checked={modalMode === 'modify'} onChange={() => setModalMode('modify')} />
+                      <span>Modifier</span>
+                    </label>
+                  </div>
+                  {modalMode === 'modify' && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-1">Composant à modifier</label>
+                      <select className="w-full border border-gray-300 rounded-md p-2" value={modalTargetName} onChange={(e) => setModalTargetName(e.target.value)}>
+                        <option value="">— Choisir —</option>
+                        {customComponents.map((c: any) => (
+                          <option key={c._id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <label className="block text-sm font-medium mb-1">Description</label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-md p-2 mb-4"
+                    rows={3}
+                    placeholder={modalMode === 'create' ? "Ex: bouton WhatsApp vert arrondi avec texte blanc" : "Ex: changer la couleur en noir et rendre le bouton plus grand"}
+                    value={modalDescription}
+                    onChange={(e) => setModalDescription(e.target.value)}
+                  />
+                  <label className="inline-flex items-center gap-2 mb-4">
+                    <input type="checkbox" checked={modalUseAI} onChange={(e) => setModalUseAI(e.target.checked)} />
+                    <span>Utiliser l’IA (sinon utiliser des modèles par défaut)</span>
+                  </label>
+
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={closeModal} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Annuler</button>
+                    <button type="button" disabled={modalMode === 'modify' ? !modalTargetName || !modalDescription.trim() : !modalDescription.trim()} onClick={() => setModalStep(1)} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50">Suivant</button>
+                  </div>
+                </>
+              )}
+
+              {modalStep === 1 && (
+                <>
+                  {modalUseAI ? (
+                    <>
+                      <h2 className="text-lg font-semibold mb-3">Options générées automatiquement</h2>
+                      <p className="text-sm text-gray-600 mb-4">Les paramètres de ce composant seront déterminés par l’IA selon votre description. Vous pourrez les modifier plus tard via le panneau de propriétés.</p>
+                      <div className="flex justify-between gap-2 mt-4">
+                        <button type="button" onClick={() => setModalStep(0)} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Précédent</button>
+                        <button type="button" onClick={() => setModalStep(2)} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black">Suivant</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-lg font-semibold mb-3">Options</h2>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Label</label>
+                          <input className="w-full border border-gray-300 rounded-md p-2" value={optLabel} onChange={(e) => setOptLabel(e.target.value)} placeholder="Label du bouton" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">URL</label>
+                          <input className="w-full border border-gray-300 rounded-md p-2" value={optHref} onChange={(e) => setOptHref(e.target.value)} placeholder="https://…" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Thème</label>
+                          <select className="w-full border border-gray-300 rounded-md p-2" value={optTheme} onChange={(e) => setOptTheme(e.target.value as any)}>
+                            <option value="brand">Marque</option>
+                            <option value="light">Clair</option>
+                            <option value="dark">Sombre</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Variant</label>
+                          <select className="w-full border border-gray-300 rounded-md p-2" value={optVariant} onChange={(e) => setOptVariant(e.target.value as any)}>
+                            <option value="solid">Plein</option>
+                            <option value="outline">Contour</option>
+                            <option value="ghost">Fantôme</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Taille</label>
+                          <select className="w-full border border-gray-300 rounded-md p-2" value={optSize} onChange={(e) => setOptSize(e.target.value as any)}>
+                            <option value="sm">Small</option>
+                            <option value="md">Medium</option>
+                            <option value="lg">Large</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Forme</label>
+                          <select className="w-full border border-gray-300 rounded-md p-2" value={optShape} onChange={(e) => setOptShape(e.target.value as any)}>
+                            <option value="rounded">Arrondie</option>
+                            <option value="full">Pill</option>
+                          </select>
+                        </div>
+                        <label className="inline-flex items-center gap-2 mt-2">
+                          <input type="checkbox" checked={optIcon} onChange={(e) => setOptIcon(e.target.checked)} />
+                          <span>Afficher l’icône</span>
+                        </label>
+                      </div>
+                      <div className="mt-4 p-3 border border-gray-200 rounded-md bg-gray-50">
+                        <div className="text-xs text-gray-500 mb-2">Aperçu</div>
+                        <div
+                          className="inline-block"
+                          // eslint-disable-next-line react/no-danger
+                          dangerouslySetInnerHTML={{ __html: buildPreviewFromOptions({
+                            label: optLabel,
+                            href: optHref,
+                            theme: optTheme,
+                            variant: optVariant,
+                            size: optSize,
+                            shape: optShape,
+                            icon: optIcon,
+                          }) }}
+                        />
+                      </div>
+                      <div className="flex justify-between gap-2 mt-4">
+                        <button type="button" onClick={() => setModalStep(0)} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Précédent</button>
+                        <button type="button" onClick={() => setModalStep(2)} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black">Suivant</button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {modalStep === 2 && (
+                <>
+                  {modalMode === 'create' ? (
+                    <>
+                      <h2 className="text-lg font-semibold mb-2">Nom & visibilité</h2>
+                      <input className="w-full border border-gray-300 rounded-md p-2 mb-4" placeholder="Nom unique du composant" value={modalName} onChange={(e) => setModalName(e.target.value)} />
+                      <div className="flex items-center gap-4 mb-4">
+                        <label className="inline-flex items-center gap-2"><input type="radio" name="visibility" value="private" checked={!modalPublic} onChange={() => setModalPublic(false)} /><span>Privé</span></label>
+                        <label className="inline-flex items-center gap-2"><input type="radio" name="visibility" value="public" checked={modalPublic} onChange={() => setModalPublic(true)} /><span>Public</span></label>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <button type="button" onClick={() => setModalStep(1)} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Précédent</button>
+                        <button type="button" disabled={modalSubmitting || !modalName.trim()} onClick={handleSubmitCustomComponent} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50">{modalSubmitting ? 'Création…' : 'Créer'}</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-lg font-semibold mb-2">Confirmer la modification</h2>
+                      <p className="text-sm text-gray-600 mb-4">Le composant « {modalTargetName || '—'} » sera modifié selon la description et les options choisies.</p>
+                      <div className="flex justify-between gap-2">
+                        <button type="button" onClick={() => setModalStep(1)} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Précédent</button>
+                        <button type="button" disabled={modalSubmitting || !modalTargetName} onClick={handleSubmitCustomComponent} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50">{modalSubmitting ? 'Modification…' : 'Modifier'}</button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {manageGroupsOpen && (
+          <Portal>
+            <div
+              className="fixed inset-0 flex items-center justify-center bg-black/50 px-4"
+              style={{ zIndex: 2147483647 }}
+            >
+              {(() => {
+                try {
+                  console.log('[GroupDebug] Rendering manage groups modal, mode:', manageGroupsMode, 'pendingSharedGroups:', pendingSharedGroups);
+                } catch {}
+                return null;
+              })()}
+              <div className="bg-white rounded-lg w-full max-w-2xl shadow-xl relative">
+              <div className="flex flex-wrap items-center justify-between border-b border-gray-200 px-5 py-4 gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    {manageGroupsMode === 'pending' ? 'Groupes partagés à examiner' : 'Groupes enregistrés'}
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    {manageGroupsMode === 'pending'
+                      ? 'Acceptez ou ignorez les groupes partagés. Les groupes acceptés seront ajoutés à votre palette.'
+                      : 'Supprimez vos groupes et consultez les invitations partagées.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {manageGroupsMode === 'pending' ? (
+                    <button
+                      type="button"
+                      onClick={() => setManageGroupsMode('all')}
+                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Mes groupes
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setManageGroupsMode('pending')}
+                      className="inline-flex items-center rounded-md border border-amber-400 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                    >
+                      Invitations
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setManageGroupsOpen(false)}
+                    className="text-sm text-gray-500 hover:text-gray-900"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-4">
+                {manageGroupsMode === 'pending' ? (
+                  <div>
+                    {pendingSharedGroups.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+                        Aucune invitation en attente.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {pendingSharedGroups.map((g: any) => (
+                          <div key={g._id} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-semibold text-amber-900">{g.name || 'Groupe partagé'}</div>
+                                <p className="text-xs text-amber-800">{g.description || 'Partagé sans description.'}</p>
+                                <p className="text-[11px] text-amber-700 mt-1">Proposé par {g.ownerEmail || 'un créateur'}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={groupActionLoading === `decline:${g._id}`}
+                                  onClick={() => handleDeclineSharedGroup(String(g._id))}
+                                  className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                >
+                                  {groupActionLoading === `decline:${g._id}` ? 'Patientez…' : 'Ignorer'}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={groupActionLoading === `accept:${g._id}`}
+                                  onClick={() => handleAcceptSharedGroup(String(g._id))}
+                                  className="inline-flex items-center rounded-md border border-emerald-500 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                                >
+                                  {groupActionLoading === `accept:${g._id}` ? 'Ajout…' : 'Accepter'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">Mes groupes</h3>
+                      {groups.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+                          Aucun groupe pour le moment.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {groups.map((g: any) => (
+                            <div key={g._id} className="rounded-lg border border-gray-200 p-3">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                                    {g.name || 'Sans titre'}
+                                    <span
+                                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                        g.public ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                                      }`}
+                                    >
+                                      {g.public ? 'Public' : 'Privé'}
+                                    </span>
+                                    {g.sourceGroupId ? (
+                                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                                        Copie partagée
+                                      </span>
+                                    ) : null}
+                                    {g.autoInclude ? (
+                                      <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                                        Auto include
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <p className="mt-1 text-xs text-gray-500">{g.description || 'Aucune description'}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={groupActionLoading === `delete:${g._id}`}
+                                  onClick={() => handleDeleteGroup(String(g._id))}
+                                  className="inline-flex items-center rounded-md border border-red-500 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  {groupActionLoading === `delete:${g._id}` ? 'Suppression…' : 'Supprimer'}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t border-gray-200 pt-4">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">Invitations partagées</h3>
+                      {pendingSharedGroups.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+                          Aucune invitation en attente.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {pendingSharedGroups.map((g: any) => (
+                            <div key={g._id} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-semibold text-amber-900">{g.name || 'Groupe partagé'}</div>
+                                  <p className="text-xs text-amber-800">{g.description || 'Partagé sans description.'}</p>
+                                  <p className="text-[11px] text-amber-700 mt-1">Proposé par {g.ownerEmail || 'un créateur'}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={groupActionLoading === `decline:${g._id}`}
+                                    onClick={() => handleDeclineSharedGroup(String(g._id))}
+                                    className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                  >
+                                    {groupActionLoading === `decline:${g._id}` ? 'Patientez…' : 'Ignorer'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={groupActionLoading === `accept:${g._id}`}
+                                    onClick={() => handleAcceptSharedGroup(String(g._id))}
+                                    className="inline-flex items-center rounded-md border border-emerald-500 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                                  >
+                                    {groupActionLoading === `accept:${g._id}` ? 'Ajout…' : 'Accepter'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+              </div>
+            </div>
+          </Portal>
+        )}
+
+        {manageGroupsOpen && (
+          <div
+            className="fixed inset-0 flex items-center justify-center bg-black/50 px-4"
+            style={{ zIndex: 2147483647, width: '100vw', height: '100vh', top: 0, left: 0 }}
+          >
+            {/* Fallback inline render in case the Portal fails */}
+            <div className="bg-white rounded-lg w-full max-w-2xl shadow-xl relative">
+              <div className="flex flex-wrap items-center justify-between border-b border-gray-200 px-5 py-4 gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    {manageGroupsMode === 'pending' ? 'Groupes partagés à examiner' : 'Groupes enregistrés'}
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    {manageGroupsMode === 'pending'
+                      ? 'Acceptez ou ignorez les groupes partagés. Les groupes acceptés seront ajoutés à votre palette.'
+                      : 'Supprimez vos groupes et consultez les invitations partagées.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {manageGroupsMode === 'pending' ? (
+                    <button
+                      type="button"
+                      onClick={() => setManageGroupsMode('all')}
+                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Mes groupes
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setManageGroupsMode('pending')}
+                      className="inline-flex items-center rounded-md border border-amber-400 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                    >
+                      Invitations
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setManageGroupsOpen(false)}
+                    className="text-sm text-gray-500 hover:text-gray-900"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-4">
+                {manageGroupsMode === 'pending' ? (
+                  <div>
+                    {pendingSharedGroups.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+                        Aucune invitation en attente.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {pendingSharedGroups.map((g: any) => (
+                          <div key={g._id} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-semibold text-amber-900">{g.name || 'Groupe partagé'}</div>
+                                <p className="text-xs text-amber-800">{g.description || 'Partagé sans description.'}</p>
+                                <p className="text-[11px] text-amber-700 mt-1">Proposé par {g.ownerEmail || 'un créateur'}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={groupActionLoading === `decline:${g._id}`}
+                                  onClick={() => handleDeclineSharedGroup(String(g._id))}
+                                  className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                >
+                                  {groupActionLoading === `decline:${g._id}` ? 'Patientez…' : 'Ignorer'}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={groupActionLoading === `accept:${g._id}`}
+                                  onClick={() => handleAcceptSharedGroup(String(g._id))}
+                                  className="inline-flex items-center rounded-md border border-emerald-500 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                                >
+                                  {groupActionLoading === `accept:${g._id}` ? 'Ajout…' : 'Accepter'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">Mes groupes</h3>
+                      {groups.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+                          Aucun groupe pour le moment.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {groups.map((g: any) => (
+                            <div key={g._id} className="rounded-lg border border-gray-200 p-3">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                                    {g.name || 'Sans titre'}
+                                    <span
+                                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                        g.public ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                                      }`}
+                                    >
+                                      {g.public ? 'Public' : 'Privé'}
+                                    </span>
+                                    {g.sourceGroupId ? (
+                                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                                        Copie partagée
+                                      </span>
+                                    ) : null}
+                                    {g.autoInclude ? (
+                                      <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                                        Auto include
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <p className="mt-1 text-xs text-gray-500">{g.description || 'Aucune description'}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={groupActionLoading === `delete:${g._id}`}
+                                  onClick={() => handleDeleteGroup(String(g._id))}
+                                  className="inline-flex items-center rounded-md border border-red-500 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  {groupActionLoading === `delete:${g._id}` ? 'Suppression…' : 'Supprimer'}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t border-gray-200 pt-4">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">Invitations partagées</h3>
+                      {pendingSharedGroups.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+                          Aucune invitation en attente.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {pendingSharedGroups.map((g: any) => (
+                            <div key={g._id} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-semibold text-amber-900">{g.name || 'Groupe partagé'}</div>
+                                  <p className="text-xs text-amber-800">{g.description || 'Partagé sans description.'}</p>
+                                  <p className="text-[11px] text-amber-700 mt-1">Proposé par {g.ownerEmail || 'un créateur'}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={groupActionLoading === `decline:${g._id}`}
+                                    onClick={() => handleDeclineSharedGroup(String(g._id))}
+                                    className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                  >
+                                    {groupActionLoading === `decline:${g._id}` ? 'Patientez…' : 'Ignorer'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={groupActionLoading === `accept:${g._id}`}
+                                    onClick={() => handleAcceptSharedGroup(String(g._id))}
+                                    className="inline-flex items-center rounded-md border border-emerald-500 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                                  >
+                                    {groupActionLoading === `accept:${g._id}` ? 'Ajout…' : 'Accepter'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       {showDocsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg w-full max-w-3xl p-5 max-h-[80vh] overflow-auto">
@@ -1571,147 +2336,8 @@ function PuckEditor() {
           </div>
         </div>
       )}
-                <label className="block text-sm font-medium mb-1">Description</label>
-                <textarea
-                  className="w-full border border-gray-300 rounded-md p-2 mb-4"
-                  rows={3}
-                  placeholder={modalMode === 'create' ? "Ex: bouton WhatsApp vert arrondi avec texte blanc" : "Ex: changer la couleur en noir et rendre le bouton plus grand"}
-                  value={modalDescription}
-                  onChange={(e) => setModalDescription(e.target.value)}
-                />
-                <label className="inline-flex items-center gap-2 mb-4">
-                  <input type="checkbox" checked={modalUseAI} onChange={(e) => setModalUseAI(e.target.checked)} />
-                  <span>Utiliser l’IA (sinon utiliser des modèles par défaut)</span>
-                </label>
 
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={closeModal} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Annuler</button>
-                  <button type="button" disabled={modalMode === 'modify' ? !modalTargetName || !modalDescription.trim() : !modalDescription.trim()} onClick={() => setModalStep(1)} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50">Suivant</button>
-                </div>
-              </>
-            )}
-
-            {modalStep === 1 && (
-              <>
-                {modalUseAI ? (
-                  // When using AI, skip manual options.  The AI will infer any
-                  // necessary properties from the description, and the resulting
-                  // component fields will be provided in the custom component’s
-                  // configuration.  Show only a message and navigation.
-                  <>
-                    <h2 className="text-lg font-semibold mb-3">Options générées automatiquement</h2>
-                    <p className="text-sm text-gray-600 mb-4">Les paramètres de ce composant seront déterminés par l’IA selon votre description. Vous pourrez les modifier plus tard via le panneau de propriétés.</p>
-                    <div className="flex justify-between gap-2 mt-4">
-                      <button type="button" onClick={() => setModalStep(0)} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Précédent</button>
-                      <button type="button" onClick={() => setModalStep(2)} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black">Suivant</button>
-                    </div>
-                  </>
-                ) : (
-                  // When AI is disabled, expose manual options for the fallback
-                  // template builder and show a live preview.
-                  <>
-                    <h2 className="text-lg font-semibold mb-3">Options</h2>
-                    <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Label</label>
-                        <input className="w-full border border-gray-300 rounded-md p-2" value={optLabel} onChange={(e) => setOptLabel(e.target.value)} placeholder="Label du bouton" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">URL</label>
-                        <input className="w-full border border-gray-300 rounded-md p-2" value={optHref} onChange={(e) => setOptHref(e.target.value)} placeholder="https://…" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Thème</label>
-                        <select className="w-full border border-gray-300 rounded-md p-2" value={optTheme} onChange={(e) => setOptTheme(e.target.value as any)}>
-                          <option value="brand">Marque</option>
-                          <option value="light">Clair</option>
-                          <option value="dark">Sombre</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Variant</label>
-                        <select className="w-full border border-gray-300 rounded-md p-2" value={optVariant} onChange={(e) => setOptVariant(e.target.value as any)}>
-                          <option value="solid">Plein</option>
-                          <option value="outline">Contour</option>
-                          <option value="ghost">Fantôme</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Taille</label>
-                        <select className="w-full border border-gray-300 rounded-md p-2" value={optSize} onChange={(e) => setOptSize(e.target.value as any)}>
-                          <option value="sm">Small</option>
-                          <option value="md">Medium</option>
-                          <option value="lg">Large</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Forme</label>
-                        <select className="w-full border border-gray-300 rounded-md p-2" value={optShape} onChange={(e) => setOptShape(e.target.value as any)}>
-                          <option value="rounded">Arrondie</option>
-                          <option value="full">Pill</option>
-                        </select>
-                      </div>
-                      <label className="inline-flex items-center gap-2 mt-2">
-                        <input type="checkbox" checked={optIcon} onChange={(e) => setOptIcon(e.target.checked)} />
-                        <span>Afficher l’icône</span>
-                      </label>
-                    </div>
-                    {/* Live preview */}
-                    <div className="mt-4 p-3 border border-gray-200 rounded-md bg-gray-50">
-                      <div className="text-xs text-gray-500 mb-2">Aperçu</div>
-                      <div
-                        className="inline-block"
-                        // eslint-disable-next-line react/no-danger
-                        dangerouslySetInnerHTML={{ __html: buildPreviewFromOptions({
-                          label: optLabel,
-                          href: optHref,
-                          theme: optTheme,
-                          variant: optVariant,
-                          size: optSize,
-                          shape: optShape,
-                          icon: optIcon,
-                        }) }}
-                      />
-                    </div>
-                    <div className="flex justify-between gap-2 mt-4">
-                      <button type="button" onClick={() => setModalStep(0)} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Précédent</button>
-                      <button type="button" onClick={() => setModalStep(2)} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black">Suivant</button>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-
-            {modalStep === 2 && (
-              <>
-                {modalMode === 'create' ? (
-                  <>
-                    <h2 className="text-lg font-semibold mb-2">Nom & visibilité</h2>
-                    <input className="w-full border border-gray-300 rounded-md p-2 mb-4" placeholder="Nom unique du composant" value={modalName} onChange={(e) => setModalName(e.target.value)} />
-                    <div className="flex items-center gap-4 mb-4">
-                      <label className="inline-flex items-center gap-2"><input type="radio" name="visibility" value="private" checked={!modalPublic} onChange={() => setModalPublic(false)} /><span>Privé</span></label>
-                      <label className="inline-flex items-center gap-2"><input type="radio" name="visibility" value="public" checked={modalPublic} onChange={() => setModalPublic(true)} /><span>Public</span></label>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <button type="button" onClick={() => setModalStep(1)} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Précédent</button>
-                      <button type="button" disabled={modalSubmitting || !modalName.trim()} onClick={handleSubmitCustomComponent} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50">{modalSubmitting ? 'Création…' : 'Créer'}</button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-lg font-semibold mb-2">Confirmer la modification</h2>
-                    <p className="text-sm text-gray-600 mb-4">Le composant « {modalTargetName || '—'} » sera modifié selon la description et les options choisies.</p>
-                    <div className="flex justify-between gap-2">
-                      <button type="button" onClick={() => setModalStep(1)} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Précédent</button>
-                      <button type="button" disabled={modalSubmitting || !modalTargetName} onClick={handleSubmitCustomComponent} className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50">{modalSubmitting ? 'Modification…' : 'Modifier'}</button>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      
       {/* Toasts */}
       <div className="fixed top-4 right-4 z-[60] space-y-2">
         {toasts.map((t) => (

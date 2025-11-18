@@ -11,7 +11,9 @@ const AppSchema = new Schema(
     isTemplate: { type: Boolean, default: false, index: true },
     visibility: { type: String, enum: ["private", "public"], default: "private", index: true },
     templateSource: { type: Schema.Types.ObjectId, ref: "App", default: null }, // original template _id if cloned
-    templateVersion: { type: Number, default: 1 }, // snapshot version at clone time
+    templateVersion: { type: Number, default: 0 }, // templates start at 1, clones store snapshot version
+    templateUpdatedAt: { type: Date, default: null },
+    lastTemplateSyncAt: { type: Date, default: null },
     clonedAt: { type: Date, default: null },
   },
   { timestamps: true }
