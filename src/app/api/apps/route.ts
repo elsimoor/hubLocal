@@ -136,7 +136,7 @@ export async function POST(req: Request) {
             const clone = existingOwned.find((g: any) => String(g.sourceGroupId) === srcId);
             if (clone) { idReplacementMap.set(srcId, String(clone._id)); continue; }
             // Not found: verify source group exists and public, collect for consent
-            const source = await GroupModel.findOne({ _id: srcId, public: true }).lean();
+            const source:any = await GroupModel.findOne({ _id: srcId, public: true }).lean();
             if (source) missingGroups.push({ id: srcId, name: source.name });
           }
         }
@@ -149,7 +149,7 @@ export async function POST(req: Request) {
 
         // 5) Auto-accept/clone any missing groups
         for (const mg of missingGroups) {
-          const source = await GroupModel.findOne({ _id: mg.id, public: true }).lean();
+          const source:any = await GroupModel.findOne({ _id: mg.id, public: true }).lean();
           if (!source) continue;
           // Ensure unique name per owner
           let baseName = source.name;

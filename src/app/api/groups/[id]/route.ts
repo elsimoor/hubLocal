@@ -7,16 +7,17 @@ import { GroupSubscriptionModel } from "@/lib/models/GroupSubscription";
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await ctx.params;
     await connectDB();
-    const session = await getServerSession(authOptions as any);
+    const session:any = await getServerSession(authOptions as any);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const email = session.user.email;
-    const group = await GroupModel.findById(params.id);
+    const group = await GroupModel.findById(id);
     if (!group) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }

@@ -214,55 +214,8 @@ function PuckEditor() {
     return () => document.removeEventListener('mousedown', handler, true);
   }, []);
 
-  // When the document data changes, update the fallback path if no selection
-  // is currently stored.  This effect inspects the current editor data and
-  // attempts to derive a sensible default path pointing at the last top‑level
-  // node.  This path is saved into both lastPuckPathRef and
-  // window.__LAST_PUCK_PATH__ so that the "Save as Group" handler can
-  // recover a selection even when the selectionStore is empty.  Without this
-  // fallback the handler would throw an error and prompt the user to click
-  // a block.  By pre‑populating the last path we ensure that at least one
-  // element will be grouped when the user clicks "Save as Group" with no
-  // explicit selection.  This is particularly useful when components
-  // neglect to set data‑puck‑path or attach onMouseDown handlers.
-  useEffect(() => {
-    try {
-      // Only update if the data has a root and no selection is currently
-      // stored in the selectionStore.  If there is a selection we don’t
-      // override it.
-      if (!selectionStore.size() && data && typeof window !== 'undefined') {
-        let defaultPath: string | null = null;
-        // Determine where the top‑level array of nodes is stored.  Blocks may
-        // reside under data.content or data.root.content, depending on the
-        // version of Puck.  Inspect both locations.
-        const doc: any = data as any;
-        let content: any[] | null = null;
-        if (Array.isArray(doc?.content)) {
-          content = doc.content;
-        } else if (Array.isArray(doc?.root?.content)) {
-          content = doc.root.content;
-        }
-        if (content && content.length > 0) {
-          const idx = content.length - 1;
-          if (Array.isArray(doc?.content)) {
-            defaultPath = `content.${idx}`;
-          } else {
-            defaultPath = `root.content.${idx}`;
-          }
-        }
-        if (defaultPath) {
-          lastPuckPathRef.current = defaultPath;
-          (window as any).__LAST_PUCK_PATH__ = defaultPath;
-          // Debug: log whenever the fallback path effect updates the last path
-          try {
-            console.log('[PuckDebug] Fallback effect set last path to', defaultPath);
-          } catch {}
-        }
-      }
-    } catch {
-      // Ignore any errors deriving the fallback path
-    }
-  }, [data]);
+  // Removed aggressive fallback that auto-sets last path on data change.
+  // It caused saving the last top-level block instead of the intended one.
 
   // Simple toast system
   const [toasts, setToasts] = useState<{ id: number; text: string; type?: 'success' | 'error' }[]>([]);
@@ -1409,58 +1362,29 @@ function PuckEditor() {
                             } catch {}
                             const sel = selectionStore.get();
                             let paths = Array.isArray(sel) ? sel.slice() : [];
-                            try {
-                              console.log('[PuckDebug] initial paths from selection:', paths);
-                            } catch {}
-                            // Fallback: if nothing is in the selection store, use the
-                            // last recorded path from either the local ref or the
-                            // global window variable (__LAST_PUCK_PATH__).  This helps
-                            // capture selections that may not have set data-puck-path
-                            // attributes.
+                            try { console.log('[PuckDebug] initial paths from selection:', paths); } catch {}
+                            // Fallback hierarchy (original behavior):
+                            // 1. Explicit multi/single selection from selectionStore
+                            // 2. Last clicked element path (ref or window global)
+                            // 3. Computed last top-level block path in document
                             if (!paths || paths.length === 0) {
-                              // If nothing is selected, attempt to use the last
-                              // recorded path or compute a default path.  First
-                              // check our stored refs, then compute a fallback
-                              // from the current document.  This ensures we
-                              // always have at least one path to group.
                               let last = lastPuckPathRef.current;
-                              try {
-                                if (!last && typeof window !== 'undefined') {
-                                  last = (window as any).__LAST_PUCK_PATH__ || null;
-                                }
-                              } catch {}
+                              try { if (!last && typeof window !== 'undefined') last = (window as any).__LAST_PUCK_PATH__ || null; } catch {}
                               if (last) {
                                 paths = [String(last)];
-                                try {
-                                  console.log('[PuckDebug] Using last path from ref/globals:', last, '→ paths', paths);
-                                } catch {}
+                                try { console.log('[PuckDebug] Using last path from ref/globals:', last, '→ paths', paths); } catch {}
                               } else {
-                                // Derive a fallback path pointing at the last
-                                // top‑level node in the current document.  Puck
-                                // stores top level components inside root.content.
+                                // Derive fallback from current document (last top-level node)
                                 try {
-                                  // Determine where the top‑level array of nodes is stored.
                                   const rootObj: any = (current as any) || {};
-                                  // Puck documents may store blocks in current.content or current.root.content
                                   let content: any[] | null = null;
-                                  if (Array.isArray(rootObj?.content)) {
-                                    content = rootObj.content;
-                                  } else if (Array.isArray(rootObj?.root?.content)) {
-                                    content = rootObj.root.content;
-                                  }
+                                  if (Array.isArray(rootObj?.content)) content = rootObj.content;
+                                  else if (Array.isArray(rootObj?.root?.content)) content = rootObj.root.content;
                                   if (content && content.length > 0) {
                                     const idx = content.length - 1;
-                                    // Choose the appropriate path prefix.  When blocks
-                                    // live directly under current.content, prefix with "content".
-                                    // Otherwise fallback to "root.content" when stored there.
-                                    if (Array.isArray(rootObj?.content)) {
-                                      paths = [`content.${idx}`];
-                                    } else {
-                                      paths = [`root.content.${idx}`];
-                                    }
-                                    try {
-                                      console.log('[PuckDebug] Computed fallback path from document:', paths);
-                                    } catch {}
+                                    if (Array.isArray(rootObj?.content)) paths = [`content.${idx}`];
+                                    else paths = [`root.content.${idx}`];
+                                    try { console.log('[PuckDebug] Computed fallback path from document:', paths); } catch {}
                                   }
                                 } catch {}
                               }
@@ -1506,12 +1430,27 @@ function PuckEditor() {
                             if (paths.length === 1) {
                               const node = selectedNodes[0];
                               let savedContent: any[] = [];
-                              if (node && typeof node === 'object' && Array.isArray((node as any).content)) {
-                                // Use the node's children directly
-                                savedContent = (node as any).content;
-                              } else {
-                                // Otherwise wrap the node in an array
-                                savedContent = [node];
+                              // If the selected node is a dynamic group reference
+                              // (type starts with "Group_" and no inline content),
+                              // dereference it to the actual saved group's tree so we
+                              // capture a stable snapshot instead of a reference.
+                              const t = node && typeof node === 'object' ? String((node as any).type || '') : '';
+                              if (t.startsWith('Group_') && !(Array.isArray((node as any).content) && (node as any).content.length)) {
+                                const gid = t.slice(6);
+                                const found = Array.isArray(groups) ? groups.find((gg: any) => String(gg?._id) === gid) : null;
+                                if (found && found.tree) {
+                                  const summary = summarizeGroupTree(found.tree);
+                                  savedContent = Array.isArray(summary.normalized?.root?.content) ? summary.normalized.root.content : [];
+                                }
+                              }
+                              if (!savedContent.length) {
+                                if (node && typeof node === 'object' && Array.isArray((node as any).content)) {
+                                  // Use the node's children directly
+                                  savedContent = (node as any).content;
+                                } else {
+                                  // Otherwise wrap the node in an array
+                                  savedContent = [node];
+                                }
                               }
                               groupTree = { root: { content: savedContent } };
                             } else {

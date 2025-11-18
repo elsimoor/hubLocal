@@ -20,7 +20,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session:any = await getServerSession(authOptions);
   if (!session?.user?.email)
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!id || !mongoose.Types.ObjectId.isValid(id))
@@ -30,12 +30,12 @@ export async function POST(
   const overwriteExisting = Boolean(body?.overwriteExisting);
 
   await connectDB();
-  const app = await AppModel.findOne({ _id: id, ownerEmail: session.user.email }).lean();
+  const app:any = await AppModel.findOne({ _id: id, ownerEmail: session.user.email }).lean();
   if (!app) return NextResponse.json({ error: "not found" }, { status: 404 });
   if (!app.templateSource)
     return NextResponse.json({ error: "no_template_source" }, { status: 400 });
 
-  const template = await AppModel.findOne({ _id: app.templateSource, isTemplate: true, visibility: "public" }).lean();
+  const template:any = await AppModel.findOne({ _id: app.templateSource, isTemplate: true, visibility: "public" }).lean();
   if (!template) return NextResponse.json({ error: "template_not_found" }, { status: 404 });
 
   const templateSlug = (template as any).slug as string;
