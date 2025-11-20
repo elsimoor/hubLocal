@@ -1,9 +1,42 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { GroupModel } from "@/lib/models/Group";
 import { GroupSubscriptionModel } from "@/lib/models/GroupSubscription";
+
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await ctx.params;
+    await connectDB();
+    const session: any = await getServerSession(authOptions as any);
+    const email = session?.user?.email || null;
+    const group = await GroupModel.findById(id).lean();
+    if (!group) {
+      return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    }
+
+    const previewMode = new URL(req.url).searchParams.get("preview") === "1";
+    const isOwner = email && group.ownerEmail === email;
+    const isPublic = !!group.public;
+
+    if (!previewMode && !isOwner) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (previewMode && !isOwner && !isPublic) {
+      return NextResponse.json({ error: "Preview unavailable" }, { status: 403 });
+    }
+
+    return NextResponse.json({ group });
+  } catch (e: any) {
+    console.error(e);
+    return NextResponse.json({ error: e?.message || "Failed to fetch group" }, { status: 500 });
+  }
+}
 
 export async function DELETE(
   _req: Request,

@@ -5533,11 +5533,11 @@ export const config = {
         }
         try {
           // Debug: log base Group render details: whether content slot is a function and the title
-          console.log('[PuckDebug] base Group render', {
-            title,
-            hasContentSlot: typeof ContentSlot === 'function',
-            contentSlotType: typeof ContentSlot,
-          })
+          // console.log('[PuckDebug] base Group render', {
+          //   title,
+          //   hasContentSlot: typeof ContentSlot === 'function',
+          //   contentSlotType: typeof ContentSlot,
+          // })
         } catch {}
         return (
           <div ref={puck?.dragRef} data-puck-path={path || undefined} style={style} onMouseDown={onMouseDown}>
