@@ -1,5 +1,5 @@
 "use client";
-import type { CSSProperties, HTMLAttributes, ReactNode, ElementType } from "react";
+import { createElement, type CSSProperties, type HTMLAttributes, type ReactNode, type ElementType } from "react";
 import { useSession } from "next-auth/react";
 
 type RenderProps = {
@@ -43,7 +43,7 @@ export function RenderText({ node, rootProps = {} }: RenderProps) {
         ? { ...style, outline: "2px solid rgba(59,130,246,.85)", outlineOffset: 0 }
         : style;
 
-    const Tag = ((node?.props?.tag as string) || "p") as ElementType;
+    const Tag = ((node?.props?.tag as string) || "p") as ElementType<any>;
     let content = node?.props?.text ?? "Texte";
     // Replace dynamic variables in the text with values from the user session
     try {
@@ -58,16 +58,16 @@ export function RenderText({ node, rootProps = {} }: RenderProps) {
         // ignore errors if useSession isn't available
     }
 
-    return (
-        <Tag
-            {...rest}
-            className={[
+    return createElement(
+        Tag,
+        {
+            ...rest,
+            className: [
                 "hover:outline hover:outline-2 hover:outline-blue-300/70 transition-[outline] duration-100",
                 className || "",
-            ].join(" ")}
-            style={merged}
-        >
-            {content}
-        </Tag>
+            ].join(" "),
+            style: merged,
+        },
+        content,
     );
 }

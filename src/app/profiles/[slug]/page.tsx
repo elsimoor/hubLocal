@@ -2,12 +2,13 @@ import { notFound } from "next/navigation";
 import ProfileClient from "./ProfileClient";
 import { getProfileBySlug } from "@/lib/profile/service";
 
-type Props = { params: { slug: string } };
+type PageParams = Promise<{ slug: string }>;
 
 export const dynamic = "force-dynamic";
 
-export default async function Page({ params }: Props) {
-  const slug = decodeURIComponent(params?.slug || "");
+export default async function Page({ params }: { params: PageParams }) {
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug || "");
   const profile = await getProfileBySlug(slug);
   if (!profile) {
     notFound();

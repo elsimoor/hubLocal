@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { getProfileBySlug } from "@/lib/profile/service";
 
-export async function GET(_req: Request, { params }: { params: { slug: string } }) {
-  const slug = decodeURIComponent(params.slug || "");
+type RouteContext = {
+  params: Promise<{ slug: string }>;
+};
+
+export async function GET(_req: Request, context: RouteContext) {
+  const { slug: rawSlug } = await context.params;
+  const slug = decodeURIComponent(rawSlug || "");
   const profile = await getProfileBySlug(slug);
   if (!profile) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });

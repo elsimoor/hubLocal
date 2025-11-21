@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Types } from "mongoose";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
@@ -19,7 +20,7 @@ export async function GET() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   await connectDB();
-  const user = await UserModel.findOne({ email: session.user.email }).lean();
+  const user = await UserModel.findOne({ email: session.user.email }).lean<{ _id: Types.ObjectId; email: string }>();
   if (!user) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const profile = await getProfileByUserId(user._id);
@@ -46,7 +47,7 @@ export async function PUT(req: Request) {
   }
 
   await connectDB();
-  const user = await UserModel.findOne({ email: session.user.email }).lean();
+  const user = await UserModel.findOne({ email: session.user.email }).lean<{ _id: Types.ObjectId; email: string }>();
   if (!user) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const slugTaken = await isSlugTaken(payload.slug, user._id);

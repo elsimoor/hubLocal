@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unknown-property */
 'use client';
+import type { StaticImageData } from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, extend, useFrame } from '@react-three/fiber';
 import { useGLTF, useTexture, Environment, Lightformer } from '@react-three/drei';
@@ -21,7 +22,8 @@ import * as THREE from 'three';
 import lanyard from "./lanyard.png";
 
 import './Lanyard.css';
-import cardGLB from './modal';
+
+const CARD_MODEL_PATH = '/model/card.glb';
 
 extend({ MeshLineGeometry, MeshLineMaterial });
 
@@ -111,8 +113,9 @@ function Band({ maxSpeed = 50, minSpeed = 0 }: BandProps) {
     linearDamping: 4
   };
 
-  const { nodes, materials } = useGLTF(cardGLB) as any;
-  const texture = useTexture(lanyard);
+  const { nodes, materials } = useGLTF(CARD_MODEL_PATH) as any;
+  const textureSource = typeof lanyard === 'string' ? lanyard : (lanyard as StaticImageData).src;
+  const texture = useTexture(textureSource);
   const [curve] = useState(
     () =>
       new THREE.CatmullRomCurve3([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()])
@@ -238,7 +241,9 @@ function Band({ maxSpeed = 50, minSpeed = 0 }: BandProps) {
         </RigidBody>
       </group>
       <mesh ref={band}>
+        {/* @ts-expect-error meshline custom primitive */}
         <meshLineGeometry />
+        {/* @ts-expect-error meshline custom primitive */}
         <meshLineMaterial
           color="white"
           depthTest={false}
