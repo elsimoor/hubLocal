@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Page({ params }: { params: PageParams }) {
   const { slug: rawSlug } = await params;
-  const slug = decodeURIComponent(rawSlug || "");
+  const slug = decodeURIComponent(rawSlug || "").replace(/^@+/, "");
   const profile = await getProfileBySlug(slug);
   if (!profile) {
     notFound();

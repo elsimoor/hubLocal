@@ -25,7 +25,7 @@ export default function ProfileClient({ profile }: Props) {
   const [flipped, setFlipped] = useState(false);
   const pageUrl = useMemo(() => {
     const cleanSlug = profile.slug?.replace(/^\/+|\/+$/g, "");
-    return cleanSlug ? `${SITE_URL}/profile/${cleanSlug}` : SITE_URL;
+    return cleanSlug ? `${SITE_URL}/profile/@${cleanSlug}` : SITE_URL;
   }, [profile.slug]);
 
   const displayName = profile.displayName || profile.slug || "Profil";

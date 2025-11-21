@@ -649,7 +649,7 @@ export default function ManageProfilePage() {
   const publicProfileUrl = useMemo(() => {
     const cleanSlug = profile.slug?.replace(/^\/+|\/+$/g, "");
     if (!cleanSlug) return null;
-    return `${SITE_URL}/profile/${cleanSlug}`;
+    return `${SITE_URL}/profile/@${cleanSlug}`;
   }, [profile.slug]);
 
   function updateProfileField<K extends keyof ProfilePayload>(key: K, value: ProfilePayload[K]) {
@@ -812,7 +812,7 @@ export default function ManageProfilePage() {
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-slate-900">Manage your profile</h1>
             <p className="text-sm text-slate-600 max-w-xl">
-              Configure everything that shows up on your public page <code className="bg-slate-100 px-2 py-1 rounded text-blue-700 text-xs">/profile/{profile.slug || "slug"}</code>
+              Configure everything that shows up on your public page <code className="bg-slate-100 px-2 py-1 rounded text-blue-700 text-xs">/profile/@{profile.slug || "slug"}</code>
             </p>
           </div>
           {publicProfileUrl ? (

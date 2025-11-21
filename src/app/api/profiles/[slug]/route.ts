@@ -7,7 +7,7 @@ type RouteContext = {
 
 export async function GET(_req: Request, context: RouteContext) {
   const { slug: rawSlug } = await context.params;
-  const slug = decodeURIComponent(rawSlug || "");
+  const slug = decodeURIComponent(rawSlug || "").replace(/^@+/, "");
   const profile = await getProfileBySlug(slug);
   if (!profile) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
