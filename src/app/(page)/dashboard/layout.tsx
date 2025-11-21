@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Menu, X, AppWindow, LayoutDashboard, User, Shield } from "lucide-react";
+import { Menu, X, AppWindow, LayoutDashboard, User, Shield, Settings } from "lucide-react";
 import { DashboardUIProvider, useDashboardUI } from "./ui-context";
 
 /**
@@ -41,6 +41,7 @@ export default function DashboardLayout({
       { href: "/dashboard/hub", label: "Mes hubs", icon: LayoutDashboard },
       // { href: "/dashboard/puck", label: "Éditeur Puck", icon: PenTool },
       { href: "/dashboard/profile", label: "Mon profil", icon: User },
+      { href: "/dashboard/profile/manage", label: "Manage profile", icon: Settings },
     ];
     if (isAdmin) items.push({ href: "/dashboard/admin", label: "Back‑office", icon: Shield });
     return items;

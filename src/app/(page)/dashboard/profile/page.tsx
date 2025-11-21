@@ -1,9 +1,14 @@
 "use client";
 import { useState, useEffect, FormEvent } from "react";
 import { useSession } from "next-auth/react";
+import Lanyard from "./lyn3D";
+import { useRouter } from "next/navigation";
+import VcfForm from "./form";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [isPro, setIsPro] = useState<boolean>(false);
@@ -12,6 +17,8 @@ export default function ProfilePage() {
   const [pwdNew, setPwdNew] = useState("");
   const [pwdConfirm, setPwdConfirm] = useState("");
   const [pwdMessage, setPwdMessage] = useState<string | null>(null);
+
+  const [currentTab, setCurrentTab] = useState<string>("#settings");
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -116,113 +123,155 @@ export default function ProfilePage() {
   if (!session) {
     return <main className="min-h-[60dvh] grid place-items-center">Tu dois être connecté pour modifier ton profil.</main>;
   }
+  const items = [
+    { label: "Mon profil", href: "#settings" },
+    { label: "vCard", href: "#vcard" },
+    { label: "Contact", href: "#" },
+  ];
+
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
-      <h1 className="text-xl font-semibold mb-4">Mon profil</h1>
+    <>
 
-      <section className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow">
-        <div className="flex items-center gap-4 mb-4">
-          {session.user?.image ? (
-            <img src={session.user.image} alt="avatar" className="w-12 h-12 rounded-full" />
-          ) : (
-            <div className="w-12 h-12 rounded-full bg-gray-200 grid place-items-center text-gray-600 font-semibold">
-              {String(session.user?.name || "").charAt(0).toUpperCase() || "U"}
-            </div>
-          )}
-          <div>
-            <div className="font-medium">{session.user?.name || "Utilisateur"}</div>
-            <div className="text-xs text-gray-600">{session.user?.email}</div>
-          </div>
+      <div >
+
+        {/* TABS */}
+        <div className="w-full flex  mb-6">
+          <nav className="bg-white rounded-full px-3 py-2 shadow flex space-x-4">
+            {items.map((item, index) => (
+              <button
+                onClick={() => setCurrentTab(item.href)}
+                key={index}
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-full text-sm font-medium"
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+
         </div>
-
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="firstName" className="block text-sm font-medium text-gray-800">Prénom</label>
-            <input
-              id="firstName"
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
-            />
-          </div>
-          <div>
-            <label htmlFor="lastName" className="block text-sm font-medium text-gray-800">Nom</label>
-            <input
-              id="lastName"
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
-            />
-          </div>
-          <div className="md:col-span-2 flex items-center gap-3">
-            <button
-              type="submit"
-              className="inline-flex items-center px-4 py-2 border border-gray-900 text-sm font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-black"
-            >
-              Enregistrer
-            </button>
-            {message && <p className="text-sm text-gray-700">{message}</p>}
-          </div>
-        </form>
-      </section>
-
-      <section className="mt-6 bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow">
-        <h2 className="text-lg font-semibold mb-1">Abonnement</h2>
-        <p className="text-sm mb-3">Plan actuel : <strong>{isPro ? 'PRO' : 'Gratuit'}</strong></p>
-        <button
-          onClick={handleTogglePro}
-          className="inline-flex items-center px-4 py-2 border border-purple-700 text-sm font-medium rounded-md shadow-sm text-white bg-purple-700 hover:bg-purple-800"
+      </div>
+      <div className="gri grid-cols-1 gap-3 w-full">
+        <main
+          style={{
+            display: currentTab === "#vcard" ? "block" : 'none'
+          }}
+          className="max-w-2xl p-4"
         >
-          {isPro ? 'Revenir à la version gratuite' : 'Passer en PRO'}
-        </button>
-        <p className="text-xs text-gray-500 mt-2">Cette action simule l’activation ou la désactivation de l’abonnement PRO. Aucune facturation réelle n’est effectuée.</p>
-      </section>
+          <h1 className="text-xl font-semibold mb-4">Ma vCard 3D</h1>
+          <VcfForm />
+        </main>
+        <main
+          style={{
+            display: currentTab === "#settings" ? "block" : 'none'
+          }}
+          className="max-w-2xl p-4">
+          <h1 className="text-xl font-semibold mb-4">Mon profil</h1>
+          <section className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow">
+            <div className="flex items-center gap-4 mb-4">
+              {session.user?.image ? (
+                <img src={session.user.image} alt="avatar" className="w-12 h-12 rounded-full" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-gray-200 grid place-items-center text-gray-600 font-semibold">
+                  {String(session.user?.name || "").charAt(0).toUpperCase() || "U"}
+                </div>
+              )}
+              <div>
+                <div className="font-medium">{session.user?.name || "Utilisateur"}</div>
+                <div className="text-xs text-gray-600">{session.user?.email}</div>
+              </div>
+            </div>
 
-      <section className="mt-6 bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow">
-        <h2 className="text-lg font-semibold mb-3">Changer le mot de passe</h2>
-        <form onSubmit={handlePasswordChange} className="grid gap-4">
-          <div>
-            <label htmlFor="pwdNew" className="block text-sm font-medium text-gray-800">Nouveau mot de passe</label>
-            <input
-              id="pwdNew"
-              type="password"
-              value={pwdNew}
-              onChange={(e) => setPwdNew(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
-              autoComplete="new-password"
-              required
-              minLength={8}
-            />
-          </div>
-          <div>
-            <label htmlFor="pwdConfirm" className="block text-sm font-medium text-gray-800">Confirmer le nouveau mot de passe</label>
-            <input
-              id="pwdConfirm"
-              type="password"
-              value={pwdConfirm}
-              onChange={(e) => setPwdConfirm(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
-              autoComplete="new-password"
-              required
-              minLength={8}
-            />
-          </div>
-          <div className="flex items-center gap-3">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-800">Prénom</label>
+                <input
+                  id="firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-800">Nom</label>
+                <input
+                  id="lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
+                />
+              </div>
+              <div className="md:col-span-2 flex items-center gap-3">
+                <button
+                  type="submit"
+                  className="inline-flex items-center px-4 py-2 border border-gray-900 text-sm font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-black"
+                >
+                  Enregistrer
+                </button>
+                {message && <p className="text-sm text-gray-700">{message}</p>}
+              </div>
+            </form>
+          </section>
+
+          <section className="mt-6 bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow">
+            <h2 className="text-lg font-semibold mb-1">Abonnement</h2>
+            <p className="text-sm mb-3">Plan actuel : <strong>{isPro ? 'PRO' : 'Gratuit'}</strong></p>
             <button
-              type="submit"
-              className="inline-flex items-center px-4 py-2 border border-gray-900 text-sm font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-black"
-              disabled={!pwdNew || !pwdConfirm}
+              onClick={handleTogglePro}
+              className="inline-flex items-center px-4 py-2 border border-purple-700 text-sm font-medium rounded-md shadow-sm text-white bg-purple-700 hover:bg-purple-800"
             >
-              Mettre à jour le mot de passe
+              {isPro ? 'Revenir à la version gratuite' : 'Passer en PRO'}
             </button>
-            {pwdMessage && <p className="text-sm text-gray-700">{pwdMessage}</p>}
-          </div>
-        </form>
-        <p className="text-xs text-gray-500 mt-2">Le nouveau mot de passe doit contenir au moins 8 caractères.</p>
-      </section>
-    </main>
+            <p className="text-xs text-gray-500 mt-2">Cette action simule l’activation ou la désactivation de l’abonnement PRO. Aucune facturation réelle n’est effectuée.</p>
+          </section>
+
+          <section className="mt-6 bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow">
+            <h2 className="text-lg font-semibold mb-3">Changer le mot de passe</h2>
+            <form onSubmit={handlePasswordChange} className="grid gap-4">
+              <div>
+                <label htmlFor="pwdNew" className="block text-sm font-medium text-gray-800">Nouveau mot de passe</label>
+                <input
+                  id="pwdNew"
+                  type="password"
+                  value={pwdNew}
+                  onChange={(e) => setPwdNew(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                />
+              </div>
+              <div>
+                <label htmlFor="pwdConfirm" className="block text-sm font-medium text-gray-800">Confirmer le nouveau mot de passe</label>
+                <input
+                  id="pwdConfirm"
+                  type="password"
+                  value={pwdConfirm}
+                  onChange={(e) => setPwdConfirm(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  className="inline-flex items-center px-4 py-2 border border-gray-900 text-sm font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-black"
+                  disabled={!pwdNew || !pwdConfirm}
+                >
+                  Mettre à jour le mot de passe
+                </button>
+                {pwdMessage && <p className="text-sm text-gray-700">{pwdMessage}</p>}
+              </div>
+            </form>
+            <p className="text-xs text-gray-500 mt-2">Le nouveau mot de passe doit contenir au moins 8 caractères.</p>
+          </section>
+        </main>
+      </div>
+    </>
   );
 }
