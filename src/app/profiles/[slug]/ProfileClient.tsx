@@ -7,7 +7,7 @@ import ImageGalleryModal from "@/lib/components/ImageGalleryModal";
 import { ProfilePayload } from "@/types/profile";
 import { Contact2, Globe, Image, Mail, Share, UserCheck2, Youtube } from "lucide-react";
 
-const PUBLIC_BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://hub-local-nu.vercel.app/").replace(/\/$/, "");
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://hub-local-nu.vercel.app").replace(/\/$/, "");
 
 const ICON_COMPONENTS = {
   Contact2,
@@ -25,7 +25,7 @@ export default function ProfileClient({ profile }: Props) {
   const [flipped, setFlipped] = useState(false);
   const pageUrl = useMemo(() => {
     const cleanSlug = profile.slug?.replace(/^\/+|\/+$/g, "");
-    return cleanSlug ? `${PUBLIC_BASE_URL}/${cleanSlug}` : PUBLIC_BASE_URL;
+    return cleanSlug ? `${SITE_URL}/profile/${cleanSlug}` : SITE_URL;
   }, [profile.slug]);
 
   const displayName = profile.displayName || profile.slug || "Profil";
