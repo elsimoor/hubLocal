@@ -11,6 +11,29 @@ export type PuckTemplateTree = {
 
 export const PROFILE_TEMPLATE_VERSION = 2
 
+const buildProfileTemplateLinks = () => {
+  const fullName = `${profileComponentDefaults.vcfFirstName || ""} ${profileComponentDefaults.vcfLastName || ""}`.trim()
+  const defaultFullName = fullName || profileComponentDefaults.displayName || profileComponentDefaults.slug
+  if (!Array.isArray(profileComponentDefaults.links)) return []
+  return profileComponentDefaults.links.map((link) => {
+    if (link.type === "vcf") {
+      return {
+        ...link,
+        vcfName: defaultFullName,
+        vcfEmail: profileComponentDefaults.vcfWorkEmail || profileComponentDefaults.vcfHomeEmail || "",
+        vcfPhone: profileComponentDefaults.vcfCellPhone || profileComponentDefaults.vcfWorkPhone || "",
+        vcfOrganization: profileComponentDefaults.vcfOrg || "",
+        vcfTitle: profileComponentDefaults.vcfTitle || "",
+        vcfUrl: profileComponentDefaults.vcfUrl || "",
+        vcfNote: profileComponentDefaults.vcfNote || "",
+      }
+    }
+    return link
+  })
+}
+
+export const profileTemplateLinks = buildProfileTemplateLinks()
+
 export const profileTemplateData: PuckTemplateTree = {
   meta: {
     templateName: "ProfileTemplate",
@@ -24,61 +47,61 @@ export const profileTemplateData: PuckTemplateTree = {
       theme: "light",
       backgroundPattern: "none",
     },
-    children: [
-      {
-        type: "ProfileDefaultPage",
-        props: {
-          backgroundUrl: "",
-          themeGradient: profileComponentDefaults.themeGradient,
-          themePanelBackground: profileComponentDefaults.themePanelBackground,
-          themePanelShadow: profileComponentDefaults.themePanelShadow,
-          themeCardSurface: profileComponentDefaults.themeCardSurface,
-          themeCardShadow: profileComponentDefaults.themeCardShadow,
-          themeAccentPrimary: profileComponentDefaults.themeAccentPrimary,
-          themeAccentPrimaryText: profileComponentDefaults.themeAccentPrimaryText,
-          themeAccentSecondary: profileComponentDefaults.themeAccentSecondary,
-          themeAccentSecondaryText: profileComponentDefaults.themeAccentSecondaryText,
-          themeTextPrimary: profileComponentDefaults.themeTextPrimary,
-          themeTextSecondary: profileComponentDefaults.themeTextSecondary,
-          themeIconColor: profileComponentDefaults.themeIconColor,
+      children: [
+        {
+          type: "ProfileDefaultPage",
+          props: {
+            backgroundImage: profileComponentDefaults.backgroundUrl,
+            themeGradient: profileComponentDefaults.themeGradient,
+            themePanelBackground: profileComponentDefaults.themePanelBackground,
+            themePanelShadow: profileComponentDefaults.themePanelShadow,
+            themeCardSurface: profileComponentDefaults.themeCardSurface,
+            themeCardShadow: profileComponentDefaults.themeCardShadow,
+            themeAccentPrimary: profileComponentDefaults.themeAccentPrimary,
+            themeAccentPrimaryText: profileComponentDefaults.themeAccentPrimaryText,
+            themeAccentSecondary: profileComponentDefaults.themeAccentSecondary,
+            themeAccentSecondaryText: profileComponentDefaults.themeAccentSecondaryText,
+            themeTextPrimary: profileComponentDefaults.themeTextPrimary,
+            themeTextSecondary: profileComponentDefaults.themeTextSecondary,
+            themeIconColor: profileComponentDefaults.themeIconColor,
+          },
+          children: [
+            {
+              type: "ProfileHeaderPuck",
+              props: {
+                slug: profileComponentDefaults.slug,
+              },
+            },
+            {
+              type: "ProfileAvatarPuck",
+              props: {
+                slug: profileComponentDefaults.slug,
+                displayName: profileComponentDefaults.displayName,
+                avatarUrl: profileComponentDefaults.avatarUrl,
+              },
+            },
+            {
+              type: "ProfileInfoPuck",
+              props: {
+                displayName: profileComponentDefaults.displayName,
+                tagline: profileComponentDefaults.tagline,
+              },
+            },
+            {
+              type: "ProfileButtonsPuck",
+              props: {
+                buttonPrimaryLabel: profileComponentDefaults.buttonPrimaryLabel,
+                buttonSecondaryLabel: profileComponentDefaults.buttonSecondaryLabel,
+              },
+            },
+            {
+              type: "ProfileLinksPuck",
+              props: {
+                links: profileTemplateLinks,
+              },
+            },
+          ],
         },
-        children: [
-          {
-            type: "ProfileHeaderPuck",
-            props: {
-              slug: "",
-            },
-          },
-          {
-            type: "ProfileAvatarPuck",
-            props: {
-              slug: "",
-              displayName: "",
-              avatarUrl: "",
-            },
-          },
-          {
-            type: "ProfileInfoPuck",
-            props: {
-              displayName: "",
-              tagline: "",
-            },
-          },
-          {
-            type: "ProfileButtonsPuck",
-            props: {
-              buttonPrimaryLabel: "Connect",
-              buttonSecondaryLabel: "Links",
-            },
-          },
-          {
-            type: "ProfileLinksPuck",
-            props: {
-              links: [],
-            },
-          },
-        ],
-      },
     ],
   },
   content: [],

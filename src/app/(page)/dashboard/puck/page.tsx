@@ -1591,7 +1591,7 @@ function PuckEditor() {
               // Customize the Puck Drawer to include an outline above the component list.
               // This outline displays the current component hierarchy alongside the component palette,
               // making it easier to find and insert layouts and widgets from a single place.
-              drawer: ({ children }) => (
+              drawer: ({ children }: { children?: React.ReactNode }) => (
                 <div className="flex flex-col h-full">
                   {/* Show the outline of the current document at the top */}
                   <div className="border-b border-gray-200 max-h-[40vh] overflow-auto">
@@ -1602,7 +1602,7 @@ function PuckEditor() {
                 </div>
               ),
 
-              headerActions: ({ children }) => {
+              headerActions: ({ children }: { children?: React.ReactNode }) => {
                 const appState = usePuckHook((s) => s.appState);
                 const current = appState?.data;
                 const isFs = sidebarCollapsed;
@@ -2179,7 +2179,7 @@ function PuckEditor() {
           );
         },
             }}
-            onPublish={(newData) => {
+            onPublish={(newData: any) => {
               // Persist and mark as published
               saveDoc(newData, "published");
             }}

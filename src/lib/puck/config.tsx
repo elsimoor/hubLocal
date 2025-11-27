@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from "react"
 import Image from "next/image"
-import { DropZone } from "@measured/puck"
+import { DropZone, Render } from "@measured/puck"
 import type { FieldProps } from "@measured/puck"
 // Import ActionStateProvider, useActionState and runActions to enable
 // interactive behaviour. useActionState exposes a flags API for
@@ -33,7 +33,7 @@ import {
   createEmptyProfilePayload,
 } from "@/types/profile"
 import { profileComponentDefaults } from "@/lib/puck/profileDefaults"
-import { profileTemplateData } from "@/lib/puck/profileTemplate"
+import { cloneProfileTemplateData, profileTemplateData, profileTemplateLinks } from "@/lib/puck/profileTemplate"
 import { buildProfilePayloadFromProps } from "@/lib/puck/profilePayload"
 import { downloadVCard } from "./profile-vcf-handler"
 
@@ -259,6 +259,236 @@ const createColorPickerField = ({ label, defaultValue, helperText }: ColorPicker
     />
   ),
 })
+
+const defaultProfileBackgroundImage = profileComponentDefaults.backgroundUrl || ""
+
+const PROFILE_CHILD_COMPONENT_TYPES = [
+  "ProfileHeaderPuck",
+  "ProfileAvatarPuck",
+  "ProfileInfoPuck",
+  "ProfileButtonsPuck",
+  "ProfileLinksPuck",
+  "ProfileHeader",
+  "ProfileLinks",
+  "ProfileVCard",
+] as const
+
+const profilePageFields = {
+  backgroundImage: {
+    type: "text",
+    label: "Background image URL",
+    defaultValue: defaultProfileBackgroundImage,
+  },
+  themeGradient: { type: "text", label: "Card gradient (advanced CSS)", defaultValue: DEFAULT_THEME.cardGradient },
+  themeGradientFrom: createColorPickerField({ label: "Card gradient - from (hex)", defaultValue: "#ffffff" }),
+  themeGradientTo: createColorPickerField({ label: "Card gradient - to (hex)", defaultValue: "#c8dcff" }),
+  themePanelBackground: {
+    type: "text",
+    label: "Panel background (advanced CSS)",
+    defaultValue: DEFAULT_THEME.panelBackground,
+  },
+  themePanelBackgroundColor: createColorPickerField({
+    label: "Panel background color (hex)",
+    defaultValue: "#f6f9ff",
+  }),
+  themePanelShadow: { type: "text", label: "Panel shadow", defaultValue: DEFAULT_THEME.panelShadow },
+  themeCardSurface: { type: "text", label: "Card surface (advanced CSS)", defaultValue: DEFAULT_THEME.cardSurface },
+  themeCardSurfaceColor: createColorPickerField({
+    label: "Card surface color (hex)",
+    defaultValue: "#ffffff",
+  }),
+  themeCardShadow: { type: "text", label: "Card shadow", defaultValue: DEFAULT_THEME.cardShadow },
+  themeAccentPrimary: createColorPickerField({
+    label: "Primary accent color (hex)",
+    defaultValue: DEFAULT_THEME.accentPrimary,
+  }),
+  themeAccentPrimaryText: createColorPickerField({
+    label: "Primary accent text (hex)",
+    defaultValue: DEFAULT_THEME.accentPrimaryText,
+  }),
+  themeAccentSecondary: createColorPickerField({
+    label: "Secondary accent color (hex)",
+    defaultValue: DEFAULT_THEME.accentSecondary,
+  }),
+  themeAccentSecondaryText: createColorPickerField({
+    label: "Secondary accent text (hex)",
+    defaultValue: DEFAULT_THEME.accentSecondaryText,
+  }),
+  themeTextPrimary: createColorPickerField({
+    label: "Primary text color (hex)",
+    defaultValue: DEFAULT_THEME.textPrimary,
+  }),
+  themeTextSecondary: createColorPickerField({
+    label: "Secondary text color (hex)",
+    defaultValue: DEFAULT_THEME.textSecondary,
+  }),
+  themeIconColor: createColorPickerField({
+    label: "Icon color (hex)",
+    defaultValue: DEFAULT_THEME.iconColor,
+  }),
+  children: {
+    type: "slot",
+    label: "Profile components",
+    allow: Array.from(PROFILE_CHILD_COMPONENT_TYPES),
+  },
+} as const
+
+const profilePageDefaultProps = {
+  backgroundImage: defaultProfileBackgroundImage,
+  themeGradient: DEFAULT_THEME.cardGradient,
+  themeGradientFrom: "#ffffff",
+  themeGradientTo: "#c8dcff",
+  themePanelBackground: DEFAULT_THEME.panelBackground,
+  themePanelBackgroundColor: "#f6f9ff",
+  themePanelShadow: DEFAULT_THEME.panelShadow,
+  themeCardSurface: DEFAULT_THEME.cardSurface,
+  themeCardSurfaceColor: "#ffffff",
+  themeCardShadow: DEFAULT_THEME.cardShadow,
+  themeAccentPrimary: DEFAULT_THEME.accentPrimary,
+  themeAccentPrimaryText: DEFAULT_THEME.accentPrimaryText,
+  themeAccentSecondary: DEFAULT_THEME.accentSecondary,
+  themeAccentSecondaryText: DEFAULT_THEME.accentSecondaryText,
+  themeTextPrimary: DEFAULT_THEME.textPrimary,
+  themeTextSecondary: DEFAULT_THEME.textSecondary,
+  themeIconColor: DEFAULT_THEME.iconColor,
+  children: [],
+}
+
+const buildProfileThemeFromProps = (props: any) => {
+  const cardGradient =
+    props.themeGradientFrom && props.themeGradientTo
+      ? `linear-gradient(135deg, ${props.themeGradientFrom} 0%, ${props.themeGradientTo} 100%)`
+      : props.themeGradient
+
+  const panelBackground = props.themePanelBackgroundColor || props.themePanelBackground
+  const cardSurface = props.themeCardSurfaceColor || props.themeCardSurface
+
+  return {
+    cardGradient,
+    panelBackground,
+    panelShadow: props.themePanelShadow,
+    cardSurface,
+    cardShadow: props.themeCardShadow,
+    accentPrimary: props.themeAccentPrimary,
+    accentPrimaryText: props.themeAccentPrimaryText,
+    accentSecondary: props.themeAccentSecondary,
+    accentSecondaryText: props.themeAccentSecondaryText,
+    textPrimary: props.themeTextPrimary,
+    textSecondary: props.themeTextSecondary,
+    iconColor: props.themeIconColor,
+  }
+}
+
+const cloneNodeArray = (nodes?: any[]): any[] => {
+  if (!Array.isArray(nodes)) return []
+  return nodes.map((node) => {
+    const clonedChildren = cloneNodeArray(node?.children)
+    return {
+      ...node,
+      props: node?.props ? { ...node.props } : {},
+      children: clonedChildren.length ? clonedChildren : undefined,
+    }
+  })
+}
+
+const cloneProfileTemplateChildren = () => {
+  const tree = cloneProfileTemplateData()
+  console.log("tree",tree)
+  const firstChild = Array.isArray(tree?.root?.children) ? tree.root.children[0] : null
+  if (firstChild?.type === "ProfileDefaultPage" && Array.isArray(firstChild.children)) {
+    console.log("firstChild",firstChild)
+    let clone =  cloneNodeArray(firstChild.children)
+    console.log("clone",clone)
+    return clone
+  }
+  return []
+}
+
+const cloneTemplateLinks = () =>
+  profileTemplateLinks.map((link) => ({
+    ...link,
+  }))
+
+const renderProfilePageComponent = ({ puck, children, backgroundImage, ...props }: any) => {
+  const theme = buildProfileThemeFromProps(props)
+  const path = getPathFromPuck(puck)
+  const isSelected = selectionStore.has(path)
+  const isEditing = isEditingFromPuck(puck)
+
+  const onMouseDown = (e: any) => {
+    e.stopPropagation()
+    if (!isEditing) return
+    if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
+    else selectionStore.toggle(path, false)
+  }
+
+  const wrapperStyle = isSelected ? { ...outlineForSelected, width: "100%" } : { width: "100%" }
+  let content: any[] = Array.isArray(children) && children.length ? children : []
+
+  // If content is empty, try falling back to the profile template children
+  // (this covers editor insertion where resolveData may not be executed).
+  try {
+    console.log('[PuckDebug] renderProfilePageComponent initial content length:', Array.isArray(content) ? content.length : 0)
+    if ((!Array.isArray(content) || content.length === 0) && typeof cloneProfileTemplateChildren === 'function') {
+      const fallback = cloneProfileTemplateChildren()
+      console.log('[PuckDebug] cloneProfileTemplateChildren returned length:', Array.isArray(fallback) ? fallback.length : 'not-array')
+      if (Array.isArray(fallback) && fallback.length) {
+        content = fallback
+        console.log('[PuckDebug] applied fallback children, new content length:', content.length)
+      }
+    }
+    if (Array.isArray(content) && content.length > 0) console.log('[PuckDebug] renderProfilePageComponent sample node:', content[0])
+    console.log('[PuckDebug] puck present?:', !!puck, 'has renderDropZone?:', typeof puck?.renderDropZone === 'function')
+  } catch (e) {
+    try {
+      console.error('[PuckDebug] failed logging content debug', e)
+    } catch {}
+  }
+
+  // Use the canonical slot render pattern: when the slot field is present the
+  // editor provides a render function (a React component) to `children`.
+  // If we have that, call it. If we only have a node array (fallback), wrap
+  // it in a small component that uses <Render /> so the slot API still receives
+  // a component.
+  let renderedContent: any = null
+  try {
+    const isSlotRenderFunction = typeof children === "function"
+    console.log('[PuckDebug] isSlotRenderFunction:', isSlotRenderFunction)
+
+    if (isSlotRenderFunction) {
+      const SlotComponent = children as any
+      // Pass allow to restrict what can be dropped into this slot in the editor
+      renderedContent = <SlotComponent allow={Array.from(PROFILE_CHILD_COMPONENT_TYPES)} />
+      console.log('[PuckDebug] rendered slot via SlotComponent')
+    } else if (Array.isArray(content) && content.length > 0) {
+      // Fallback slot component that renders the node array via <Render />
+      const FallbackSlot: React.FC = () => (
+        <Render config={(config as any)} data={{ root: { props: {}, children: content } }} />
+      )
+      renderedContent = <FallbackSlot />
+      console.log('[PuckDebug] rendered fallback slot via <Render />')
+    } else {
+      // Empty state - render nothing but keep markup for editor drop behaviour
+      renderedContent = null
+      console.log('[PuckDebug] no content to render for profile page')
+    }
+  } catch (e) {
+    console.error('[PuckDebug] error while building renderedContent', e)
+    renderedContent = null
+  }
+
+  return (
+    <div ref={puck?.dragRef} data-puck-path={path || undefined} style={wrapperStyle} onMouseDown={onMouseDown}>
+      <ProfileThemeProvider value={theme}>
+        <div className="min-h-screen relative bg-[#bfbfbf] flex items-center justify-center md:p-8">
+          <ProfileCardShell gradient={theme.cardGradient} backgroundImage={backgroundImage}>
+            {renderedContent}
+          </ProfileCardShell>
+        </div>
+      </ProfileThemeProvider>
+    </div>
+  )
+}
 
 function ProfileAvatarPuckComponent({ slug, displayName, avatarUrl }: any) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("")
@@ -560,6 +790,7 @@ export const config = {
       title: "Profile Elements",
       components: [
         "ProfileDefaultPage",
+        "ProfileTemplatePage",
         "ProfileHeaderPuck",
         "ProfileAvatarPuck",
         "ProfileInfoPuck",
@@ -876,404 +1107,64 @@ export const config = {
     },
   },
   components: {
-    // ProfileHeader: {
-    //   fields: {
-    //     name: { type: "text", label: "Name" },
-    //     title: { type: "text", label: "Title" },
-    //     bio: { type: "textarea", label: "Bio" },
-    //     avatar: { type: "text", label: "Avatar URL" },
-    //   },
-    //   defaultProps: {
-    //     name: "Your Name",
-    //     title: "Digital Creator",
-    //     bio: "Welcome to my profile!",
-    //     avatar: "",
-    //   },
-    //   render: ({ name, title, bio, avatar }: any) => (
-    //     <ProfileHeader name={name} title={title} bio={bio} avatar={avatar} />
-    //   ),
-    // },
-    // ProfileLinks: {
-    //   fields: {
-    //     links: {
-    //       type: "array",
-    //       getItemSummary: (item: any) => item.label || "Link",
-    //       arrayFields: {
-    //         label: { type: "text", label: "Label" },
-    //         url: { type: "text", label: "URL" },
-    //       },
-    //     },
-    //   },
-    //   defaultProps: {
-    //     links: [
-    //       { label: "Website", url: "https://example.com" },
-    //       { label: "Twitter", url: "https://twitter.com" },
-    //     ],
-    //   },
-    //   render: ({ links }: any) => <ProfileLinks links={links} />,
-    // },
-    // ProfileVCard: {
-    //   fields: {
-    //     vcardUrl: { type: "text", label: "vCard URL" },
-    //   },
-    //   defaultProps: {
-    //     vcardUrl: "#",
-    //   },
-    //   render: ({ vcardUrl }: any) => <ProfileVCard vcardUrl={vcardUrl} />,
-    // },
-    // ProfileDefaultPage: {
-    //   label: "Profile Default Page",
-    //   fields: {
-    //     backgroundUrl: { type: "text", label: "Background URL", defaultValue: profileComponentDefaults.backgroundUrl },
-    //     themeGradient: { type: "text", label: "Card gradient", defaultValue: profileComponentDefaults.themeGradient },
-    //     themePanelBackground: {
-    //       type: "text",
-    //       label: "Panel background",
-    //       defaultValue: profileComponentDefaults.themePanelBackground,
-    //     },
-    //     themePanelShadow: {
-    //       type: "text",
-    //       label: "Panel shadow",
-    //       defaultValue: profileComponentDefaults.themePanelShadow,
-    //     },
-    //     themeCardSurface: {
-    //       type: "text",
-    //       label: "Card surface colour",
-    //       defaultValue: profileComponentDefaults.themeCardSurface,
-    //     },
-    //     themeCardShadow: {
-    //       type: "text",
-    //       label: "Card surface shadow",
-    //       defaultValue: profileComponentDefaults.themeCardShadow,
-    //     },
-    //     themeAccentPrimary: {
-    //       type: "text",
-    //       label: "Primary button colour",
-    //       defaultValue: profileComponentDefaults.themeAccentPrimary,
-    //     },
-    //     themeAccentPrimaryText: {
-    //       type: "text",
-    //       label: "Primary button text",
-    //       defaultValue: profileComponentDefaults.themeAccentPrimaryText,
-    //     },
-    //     themeAccentSecondary: {
-    //       type: "text",
-    //       label: "Secondary button colour",
-    //       defaultValue: profileComponentDefaults.themeAccentSecondary,
-    //     },
-    //     themeAccentSecondaryText: {
-    //       type: "text",
-    //       label: "Secondary button text",
-    //       defaultValue: profileComponentDefaults.themeAccentSecondaryText,
-    //     },
-    //     themeTextPrimary: {
-    //       type: "text",
-    //       label: "Heading colour",
-    //       defaultValue: profileComponentDefaults.themeTextPrimary,
-    //     },
-    //     themeTextSecondary: {
-    //       type: "text",
-    //       label: "Body text colour",
-    //       defaultValue: profileComponentDefaults.themeTextSecondary,
-    //     },
-    //     themeIconColor: {
-    //       type: "text",
-    //       label: "Icon colour",
-    //       defaultValue: profileComponentDefaults.themeIconColor,
-    //     },
-    //   },
-    //   defaultProps: {
-    //     backgroundUrl: profileComponentDefaults.backgroundUrl,
-    //     themeGradient: profileComponentDefaults.themeGradient,
-    //     themePanelBackground: profileComponentDefaults.themePanelBackground,
-    //     themePanelShadow: profileComponentDefaults.themePanelShadow,
-    //     themeCardSurface: profileComponentDefaults.themeCardSurface,
-    //     themeCardShadow: profileComponentDefaults.themeCardShadow,
-    //     themeAccentPrimary: profileComponentDefaults.themeAccentPrimary,
-    //     themeAccentPrimaryText: profileComponentDefaults.themeAccentPrimaryText,
-    //     themeAccentSecondary: profileComponentDefaults.themeAccentSecondary,
-    //     themeAccentSecondaryText: profileComponentDefaults.themeAccentSecondaryText,
-    //     themeTextPrimary: profileComponentDefaults.themeTextPrimary,
-    //     themeTextSecondary: profileComponentDefaults.themeTextSecondary,
-    //     themeIconColor: profileComponentDefaults.themeIconColor,
-    //   },
-    //   render: ({
-    //     puck,
-    //     backgroundUrl,
-    //     children,
-    //     themeGradient,
-    //     themePanelBackground,
-    //     themePanelShadow,
-    //     themeCardSurface,
-    //     themeCardShadow,
-    //     themeAccentPrimary,
-    //     themeAccentPrimaryText,
-    //     themeAccentSecondary,
-    //     themeAccentSecondaryText,
-    //     themeTextPrimary,
-    //     themeTextSecondary,
-    //     themeIconColor,
-    //   }: any) => {
-    //     const path = getPathFromPuck(puck)
-    //     const isSelected = selectionStore.has(path)
-    //     const isEditing = isEditingFromPuck(puck)
-    //     const onMouseDown = (e: any) => {
-    //       e.stopPropagation()
-    //       if (!isEditing) return
-    //       if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
-    //       else selectionStore.toggle(path, false)
-    //     }
-    //     const wrapperStyle = isSelected ? { ...outlineForSelected, width: "100%" } : { width: "100%" }
-    //     const themeOverrides = {
-    //       cardGradient: themeGradient,
-    //       panelBackground: themePanelBackground,
-    //       panelShadow: themePanelShadow,
-    //       cardSurface: themeCardSurface,
-    //       cardShadow: themeCardShadow,
-    //       accentPrimary: themeAccentPrimary,
-    //       accentPrimaryText: themeAccentPrimaryText,
-    //       accentSecondary: themeAccentSecondary,
-    //       accentSecondaryText: themeAccentSecondaryText,
-    //       textPrimary: themeTextPrimary,
-    //       textSecondary: themeTextSecondary,
-    //       iconColor: themeIconColor,
-    //     }
-    //     return (
-    //       <div ref={puck?.dragRef} data-puck-path={path || undefined} style={wrapperStyle} onMouseDown={onMouseDown}>
-    //         <ProfileThemeProvider value={themeOverrides}>
-    //           <div className="min-h-screen relative bg-[#bfbfbf] flex items-center justify-center md:p-8">
-    //             <ProfileCardShell backgroundImage={backgroundUrl}>
-    //               {puck.renderDropZone(children || [])}
-    //             </ProfileCardShell>
-    //           </div>
-    //         </ProfileThemeProvider>
-    //       </div>
-    //     )
-    //   },
-    // },
-    // ProfileHeaderPuck: {
-    //   label: "Profile Header",
-    //   fields: {
-    //     slug: { type: "text", label: "Slug", defaultValue: "" },
-    //   },
-    //   render: ({ slug }: any) => {
-    //     const displayName = slug || "Profil";
-    //     const headerInitial = displayName.charAt(0).toUpperCase();
-    //     return <ProfileTopBar initial={headerInitial} />;
-    //   },
-    // },
-    // ProfileAvatarPuck: {
-    //   label: "Profile Avatar",
-    //   fields: {
-    //     slug: { type: "text", label: "Slug", defaultValue: "" },
-    //     displayName: { type: "text", label: "Display name", defaultValue: "" },
-    //     avatarUrl: { type: "text", label: "Avatar URL", defaultValue: "" },
-    //   },
-    //   render: ({ slug, displayName, avatarUrl }: any) => {
-    //     const pageUrl = useMemo(() => {
-    //       const cleanSlug = slug?.replace(/^\/+|\/+$/g, "");
-    //       return cleanSlug ? `http://hub-local-nu.vercel.app/profile/@${cleanSlug}` : "http://hub-local-nu.vercel.app";
-    //     }, [slug]);
-    //     const display = displayName || slug || "Profil";
-    //     const headerInitial = display.charAt(0).toUpperCase();
-    //     return (
-    //       <ProfileIdentitySection>
-    //         <ProfileAvatarCoin avatarUrl={avatarUrl} fallbackInitial={headerInitial} pageUrl={pageUrl} />
-    //       </ProfileIdentitySection>
-    //     );
-    //   },
-    // },
-    // ProfileInfoPuck: {
-    //   label: "Profile Info",
-    //   fields: {
-    //     displayName: { type: "text", label: "Display name", defaultValue: "" },
-    //     tagline: { type: "textarea", label: "Tagline", defaultValue: "" },
-    //   },
-    //   render: ({ displayName, tagline }: any) => {
-    //     const display = displayName || "Profil";
-    //     return <ProfileNameBlock displayName={display} tagline={tagline} />;
-    //   },
-    // },
-    // ProfileButtonsPuck: {
-    //   label: "Profile Buttons",
-    //   fields: {
-    //     buttonPrimaryLabel: { type: "text", label: "Primary button label", defaultValue: "Connect" },
-    //     buttonSecondaryLabel: { type: "text", label: "Secondary button label", defaultValue: "Links" },
-    //   },
-    //   render: ({ buttonPrimaryLabel, buttonSecondaryLabel }: any) => {
-    //     return (
-    //       <ProfileCTAButtons primaryLabel={buttonPrimaryLabel} secondaryLabel={buttonSecondaryLabel} />
-    //     );
-    //   },
-    // },
-    // ProfileLinksPuck: {
-    //   label: "Profile Links",
-    //   fields: {
-    //     links: {
-    //       type: "array",
-    //       label: "Links & actions",
-    //       arrayFields: {
-    //         label: { type: "text", label: "Label", defaultValue: "New link" },
-    //         type: {
-    //           type: "select",
-    //           label: "Type",
-    //           options: PROFILE_LINK_TYPE_OPTIONS,
-    //           defaultValue: PROFILE_LINK_TYPES[0] || "link",
-    //         },
-    //         iconKey: {
-    //           type: "select",
-    //           label: "Icon",
-    //           options: PROFILE_ICON_OPTIONS,
-    //           defaultValue: PROFILE_ICON_KEYS[0] || "Share",
-    //         },
-    //         url: { type: "text", label: "URL / action", defaultValue: "https://example.com" },
-    //         images: { type: "textarea", label: "Album images (one per line)", defaultValue: "" },
-    //       },
-    //       defaultItemProps: {
-    //         label: "New link",
-    //         type: PROFILE_LINK_TYPES[0] || "link",
-    //         iconKey: PROFILE_ICON_KEYS[0] || "Share",
-    //         url: "https://example.com",
-    //         images: "",
-    //       },
-    //       getItemSummary: (item: any) => item?.label || "Link",
-    //     },
-    //   },
-    //   render: ({ links }: any) => {
-    //     const items = buildPuckProfileLinks(links);
-    //     return (
-    //       <ProfileLinksSection
-    //         items={items}
-    //         emptyMessage="Aucune carte configuree pour le moment."
-    //       />
-    //     );
-    //   },
-    // },
-    // PROFILE COMPONENTS CONFIGURATION - Paste this into your config.tsx components object
-    // This configuration provides all the profile components for drag-and-drop editing
-
     ProfileDefaultPage: {
       label: "Profile Default Page",
-      fields: {
-        themeGradient: { type: "text", label: "Card gradient (advanced CSS)", defaultValue: DEFAULT_THEME.cardGradient },
-        themeGradientFrom: createColorPickerField({ label: "Card gradient - from (hex)", defaultValue: "#ffffff" }),
-        themeGradientTo: createColorPickerField({ label: "Card gradient - to (hex)", defaultValue: "#c8dcff" }),
-        themePanelBackground: { type: "text", label: "Panel background (advanced CSS)", defaultValue: DEFAULT_THEME.panelBackground },
-        themePanelBackgroundColor: createColorPickerField({
-          label: "Panel background color (hex)",
-          defaultValue: "#f6f9ff",
-        }),
-        themePanelShadow: { type: "text", label: "Panel shadow", defaultValue: DEFAULT_THEME.panelShadow },
-        themeCardSurface: { type: "text", label: "Card surface (advanced CSS)", defaultValue: DEFAULT_THEME.cardSurface },
-        themeCardSurfaceColor: createColorPickerField({
-          label: "Card surface color (hex)",
-          defaultValue: "#ffffff",
-        }),
-        themeCardShadow: { type: "text", label: "Card shadow", defaultValue: DEFAULT_THEME.cardShadow },
-        themeAccentPrimary: createColorPickerField({
-          label: "Primary accent color (hex)",
-          defaultValue: DEFAULT_THEME.accentPrimary,
-        }),
-        themeAccentPrimaryText: createColorPickerField({
-          label: "Primary accent text (hex)",
-          defaultValue: DEFAULT_THEME.accentPrimaryText,
-        }),
-        themeAccentSecondary: createColorPickerField({
-          label: "Secondary accent color (hex)",
-          defaultValue: DEFAULT_THEME.accentSecondary,
-        }),
-        themeAccentSecondaryText: createColorPickerField({
-          label: "Secondary accent text (hex)",
-          defaultValue: DEFAULT_THEME.accentSecondaryText,
-        }),
-        themeTextPrimary: createColorPickerField({
-          label: "Primary text color (hex)",
-          defaultValue: DEFAULT_THEME.textPrimary,
-        }),
-        themeTextSecondary: createColorPickerField({
-          label: "Secondary text color (hex)",
-          defaultValue: DEFAULT_THEME.textSecondary,
-        }),
-        themeIconColor: createColorPickerField({
-          label: "Icon color (hex)",
-          defaultValue: DEFAULT_THEME.iconColor,
-        }),
-      },
-      defaultProps: {
-        themeGradient: DEFAULT_THEME.cardGradient,
-        themeGradientFrom: "#ffffff",
-        themeGradientTo: "#c8dcff",
-        themePanelBackground: DEFAULT_THEME.panelBackground,
-        themePanelBackgroundColor: "#f6f9ff",
-        themePanelShadow: DEFAULT_THEME.panelShadow,
-        themeCardSurface: DEFAULT_THEME.cardSurface,
-        themeCardSurfaceColor: "#ffffff",
-        themeCardShadow: DEFAULT_THEME.cardShadow,
-        themeAccentPrimary: DEFAULT_THEME.accentPrimary,
-        themeAccentPrimaryText: DEFAULT_THEME.accentPrimaryText,
-        themeAccentSecondary: DEFAULT_THEME.accentSecondary,
-        themeAccentSecondaryText: DEFAULT_THEME.accentSecondaryText,
-        themeTextPrimary: DEFAULT_THEME.textPrimary,
-        themeTextSecondary: DEFAULT_THEME.textSecondary,
-        themeIconColor: DEFAULT_THEME.iconColor,
-      },
-      render: ({ puck, children, ...props }: any) => {
-        // Build a theme object preferring explicit color pickers when provided.
-        const cardGradient =
-          props.themeGradientFrom && props.themeGradientTo
-            ? `linear-gradient(135deg, ${props.themeGradientFrom} 0%, ${props.themeGradientTo} 100%)`
-            : props.themeGradient
-
-        const panelBackground = props.themePanelBackgroundColor || props.themePanelBackground
-        const cardSurface = props.themeCardSurfaceColor || props.themeCardSurface
-
-        const theme = {
-          cardGradient,
-          panelBackground,
-          panelShadow: props.themePanelShadow,
-          cardSurface,
-          cardShadow: props.themeCardShadow,
-          accentPrimary: props.themeAccentPrimary,
-          accentPrimaryText: props.themeAccentPrimaryText,
-          accentSecondary: props.themeAccentSecondary,
-          accentSecondaryText: props.themeAccentSecondaryText,
-          textPrimary: props.themeTextPrimary,
-          textSecondary: props.themeTextSecondary,
-          iconColor: props.themeIconColor,
-        }
-
-        const path = getPathFromPuck(puck)
-        const isSelected = selectionStore.has(path)
-        const isEditing = isEditingFromPuck(puck)
-
-        const onMouseDown = (e: any) => {
-          e.stopPropagation()
-          if (!isEditing) return
-          if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
-          else selectionStore.toggle(path, false)
-        }
-
-        const wrapperStyle = isSelected ? { ...outlineForSelected, width: "100%" } : { width: "100%" }
-
-        return (
-          <div ref={puck?.dragRef} data-puck-path={path || undefined} style={wrapperStyle} onMouseDown={onMouseDown}>
-            <ProfileThemeProvider value={theme}>
-              <div className="min-h-screen relative bg-[#bfbfbf] flex items-center justify-center md:p-8">
-                {/* Editor-only color picker controls removed as requested */}
-                <ProfileCardShell gradient={theme.cardGradient}>
-                  {puck?.renderDropZone ? puck.renderDropZone(children || []) : children}
-                </ProfileCardShell>
-              </div>
-            </ProfileThemeProvider>
-          </div>
-        )
-      },
+      fields: profilePageFields,
+      defaultProps: profilePageDefaultProps,
+      render: (props: any) => renderProfilePageComponent(props),
     },
 
+    // ProfileTemplatePage: {
+    //   label: "Profile Template Page",
+    //   description: "Pre-built profile layout with sample data you can customise.",
+    //   fields: profilePageFields,
+    //   defaultProps: {
+    //     ...profilePageDefaultProps,
+    //     children: [],
+    //   },
+    //   resolveData: async (data: any) => {
+    //     const props = data?.props || {}
+    //     const hasChildren = Array.isArray(props.children) && props.children.length > 0
+    //     if (hasChildren) return data
+    //     return {
+    //       ...data,
+    //       props: {
+    //         ...profilePageDefaultProps,
+    //         ...props,
+    //         children: cloneProfileTemplateChildren(),
+    //       },
+    //     }
+    //   },
+    //   render: (props: any) => renderProfilePageComponent(props),
+    // },
+
+    ProfileTemplatePage: {
+      label: "Profile Template Page",
+      description: "Pre-built profile layout with sample data you can customise.",
+      fields: profilePageFields,
+      defaultProps: {
+        ...profilePageDefaultProps,
+        children: [],
+      },
+      resolveData: async (data: any) => {
+        const props = data?.props || {}
+        const hasChildren = Array.isArray(props.children) && props.children.length > 0
+        if (hasChildren) return data
+        return {
+          ...data,
+          props: {
+            ...profilePageDefaultProps,
+            ...props,
+            children: cloneProfileTemplateChildren(),
+          },
+        }
+      },
+      render: (props: any) => renderProfilePageComponent(props),
+    },
     ProfileHeaderPuck: {
       label: "Profile Header",
       fields: {
-        slug: { type: "text", label: "Slug", defaultValue: "" },
+        slug: { type: "text", label: "Slug", defaultValue: profileComponentDefaults.slug || "" },
       },
       render: ({ slug }: any) => {
         const displayName = slug || "Profile"
@@ -1285,9 +1176,9 @@ export const config = {
     ProfileAvatarPuck: {
       label: "Profile Avatar",
       fields: {
-        slug: { type: "text", label: "Slug", defaultValue: "" },
-        displayName: { type: "text", label: "Display name", defaultValue: "" },
-        avatarUrl: { type: "text", label: "Avatar URL", defaultValue: "" },
+        slug: { type: "text", label: "Slug", defaultValue: profileComponentDefaults.slug || "" },
+        displayName: { type: "text", label: "Display name", defaultValue: profileComponentDefaults.displayName || "" },
+        avatarUrl: { type: "text", label: "Avatar URL", defaultValue: profileComponentDefaults.avatarUrl || "" },
       },
       render: (props: any) => <ProfileAvatarPuckComponent {...props} />,
     },
@@ -1295,8 +1186,8 @@ export const config = {
     ProfileInfoPuck: {
       label: "Profile Info",
       fields: {
-        displayName: { type: "text", label: "Display name", defaultValue: "" },
-        tagline: { type: "textarea", label: "Tagline", defaultValue: "" },
+        displayName: { type: "text", label: "Display name", defaultValue: profileComponentDefaults.displayName || "" },
+        tagline: { type: "textarea", label: "Tagline", defaultValue: profileComponentDefaults.tagline || "" },
         width: { type: "text", label: "Width (eg. 100%, 320px)", defaultValue: "auto" },
         height: { type: "text", label: "Height (eg. auto, 200px)", defaultValue: "auto" },
         layout: {
@@ -1412,8 +1303,16 @@ export const config = {
     ProfileButtonsPuck: {
       label: "Profile Buttons",
       fields: {
-        buttonPrimaryLabel: { type: "text", label: "Primary button label", defaultValue: "Connect" },
-        buttonSecondaryLabel: { type: "text", label: "Secondary button label", defaultValue: "Links" },
+        buttonPrimaryLabel: {
+          type: "text",
+          label: "Primary button label",
+          defaultValue: profileComponentDefaults.buttonPrimaryLabel || "Connect",
+        },
+        buttonSecondaryLabel: {
+          type: "text",
+          label: "Secondary button label",
+          defaultValue: profileComponentDefaults.buttonSecondaryLabel || "Links",
+        },
         onPrimaryClick: { type: "text", label: "Primary button action", defaultValue: "" },
         onSecondaryClick: { type: "text", label: "Secondary button action", defaultValue: "" },
         width: { type: "text", label: "Width (eg. 100%, 320px)", defaultValue: "auto" },
@@ -1568,6 +1467,20 @@ export const config = {
           },
           getItemSummary: (item: any) => item?.label || "Link",
         },
+      },
+      defaultProps: {
+        links: cloneTemplateLinks(),
+      },
+      resolveData: async (data: any) => {
+        const links = data?.props?.links
+        if (Array.isArray(links) && links.length) return data
+        return {
+          ...data,
+          props: {
+            ...data.props,
+            links: cloneTemplateLinks(),
+          },
+        }
       },
       render: ({ links }: any) => {
         const items = buildPuckProfileLinks(links)
