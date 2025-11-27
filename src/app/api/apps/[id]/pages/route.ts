@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { AppModel } from "@/lib/models/App";
 import { PuckDocModel } from "@/lib/models/PuckDoc";
+import { ensureDefaultApp } from "@/lib/apps/service";
 import mongoose from "mongoose";
 
 function pageFromDocSlug(slug: string, appSlug: string) {
@@ -27,6 +28,9 @@ export async function GET(
   await connectDB();
   const app = await AppModel.findOne({ _id: id, ownerEmail: session.user.email }).lean();
   if (!app) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if ((app as any)?.isDefault) {
+    await ensureDefaultApp(session.user.email);
+  }
   const appSlug = (app as any).slug as string;
   // Find all Puck docs that belong to this app by slug prefix
   const regex = new RegExp(`^${appSlug}/?.*`);

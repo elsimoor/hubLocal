@@ -15,6 +15,7 @@ const AppSchema = new Schema(
     templateUpdatedAt: { type: Date, default: null },
     lastTemplateSyncAt: { type: Date, default: null },
     clonedAt: { type: Date, default: null },
+    isDefault: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

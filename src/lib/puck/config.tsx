@@ -1,17 +1,298 @@
-"use client"
+﻿"use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react"
 import Image from "next/image"
 import { DropZone } from "@measured/puck"
+import type { FieldProps } from "@measured/puck"
 // Import ActionStateProvider, useActionState and runActions to enable
 // interactive behaviour. useActionState exposes a flags API for
 // controlling UI state (e.g. whether a modal is open) and runActions
 // executes an array of actions defined in fields such as Button.actions.
 import { useActionState, runActions } from "./actions"
 import { selectionStore, useSelectedPaths } from "./selectionStore"
+import { ProfileHeader, ProfileLinks, ProfileVCard } from "@/components/profile/PuckProfileComponents"
+import {
+  ProfileAvatarCoin,
+  ProfileCardShell,
+  ProfileCTAButtons,
+  ProfileIdentitySection,
+  ProfileLinksSection,
+  type ProfileLinksSectionItem,
+  ProfileNameBlock,
+  ProfileThemeProvider,
+  ProfileTopBar,
+} from "@/components/profile/ProfileCardElements"
+import ProfileClient from "@/app/profile/[slug]/ProfileClient"
+import QRCode from "react-qr-code"
+import { Contact2, Globe, Image as ImageIcon, Mail, Share, UserCheck2, Youtube } from "lucide-react"
+import {
+  DEFAULT_PROFILE_VCF,
+  // PROFILE_ICON_KEYS,
+  // PROFILE_LINK_TYPES,
+  ProfilePayload,
+  createEmptyProfilePayload,
+} from "@/types/profile"
+import { profileComponentDefaults } from "@/lib/puck/profileDefaults"
+import { profileTemplateData } from "@/lib/puck/profileTemplate"
+import { buildProfilePayloadFromProps } from "@/lib/puck/profilePayload"
+import { downloadVCard } from "./profile-vcf-handler"
 
 // Helper functions for selection highlighting.
 const outlineForSelected: any = { outline: "2px solid #6366f1", outlineOffset: 2 }
+
+
+
+
+
+const PROFILE_ICON_KEYS = ["Contact2", "Globe", "Image", "Mail", "Share", "UserCheck2", "Youtube"] as const
+const PROFILE_ICON_OPTIONS = PROFILE_ICON_KEYS.map((key) => ({ label: key, value: key }))
+
+const ICON_COMPONENTS = {
+  Contact2,
+  Globe,
+  Image: ImageIcon,
+  Mail,
+  Share,
+  UserCheck2,
+  Youtube,
+} as const
+
+const PROFILE_LINK_TYPES = ["link", "album", "vcf"] as const
+const PROFILE_LINK_TYPE_OPTIONS = PROFILE_LINK_TYPES.map((value) => ({ label: value, value }))
+
+const parseAlbumImages = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.map((img) => (typeof img === "string" ? img.trim() : "")).filter(Boolean)
+  }
+  if (typeof value !== "string") return []
+  return value
+    .split(/\r?\n|,/)
+    .map((img) => img.trim())
+    .filter(Boolean)
+}
+
+const buildPuckProfileLinks = (links: any[]): ProfileLinksSectionItem[] => {
+  if (!Array.isArray(links)) return []
+  return links.map((link, index) => {
+    const Icon = ICON_COMPONENTS[link?.iconKey as keyof typeof ICON_COMPONENTS] || Share
+    const label = typeof link?.label === "string" && link.label.trim() ? link.label : "Untitled"
+    const type = link?.type === "album" || link?.type === "vcf" ? link.type : "link"
+
+    if (type === "album") {
+      return {
+        id: link?.id || index,
+        label,
+        type,
+        icon: Icon,
+        images: parseAlbumImages(link?.images),
+      }
+    }
+
+    if (type === "vcf") {
+      const handleDownloadVCard = () => {
+        const vcardData: any = {
+          fullName: link?.vcfName || "Contact",
+          email: link?.vcfEmail || undefined,
+          phone: link?.vcfPhone || undefined,
+          organization: link?.vcfOrganization || undefined,
+          title: link?.vcfTitle || undefined,
+          url: link?.vcfUrl || undefined,
+          note: link?.vcfNote || undefined,
+        }
+        downloadVCard(vcardData, `${vcardData.fullName}.vcf`)
+      }
+
+      return {
+        id: link?.id || index,
+        label,
+        type,
+        icon: Icon,
+        onClick: handleDownloadVCard,
+      }
+    }
+
+    return {
+      id: link?.id || index,
+      label,
+      type,
+      icon: Icon,
+      url: link?.url || "#",
+    }
+  })
+}
+
+const DEFAULT_THEME = {
+  panelBackground:
+    "linear-gradient(180deg, rgba(230, 240, 255, 0.4) 0%, rgba(220, 230, 250, 0.3) 50%, rgba(240, 240, 245, 0.5) 100%)",
+  panelShadow: "0 20px 50px rgba(0, 0, 0, 0.15)",
+  cardGradient: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(200,220,255,0.25) 100%)",
+  cardSurface: "rgba(255, 255, 255, 0.92)",
+  cardShadow: "0 6px 16px rgba(0, 0, 0, 0.08)",
+  textPrimary: "#1f2937",
+  textSecondary: "#6b7280",
+  iconColor: "#4b5563",
+  accentPrimary: "#ffffff",
+  accentPrimaryText: "#1f2937",
+  accentSecondary: "#4a90e2",
+  accentSecondaryText: "#ffffff",
+}
+
+const HEX_3 = /^#([0-9a-f]{3})$/i
+const HEX_4 = /^#([0-9a-f]{4})$/i
+const HEX_6 = /^#([0-9a-f]{6})$/i
+const HEX_8 = /^#([0-9a-f]{8})$/i
+
+const normalizeHexColor = (value?: string): string | null => {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  if (HEX_6.test(trimmed)) return trimmed
+
+  const shortMatch = trimmed.match(HEX_3)
+  if (shortMatch?.[1]) {
+    const [r, g, b] = shortMatch[1].split("")
+    return `#${r}${r}${g}${g}${b}${b}`
+  }
+
+  if (HEX_8.test(trimmed)) {
+    return `#${trimmed.slice(1, 7)}`
+  }
+
+  const alphaMatch = trimmed.match(HEX_4)
+  if (alphaMatch?.[1]) {
+    const [r, g, b] = alphaMatch[1].slice(0, 3).split("")
+    return `#${r}${r}${g}${g}${b}${b}`
+  }
+
+  return null
+}
+
+const COLOR_INPUT_FALLBACK = "#000000"
+const resolveColorInputValue = (value: string, fallback: string): string => {
+  return normalizeHexColor(value) ?? normalizeHexColor(fallback) ?? COLOR_INPUT_FALLBACK
+}
+
+const DEFAULT_COLOR_FIELD_HELPER =
+  "Use the picker or enter any CSS color. Non-hex values still apply even if the swatch keeps the last valid hex."
+
+type ColorPickerFieldOptions = {
+  label: string
+  defaultValue: string
+  helperText?: string
+}
+
+type ColorPickerFieldProps = FieldProps<string> & {
+  defaultValue: string
+  helperText?: string
+}
+
+const ColorPickerFieldControl: React.FC<ColorPickerFieldProps> = ({
+  value,
+  onChange,
+  readOnly,
+  defaultValue,
+  helperText,
+  id,
+}) => {
+  const resolvedValue = typeof value === "string" ? value : ""
+  const fallbackHex = normalizeHexColor(defaultValue) ?? COLOR_INPUT_FALLBACK
+  const colorInputValue = resolveColorInputValue(resolvedValue, fallbackHex)
+  const textInputId = id ? `${id}-text` : undefined
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <input
+          type="color"
+          value={colorInputValue}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={readOnly}
+          style={{
+            width: 48,
+            height: 32,
+            border: "none",
+            padding: 0,
+            background: "transparent",
+            cursor: readOnly ? "not-allowed" : "pointer",
+          }}
+        />
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            backgroundColor: colorInputValue,
+          }}
+        />
+        <span style={{ fontFamily: "monospace", fontSize: 12, color: "#374151" }}>{colorInputValue.toUpperCase()}</span>
+      </div>
+      <input
+        type="text"
+        id={textInputId}
+        value={resolvedValue}
+        placeholder="#000000 or CSS color"
+        onChange={(event) => onChange(event.target.value)}
+        disabled={readOnly}
+        style={{
+          fontFamily: "monospace",
+          fontSize: 13,
+          padding: "6px 10px",
+          borderRadius: 6,
+          border: "1px solid #d1d5db",
+          background: readOnly ? "#f3f4f6" : "#ffffff",
+        }}
+      />
+      {helperText ? <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>{helperText}</p> : null}
+    </div>
+  )
+}
+
+const createColorPickerField = ({ label, defaultValue, helperText }: ColorPickerFieldOptions) => ({
+  type: "custom" as const,
+  label,
+  defaultValue,
+  render: (props: FieldProps<string>) => (
+    <ColorPickerFieldControl
+      {...props}
+      defaultValue={defaultValue}
+      helperText={helperText ?? DEFAULT_COLOR_FIELD_HELPER}
+    />
+  ),
+})
+
+function ProfileAvatarPuckComponent({ slug, displayName, avatarUrl }: any) {
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("")
+
+  const handleQRChange = useCallback((url: string) => {
+    setQrCodeUrl(url)
+  }, [])
+
+  const pageUrl = useMemo(() => {
+    const cleanSlug = slug?.replace(/^\/+|\/+$/g, "")
+    return cleanSlug
+      ? `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/profile/@${cleanSlug}`
+      : typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost:3000"
+  }, [slug])
+
+  const display = displayName || slug || "Profile"
+  const headerInitial = display.charAt(0).toUpperCase()
+
+  return (
+    <ProfileIdentitySection>
+      <ProfileAvatarCoin
+        avatarUrl={avatarUrl}
+        fallbackInitial={headerInitial}
+        pageUrl={pageUrl}
+        size={186}
+        onQRCodeUrlChange={handleQRChange}
+      />
+    </ProfileIdentitySection>
+  )
+}
+
+
 const getPathFromPuck = (puck: any): string | null => {
   try {
     const p = (puck as any) || {}
@@ -31,6 +312,65 @@ const isEditingFromPuck = (puck: any): boolean => {
   }
 }
 
+// const PROFILE_ICON_OPTIONS = PROFILE_ICON_KEYS.map((key) => ({ label: key, value: key }))
+// const PROFILE_LINK_TYPE_OPTIONS = PROFILE_LINK_TYPES.map((value) => ({ label: value, value }))
+
+// const ICON_COMPONENTS = {
+//   Contact2,
+//   Globe,
+//   Image: ImageIcon,
+//   Mail,
+//   Share,
+//   UserCheck2,
+//   Youtube,
+// } as const;
+
+// const parseAlbumImages = (value: unknown): string[] => {
+//   if (Array.isArray(value)) {
+//     return value
+//       .map((img) => (typeof img === "string" ? img.trim() : ""))
+//       .filter(Boolean);
+//   }
+//   if (typeof value !== "string") return [];
+//   return value
+//     .split(/\r?\n|,/)
+//     .map((img) => img.trim())
+//     .filter(Boolean);
+// };
+
+// const buildPuckProfileLinks = (links: any[]): ProfileLinksSectionItem[] => {
+//   if (!Array.isArray(links)) return [];
+//   return links.map((link, index) => {
+//     const Icon = ICON_COMPONENTS[link?.iconKey as keyof typeof ICON_COMPONENTS] || Share;
+//     const label = typeof link?.label === "string" && link.label.trim() ? link.label : "Sans titre";
+//     const type = link?.type === "album" || link?.type === "vcf" ? link.type : "link";
+//     if (type === "album") {
+//       return {
+//         id: link?.id || index,
+//         label,
+//         type,
+//         icon: Icon,
+//         images: parseAlbumImages(link?.images),
+//       };
+//     }
+//     if (type === "vcf") {
+//       return {
+//         id: link?.id || index,
+//         label,
+//         type,
+//         icon: Icon,
+//         onClick: () => alert("Configure the vCard data to enable downloads."),
+//       };
+//     }
+//     return {
+//       id: link?.id || index,
+//       label,
+//       type: "link",
+//       icon: Icon,
+//       url: typeof link?.url === "string" && link.url.trim() ? link.url : "#",
+//     };
+//   });
+// };
 /**
  * Hook that returns the width of an element. Some components (like gallery)
  * adjust layout based on the container width.
@@ -74,7 +414,7 @@ function useElementWidth<T extends HTMLElement>() {
  * Accepts text, speed in milliseconds, loop boolean, loopDelay in ms,
  * cursor boolean to show a caret, optional colour and font size. It uses
  * useState and useEffect to progressively reveal the text, resetting
- * when looping is enabled【579873606476094†L667-L786】.
+ * when looping is enabledã€579873606476094â€ L667-L786ã€‘.
  */
 function TypingTextComponent({
   text,
@@ -214,6 +554,21 @@ export const config = {
         "Template",
       ],
       // Expand custom components by default so Template is visible
+      defaultExpanded: true,
+    },
+    profile: {
+      title: "Profile Elements",
+      components: [
+        "ProfileDefaultPage",
+        "ProfileHeaderPuck",
+        "ProfileAvatarPuck",
+        "ProfileInfoPuck",
+        "ProfileButtonsPuck",
+        "ProfileLinksPuck",
+        "ProfileHeader",
+        "ProfileLinks",
+        "ProfileVCard",
+      ],
       defaultExpanded: true,
     },
   },
@@ -521,6 +876,704 @@ export const config = {
     },
   },
   components: {
+    // ProfileHeader: {
+    //   fields: {
+    //     name: { type: "text", label: "Name" },
+    //     title: { type: "text", label: "Title" },
+    //     bio: { type: "textarea", label: "Bio" },
+    //     avatar: { type: "text", label: "Avatar URL" },
+    //   },
+    //   defaultProps: {
+    //     name: "Your Name",
+    //     title: "Digital Creator",
+    //     bio: "Welcome to my profile!",
+    //     avatar: "",
+    //   },
+    //   render: ({ name, title, bio, avatar }: any) => (
+    //     <ProfileHeader name={name} title={title} bio={bio} avatar={avatar} />
+    //   ),
+    // },
+    // ProfileLinks: {
+    //   fields: {
+    //     links: {
+    //       type: "array",
+    //       getItemSummary: (item: any) => item.label || "Link",
+    //       arrayFields: {
+    //         label: { type: "text", label: "Label" },
+    //         url: { type: "text", label: "URL" },
+    //       },
+    //     },
+    //   },
+    //   defaultProps: {
+    //     links: [
+    //       { label: "Website", url: "https://example.com" },
+    //       { label: "Twitter", url: "https://twitter.com" },
+    //     ],
+    //   },
+    //   render: ({ links }: any) => <ProfileLinks links={links} />,
+    // },
+    // ProfileVCard: {
+    //   fields: {
+    //     vcardUrl: { type: "text", label: "vCard URL" },
+    //   },
+    //   defaultProps: {
+    //     vcardUrl: "#",
+    //   },
+    //   render: ({ vcardUrl }: any) => <ProfileVCard vcardUrl={vcardUrl} />,
+    // },
+    // ProfileDefaultPage: {
+    //   label: "Profile Default Page",
+    //   fields: {
+    //     backgroundUrl: { type: "text", label: "Background URL", defaultValue: profileComponentDefaults.backgroundUrl },
+    //     themeGradient: { type: "text", label: "Card gradient", defaultValue: profileComponentDefaults.themeGradient },
+    //     themePanelBackground: {
+    //       type: "text",
+    //       label: "Panel background",
+    //       defaultValue: profileComponentDefaults.themePanelBackground,
+    //     },
+    //     themePanelShadow: {
+    //       type: "text",
+    //       label: "Panel shadow",
+    //       defaultValue: profileComponentDefaults.themePanelShadow,
+    //     },
+    //     themeCardSurface: {
+    //       type: "text",
+    //       label: "Card surface colour",
+    //       defaultValue: profileComponentDefaults.themeCardSurface,
+    //     },
+    //     themeCardShadow: {
+    //       type: "text",
+    //       label: "Card surface shadow",
+    //       defaultValue: profileComponentDefaults.themeCardShadow,
+    //     },
+    //     themeAccentPrimary: {
+    //       type: "text",
+    //       label: "Primary button colour",
+    //       defaultValue: profileComponentDefaults.themeAccentPrimary,
+    //     },
+    //     themeAccentPrimaryText: {
+    //       type: "text",
+    //       label: "Primary button text",
+    //       defaultValue: profileComponentDefaults.themeAccentPrimaryText,
+    //     },
+    //     themeAccentSecondary: {
+    //       type: "text",
+    //       label: "Secondary button colour",
+    //       defaultValue: profileComponentDefaults.themeAccentSecondary,
+    //     },
+    //     themeAccentSecondaryText: {
+    //       type: "text",
+    //       label: "Secondary button text",
+    //       defaultValue: profileComponentDefaults.themeAccentSecondaryText,
+    //     },
+    //     themeTextPrimary: {
+    //       type: "text",
+    //       label: "Heading colour",
+    //       defaultValue: profileComponentDefaults.themeTextPrimary,
+    //     },
+    //     themeTextSecondary: {
+    //       type: "text",
+    //       label: "Body text colour",
+    //       defaultValue: profileComponentDefaults.themeTextSecondary,
+    //     },
+    //     themeIconColor: {
+    //       type: "text",
+    //       label: "Icon colour",
+    //       defaultValue: profileComponentDefaults.themeIconColor,
+    //     },
+    //   },
+    //   defaultProps: {
+    //     backgroundUrl: profileComponentDefaults.backgroundUrl,
+    //     themeGradient: profileComponentDefaults.themeGradient,
+    //     themePanelBackground: profileComponentDefaults.themePanelBackground,
+    //     themePanelShadow: profileComponentDefaults.themePanelShadow,
+    //     themeCardSurface: profileComponentDefaults.themeCardSurface,
+    //     themeCardShadow: profileComponentDefaults.themeCardShadow,
+    //     themeAccentPrimary: profileComponentDefaults.themeAccentPrimary,
+    //     themeAccentPrimaryText: profileComponentDefaults.themeAccentPrimaryText,
+    //     themeAccentSecondary: profileComponentDefaults.themeAccentSecondary,
+    //     themeAccentSecondaryText: profileComponentDefaults.themeAccentSecondaryText,
+    //     themeTextPrimary: profileComponentDefaults.themeTextPrimary,
+    //     themeTextSecondary: profileComponentDefaults.themeTextSecondary,
+    //     themeIconColor: profileComponentDefaults.themeIconColor,
+    //   },
+    //   render: ({
+    //     puck,
+    //     backgroundUrl,
+    //     children,
+    //     themeGradient,
+    //     themePanelBackground,
+    //     themePanelShadow,
+    //     themeCardSurface,
+    //     themeCardShadow,
+    //     themeAccentPrimary,
+    //     themeAccentPrimaryText,
+    //     themeAccentSecondary,
+    //     themeAccentSecondaryText,
+    //     themeTextPrimary,
+    //     themeTextSecondary,
+    //     themeIconColor,
+    //   }: any) => {
+    //     const path = getPathFromPuck(puck)
+    //     const isSelected = selectionStore.has(path)
+    //     const isEditing = isEditingFromPuck(puck)
+    //     const onMouseDown = (e: any) => {
+    //       e.stopPropagation()
+    //       if (!isEditing) return
+    //       if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
+    //       else selectionStore.toggle(path, false)
+    //     }
+    //     const wrapperStyle = isSelected ? { ...outlineForSelected, width: "100%" } : { width: "100%" }
+    //     const themeOverrides = {
+    //       cardGradient: themeGradient,
+    //       panelBackground: themePanelBackground,
+    //       panelShadow: themePanelShadow,
+    //       cardSurface: themeCardSurface,
+    //       cardShadow: themeCardShadow,
+    //       accentPrimary: themeAccentPrimary,
+    //       accentPrimaryText: themeAccentPrimaryText,
+    //       accentSecondary: themeAccentSecondary,
+    //       accentSecondaryText: themeAccentSecondaryText,
+    //       textPrimary: themeTextPrimary,
+    //       textSecondary: themeTextSecondary,
+    //       iconColor: themeIconColor,
+    //     }
+    //     return (
+    //       <div ref={puck?.dragRef} data-puck-path={path || undefined} style={wrapperStyle} onMouseDown={onMouseDown}>
+    //         <ProfileThemeProvider value={themeOverrides}>
+    //           <div className="min-h-screen relative bg-[#bfbfbf] flex items-center justify-center md:p-8">
+    //             <ProfileCardShell backgroundImage={backgroundUrl}>
+    //               {puck.renderDropZone(children || [])}
+    //             </ProfileCardShell>
+    //           </div>
+    //         </ProfileThemeProvider>
+    //       </div>
+    //     )
+    //   },
+    // },
+    // ProfileHeaderPuck: {
+    //   label: "Profile Header",
+    //   fields: {
+    //     slug: { type: "text", label: "Slug", defaultValue: "" },
+    //   },
+    //   render: ({ slug }: any) => {
+    //     const displayName = slug || "Profil";
+    //     const headerInitial = displayName.charAt(0).toUpperCase();
+    //     return <ProfileTopBar initial={headerInitial} />;
+    //   },
+    // },
+    // ProfileAvatarPuck: {
+    //   label: "Profile Avatar",
+    //   fields: {
+    //     slug: { type: "text", label: "Slug", defaultValue: "" },
+    //     displayName: { type: "text", label: "Display name", defaultValue: "" },
+    //     avatarUrl: { type: "text", label: "Avatar URL", defaultValue: "" },
+    //   },
+    //   render: ({ slug, displayName, avatarUrl }: any) => {
+    //     const pageUrl = useMemo(() => {
+    //       const cleanSlug = slug?.replace(/^\/+|\/+$/g, "");
+    //       return cleanSlug ? `http://hub-local-nu.vercel.app/profile/@${cleanSlug}` : "http://hub-local-nu.vercel.app";
+    //     }, [slug]);
+    //     const display = displayName || slug || "Profil";
+    //     const headerInitial = display.charAt(0).toUpperCase();
+    //     return (
+    //       <ProfileIdentitySection>
+    //         <ProfileAvatarCoin avatarUrl={avatarUrl} fallbackInitial={headerInitial} pageUrl={pageUrl} />
+    //       </ProfileIdentitySection>
+    //     );
+    //   },
+    // },
+    // ProfileInfoPuck: {
+    //   label: "Profile Info",
+    //   fields: {
+    //     displayName: { type: "text", label: "Display name", defaultValue: "" },
+    //     tagline: { type: "textarea", label: "Tagline", defaultValue: "" },
+    //   },
+    //   render: ({ displayName, tagline }: any) => {
+    //     const display = displayName || "Profil";
+    //     return <ProfileNameBlock displayName={display} tagline={tagline} />;
+    //   },
+    // },
+    // ProfileButtonsPuck: {
+    //   label: "Profile Buttons",
+    //   fields: {
+    //     buttonPrimaryLabel: { type: "text", label: "Primary button label", defaultValue: "Connect" },
+    //     buttonSecondaryLabel: { type: "text", label: "Secondary button label", defaultValue: "Links" },
+    //   },
+    //   render: ({ buttonPrimaryLabel, buttonSecondaryLabel }: any) => {
+    //     return (
+    //       <ProfileCTAButtons primaryLabel={buttonPrimaryLabel} secondaryLabel={buttonSecondaryLabel} />
+    //     );
+    //   },
+    // },
+    // ProfileLinksPuck: {
+    //   label: "Profile Links",
+    //   fields: {
+    //     links: {
+    //       type: "array",
+    //       label: "Links & actions",
+    //       arrayFields: {
+    //         label: { type: "text", label: "Label", defaultValue: "New link" },
+    //         type: {
+    //           type: "select",
+    //           label: "Type",
+    //           options: PROFILE_LINK_TYPE_OPTIONS,
+    //           defaultValue: PROFILE_LINK_TYPES[0] || "link",
+    //         },
+    //         iconKey: {
+    //           type: "select",
+    //           label: "Icon",
+    //           options: PROFILE_ICON_OPTIONS,
+    //           defaultValue: PROFILE_ICON_KEYS[0] || "Share",
+    //         },
+    //         url: { type: "text", label: "URL / action", defaultValue: "https://example.com" },
+    //         images: { type: "textarea", label: "Album images (one per line)", defaultValue: "" },
+    //       },
+    //       defaultItemProps: {
+    //         label: "New link",
+    //         type: PROFILE_LINK_TYPES[0] || "link",
+    //         iconKey: PROFILE_ICON_KEYS[0] || "Share",
+    //         url: "https://example.com",
+    //         images: "",
+    //       },
+    //       getItemSummary: (item: any) => item?.label || "Link",
+    //     },
+    //   },
+    //   render: ({ links }: any) => {
+    //     const items = buildPuckProfileLinks(links);
+    //     return (
+    //       <ProfileLinksSection
+    //         items={items}
+    //         emptyMessage="Aucune carte configuree pour le moment."
+    //       />
+    //     );
+    //   },
+    // },
+    // PROFILE COMPONENTS CONFIGURATION - Paste this into your config.tsx components object
+    // This configuration provides all the profile components for drag-and-drop editing
+
+    ProfileDefaultPage: {
+      label: "Profile Default Page",
+      fields: {
+        themeGradient: { type: "text", label: "Card gradient (advanced CSS)", defaultValue: DEFAULT_THEME.cardGradient },
+        themeGradientFrom: createColorPickerField({ label: "Card gradient - from (hex)", defaultValue: "#ffffff" }),
+        themeGradientTo: createColorPickerField({ label: "Card gradient - to (hex)", defaultValue: "#c8dcff" }),
+        themePanelBackground: { type: "text", label: "Panel background (advanced CSS)", defaultValue: DEFAULT_THEME.panelBackground },
+        themePanelBackgroundColor: createColorPickerField({
+          label: "Panel background color (hex)",
+          defaultValue: "#f6f9ff",
+        }),
+        themePanelShadow: { type: "text", label: "Panel shadow", defaultValue: DEFAULT_THEME.panelShadow },
+        themeCardSurface: { type: "text", label: "Card surface (advanced CSS)", defaultValue: DEFAULT_THEME.cardSurface },
+        themeCardSurfaceColor: createColorPickerField({
+          label: "Card surface color (hex)",
+          defaultValue: "#ffffff",
+        }),
+        themeCardShadow: { type: "text", label: "Card shadow", defaultValue: DEFAULT_THEME.cardShadow },
+        themeAccentPrimary: createColorPickerField({
+          label: "Primary accent color (hex)",
+          defaultValue: DEFAULT_THEME.accentPrimary,
+        }),
+        themeAccentPrimaryText: createColorPickerField({
+          label: "Primary accent text (hex)",
+          defaultValue: DEFAULT_THEME.accentPrimaryText,
+        }),
+        themeAccentSecondary: createColorPickerField({
+          label: "Secondary accent color (hex)",
+          defaultValue: DEFAULT_THEME.accentSecondary,
+        }),
+        themeAccentSecondaryText: createColorPickerField({
+          label: "Secondary accent text (hex)",
+          defaultValue: DEFAULT_THEME.accentSecondaryText,
+        }),
+        themeTextPrimary: createColorPickerField({
+          label: "Primary text color (hex)",
+          defaultValue: DEFAULT_THEME.textPrimary,
+        }),
+        themeTextSecondary: createColorPickerField({
+          label: "Secondary text color (hex)",
+          defaultValue: DEFAULT_THEME.textSecondary,
+        }),
+        themeIconColor: createColorPickerField({
+          label: "Icon color (hex)",
+          defaultValue: DEFAULT_THEME.iconColor,
+        }),
+      },
+      defaultProps: {
+        themeGradient: DEFAULT_THEME.cardGradient,
+        themeGradientFrom: "#ffffff",
+        themeGradientTo: "#c8dcff",
+        themePanelBackground: DEFAULT_THEME.panelBackground,
+        themePanelBackgroundColor: "#f6f9ff",
+        themePanelShadow: DEFAULT_THEME.panelShadow,
+        themeCardSurface: DEFAULT_THEME.cardSurface,
+        themeCardSurfaceColor: "#ffffff",
+        themeCardShadow: DEFAULT_THEME.cardShadow,
+        themeAccentPrimary: DEFAULT_THEME.accentPrimary,
+        themeAccentPrimaryText: DEFAULT_THEME.accentPrimaryText,
+        themeAccentSecondary: DEFAULT_THEME.accentSecondary,
+        themeAccentSecondaryText: DEFAULT_THEME.accentSecondaryText,
+        themeTextPrimary: DEFAULT_THEME.textPrimary,
+        themeTextSecondary: DEFAULT_THEME.textSecondary,
+        themeIconColor: DEFAULT_THEME.iconColor,
+      },
+      render: ({ puck, children, ...props }: any) => {
+        // Build a theme object preferring explicit color pickers when provided.
+        const cardGradient =
+          props.themeGradientFrom && props.themeGradientTo
+            ? `linear-gradient(135deg, ${props.themeGradientFrom} 0%, ${props.themeGradientTo} 100%)`
+            : props.themeGradient
+
+        const panelBackground = props.themePanelBackgroundColor || props.themePanelBackground
+        const cardSurface = props.themeCardSurfaceColor || props.themeCardSurface
+
+        const theme = {
+          cardGradient,
+          panelBackground,
+          panelShadow: props.themePanelShadow,
+          cardSurface,
+          cardShadow: props.themeCardShadow,
+          accentPrimary: props.themeAccentPrimary,
+          accentPrimaryText: props.themeAccentPrimaryText,
+          accentSecondary: props.themeAccentSecondary,
+          accentSecondaryText: props.themeAccentSecondaryText,
+          textPrimary: props.themeTextPrimary,
+          textSecondary: props.themeTextSecondary,
+          iconColor: props.themeIconColor,
+        }
+
+        const path = getPathFromPuck(puck)
+        const isSelected = selectionStore.has(path)
+        const isEditing = isEditingFromPuck(puck)
+
+        const onMouseDown = (e: any) => {
+          e.stopPropagation()
+          if (!isEditing) return
+          if (e.ctrlKey || e.metaKey || e.shiftKey) selectionStore.toggle(path, true)
+          else selectionStore.toggle(path, false)
+        }
+
+        const wrapperStyle = isSelected ? { ...outlineForSelected, width: "100%" } : { width: "100%" }
+
+        return (
+          <div ref={puck?.dragRef} data-puck-path={path || undefined} style={wrapperStyle} onMouseDown={onMouseDown}>
+            <ProfileThemeProvider value={theme}>
+              <div className="min-h-screen relative bg-[#bfbfbf] flex items-center justify-center md:p-8">
+                {/* Editor-only color picker controls removed as requested */}
+                <ProfileCardShell gradient={theme.cardGradient}>
+                  {puck?.renderDropZone ? puck.renderDropZone(children || []) : children}
+                </ProfileCardShell>
+              </div>
+            </ProfileThemeProvider>
+          </div>
+        )
+      },
+    },
+
+    ProfileHeaderPuck: {
+      label: "Profile Header",
+      fields: {
+        slug: { type: "text", label: "Slug", defaultValue: "" },
+      },
+      render: ({ slug }: any) => {
+        const displayName = slug || "Profile"
+        const headerInitial = displayName.charAt(0).toUpperCase()
+        return <ProfileTopBar initial={headerInitial} />
+      },
+    },
+
+    ProfileAvatarPuck: {
+      label: "Profile Avatar",
+      fields: {
+        slug: { type: "text", label: "Slug", defaultValue: "" },
+        displayName: { type: "text", label: "Display name", defaultValue: "" },
+        avatarUrl: { type: "text", label: "Avatar URL", defaultValue: "" },
+      },
+      render: (props: any) => <ProfileAvatarPuckComponent {...props} />,
+    },
+
+    ProfileInfoPuck: {
+      label: "Profile Info",
+      fields: {
+        displayName: { type: "text", label: "Display name", defaultValue: "" },
+        tagline: { type: "textarea", label: "Tagline", defaultValue: "" },
+        width: { type: "text", label: "Width (eg. 100%, 320px)", defaultValue: "auto" },
+        height: { type: "text", label: "Height (eg. auto, 200px)", defaultValue: "auto" },
+        layout: {
+          type: "select",
+          label: "Layout",
+          options: [
+            { label: "Block", value: "block" },
+            { label: "Flex", value: "flex" },
+            { label: "Grid", value: "grid" },
+          ],
+          defaultValue: "block",
+        },
+        textAlign: {
+          type: "select",
+          label: "Text Alignment",
+          options: [
+            { label: "Left", value: "left" },
+            { label: "Center", value: "center" },
+            { label: "Right", value: "right" },
+            { label: "Justify", value: "justify" },
+          ],
+          defaultValue: "center",
+        },
+        verticalAlign: {
+          type: "select",
+          label: "Vertical Alignment",
+          options: [
+            { label: "Top", value: "flex-start" },
+            { label: "Center", value: "center" },
+            { label: "Bottom", value: "flex-end" },
+            { label: "Stretch", value: "stretch" },
+          ],
+          defaultValue: "center",
+        },
+        center: {
+          type: "select",
+          label: "Center content",
+          options: [
+            { label: "No", value: false },
+            { label: "Yes", value: true },
+          ],
+          defaultValue: true,
+        },
+        bgColor: {
+          type: "select",
+          label: "Background Color",
+          options: [
+            { label: "Transparent", value: "" },
+            { label: "White", value: "#ffffff" },
+            { label: "Light Gray", value: "#f3f4f6" },
+            { label: "Dark Gray", value: "#1f2937" },
+          ],
+          defaultValue: "",
+        },
+        textColor: {
+          type: "select",
+          label: "Text Color",
+          options: [
+            { label: "Dark (Default)", value: "#1f2937" },
+            { label: "Gray", value: "#6b7280" },
+            { label: "Light", value: "#ffffff" },
+            { label: "Primary Blue", value: "#4a90e2" },
+            { label: "Custom", value: "custom" },
+          ],
+          defaultValue: "#1f2937",
+        },
+        customTextColor: { type: "text", label: "Custom text color (hex/rgb)", defaultValue: "" },
+        padding: { type: "text", label: "Padding (eg. 8px, 16px)", defaultValue: "16px" },
+        gap: { type: "text", label: "Gap (eg. 8px)", defaultValue: "8px" },
+      },
+      render: ({
+        puck,
+        displayName,
+        tagline,
+        width,
+        height,
+        layout,
+        textAlign,
+        verticalAlign,
+        center,
+        bgColor,
+        textColor,
+        customTextColor,
+        padding,
+        gap,
+      }: any) => {
+        const display = displayName || "Profile"
+
+        const finalTextColor = textColor === "custom" ? customTextColor : textColor || "#1f2937"
+
+        const style: React.CSSProperties = {
+          width: width && width !== "auto" ? width : undefined,
+          height: height && height !== "auto" ? height : undefined,
+          display: layout && layout !== "block" ? layout : undefined,
+          justifyContent: center && (layout === "flex" || layout === "grid") ? "center" : undefined,
+          alignItems: verticalAlign && (layout === "flex" || layout === "grid") ? verticalAlign : undefined,
+          textAlign: (textAlign as any) || "center",
+          backgroundColor: bgColor || undefined,
+          color: finalTextColor,
+          padding: padding || undefined,
+          gap: gap || undefined,
+          boxSizing: "border-box",
+        }
+
+        return (
+          <div style={style}>
+            <ProfileNameBlock displayName={display} tagline={tagline} />
+          </div>
+        )
+      },
+    },
+
+    ProfileButtonsPuck: {
+      label: "Profile Buttons",
+      fields: {
+        buttonPrimaryLabel: { type: "text", label: "Primary button label", defaultValue: "Connect" },
+        buttonSecondaryLabel: { type: "text", label: "Secondary button label", defaultValue: "Links" },
+        onPrimaryClick: { type: "text", label: "Primary button action", defaultValue: "" },
+        onSecondaryClick: { type: "text", label: "Secondary button action", defaultValue: "" },
+        width: { type: "text", label: "Width (eg. 100%, 320px)", defaultValue: "auto" },
+        height: { type: "text", label: "Height (eg. auto)", defaultValue: "auto" },
+        layout: {
+          type: "select",
+          label: "Layout",
+          options: [
+            { label: "Inline (Horizontal)", value: "flex" },
+            { label: "Stack (Vertical)", value: "flex-column" },
+            { label: "Grid 2 Columns", value: "grid-2" },
+            { label: "Full Width Stack", value: "flex-full" },
+          ],
+          defaultValue: "flex",
+        },
+        horizontalAlign: {
+          type: "select",
+          label: "Horizontal Alignment",
+          options: [
+            { label: "Left", value: "flex-start" },
+            { label: "Center", value: "center" },
+            { label: "Right", value: "flex-end" },
+            { label: "Space Between", value: "space-between" },
+            { label: "Space Around", value: "space-around" },
+          ],
+          defaultValue: "center",
+        },
+        verticalAlign: {
+          type: "select",
+          label: "Vertical Alignment",
+          options: [
+            { label: "Top", value: "flex-start" },
+            { label: "Center", value: "center" },
+            { label: "Bottom", value: "flex-end" },
+            { label: "Stretch", value: "stretch" },
+          ],
+          defaultValue: "center",
+        },
+        center: {
+          type: "select",
+          label: "Center content (Legacy)",
+          options: [
+            { label: "No", value: false },
+            { label: "Yes", value: true },
+          ],
+          defaultValue: true,
+        },
+        gap: { type: "text", label: "Gap between buttons (eg. 8px, 16px)", defaultValue: "16px" },
+        bgColor: { type: "text", label: "Background Color", defaultValue: "" },
+        textColor: { type: "text", label: "Text Color", defaultValue: "#1f2937" },
+        padding: { type: "text", label: "Padding (eg. 8px, 16px)", defaultValue: "16px" },
+      },
+      render: ({
+        puck,
+        buttonPrimaryLabel,
+        buttonSecondaryLabel,
+        onPrimaryClick,
+        onSecondaryClick,
+        width,
+        height,
+        layout,
+        horizontalAlign,
+        verticalAlign,
+        gap,
+        bgColor,
+        textColor,
+        padding,
+      }: any) => {
+        let containerDisplay = "flex"
+        let flexDirection: React.CSSProperties["flexDirection"] = "row"
+
+        if (layout === "flex-column" || layout === "flex-full") {
+          flexDirection = "column"
+        } else if (layout === "grid-2") {
+          containerDisplay = "grid"
+        }
+
+        const justifyContent =
+          layout === "grid-2" ? "center" : horizontalAlign || (layout === "flex" ? "center" : "flex-start")
+
+        const style: React.CSSProperties = {
+          width: width && width !== "auto" ? width : layout === "flex-full" ? "100%" : undefined,
+          height: height && height !== "auto" ? height : undefined,
+          display: containerDisplay,
+          flexDirection: containerDisplay === "flex" ? flexDirection : undefined,
+          gridTemplateColumns: layout === "grid-2" ? "1fr 1fr" : undefined,
+          justifyContent,
+          alignItems: verticalAlign || "center",
+          gap: gap || "16px",
+          backgroundColor: bgColor || undefined,
+          color: textColor || "#1f2937",
+          padding: padding || "16px",
+          boxSizing: "border-box",
+        }
+
+        return (
+          <div style={style}>
+            <ProfileCTAButtons
+              primaryLabel={buttonPrimaryLabel}
+              secondaryLabel={buttonSecondaryLabel}
+              direction={layout === "flex" || layout === "flex-full" ? "row" : layout === "flex-column" ? "column" : undefined}
+              onPrimaryClick={() => onPrimaryClick && eval(onPrimaryClick)}
+              onSecondaryClick={() => onSecondaryClick && eval(onSecondaryClick)}
+            />
+          </div>
+        )
+      },
+    },
+    ProfileLinksPuck: {
+      label: "Profile Links",
+      fields: {
+        links: {
+          type: "array",
+          label: "Links & actions",
+          arrayFields: {
+            label: { type: "text", label: "Label", defaultValue: "New link" },
+            type: {
+              type: "select",
+              label: "Type",
+              options: PROFILE_LINK_TYPE_OPTIONS,
+              defaultValue: "link",
+            },
+            iconKey: {
+              type: "select",
+              label: "Icon",
+              options: PROFILE_ICON_OPTIONS,
+              defaultValue: "Share",
+            },
+            url: { type: "text", label: "URL", defaultValue: "https://example.com" },
+            images: { type: "textarea", label: "Album images (one per line)", defaultValue: "" },
+            vcfName: { type: "text", label: "Full Name", defaultValue: "" },
+            vcfEmail: { type: "text", label: "Email", defaultValue: "" },
+            vcfPhone: { type: "text", label: "Phone", defaultValue: "" },
+            vcfOrganization: { type: "text", label: "Organization", defaultValue: "" },
+            vcfTitle: { type: "text", label: "Job Title", defaultValue: "" },
+            vcfUrl: { type: "text", label: "Website URL", defaultValue: "" },
+            vcfNote: { type: "textarea", label: "Notes", defaultValue: "" },
+          },
+          defaultItemProps: {
+            label: "New link",
+            type: "link",
+            iconKey: "Share",
+            url: "https://example.com",
+            images: "",
+            vcfName: "",
+            vcfEmail: "",
+            vcfPhone: "",
+            vcfOrganization: "",
+            vcfTitle: "",
+            vcfUrl: "",
+            vcfNote: "",
+          },
+          getItemSummary: (item: any) => item?.label || "Link",
+        },
+      },
+      render: ({ links }: any) => {
+        const items = buildPuckProfileLinks(links)
+        return <ProfileLinksSection items={items} emptyMessage="No links configured yet." />
+      },
+    },
     Shop: {
       preview: () => (
         <div className="rounded-xl border border-gray-200 p-4 bg-white w-full">
@@ -574,9 +1627,9 @@ export const config = {
           label: "Default Sort",
           options: [
             { label: "Relevance", value: "relevance" },
-            { label: "Title A→Z", value: "title-asc" },
-            { label: "Price Low→High", value: "price-asc" },
-            { label: "Price High→Low", value: "price-desc" },
+            { label: "Title Aâ†’Z", value: "title-asc" },
+            { label: "Price Lowâ†’High", value: "price-asc" },
+            { label: "Price Highâ†’Low", value: "price-desc" },
           ],
           defaultValue: "relevance",
         },
@@ -819,9 +1872,9 @@ export const config = {
                     <span>Sort:</span>
                     <select className="border border-gray-200 rounded-md px-2 py-1 bg-white" value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
                       <option value="relevance">Relevance</option>
-                      <option value="title-asc">Title A–Z</option>
-                      <option value="price-asc">Price Low–High</option>
-                      <option value="price-desc">Price High–Low</option>
+                      <option value="title-asc">Title Aâ€“Z</option>
+                      <option value="price-asc">Price Lowâ€“High</option>
+                      <option value="price-desc">Price Highâ€“Low</option>
                     </select>
                   </div>
                   {priceFilterOn ? (
@@ -951,7 +2004,7 @@ export const config = {
         editingPadding,
         puck,
       }: any) => {
-        // Apply a full‑width container by default. This ensures that the container
+        // Apply a fullâ€‘width container by default. This ensures that the container
         // stretches to the available space instead of collapsing to its children.
         const path = getPathFromPuck(puck)
         const isEditing = isEditingFromPuck(puck)
@@ -1222,8 +2275,8 @@ export const config = {
           ],
           defaultValue: "wrap",
         },
-        tabletBreakpoint: { type: "number", label: "Tablet ≥ px", defaultValue: 640 },
-        desktopBreakpoint: { type: "number", label: "Desktop ≥ px", defaultValue: 1024 },
+        tabletBreakpoint: { type: "number", label: "Tablet â‰¥ px", defaultValue: 640 },
+        desktopBreakpoint: { type: "number", label: "Desktop â‰¥ px", defaultValue: 1024 },
         editingPadding: { type: "number", label: "Editing extra padding (px)", defaultValue: 8 },
       },
       render: ({
@@ -1310,8 +2363,8 @@ export const config = {
         gapTablet: { type: "number", label: "Gap tablet (px)", defaultValue: 16 },
         gapDesktop: { type: "number", label: "Gap desktop (px)", defaultValue: 24 },
         autoRows: { type: "text", label: "Auto rows", defaultValue: "minmax(64px, auto)" },
-        tabletBreakpoint: { type: "number", label: "Tablet ≥ px", defaultValue: 640 },
-        desktopBreakpoint: { type: "number", label: "Desktop ≥ px", defaultValue: 1024 },
+        tabletBreakpoint: { type: "number", label: "Tablet â‰¥ px", defaultValue: 640 },
+        desktopBreakpoint: { type: "number", label: "Desktop â‰¥ px", defaultValue: 1024 },
         editingPadding: { type: "number", label: "Editing extra padding (px)", defaultValue: 8 },
       },
       render: ({
@@ -1401,7 +2454,7 @@ export const config = {
           },
           defaultItemProps: { heading: "Resources", links: [{ label: "Docs", href: "#" }] },
         },
-        copyright: { type: "text", label: "Copyright", defaultValue: "© Company" },
+        copyright: { type: "text", label: "Copyright", defaultValue: "Â© Company" },
         year: { type: "number", label: "Year", defaultValue: new Date().getFullYear() },
         background: { type: "text", label: "Background", defaultValue: "#111827" },
         textColor: { type: "text", label: "Text color", defaultValue: "#ffffff" },
@@ -1681,7 +2734,7 @@ export const config = {
                   whiteSpace: "nowrap",
                 }}
               >
-                {isInGrid && `C${gridColumns}×R${gridRows}`}
+                {isInGrid && `C${gridColumns}Ã—R${gridRows}`}
                 {isInFlex && `G${flexGrow} S${flexShrink} B${flexBasis}`}
                 {!isInGrid && !isInFlex && "Item"}
               </div>
@@ -1707,8 +2760,8 @@ export const config = {
           ],
           defaultValue: "vertical",
         },
-        tabletBreakpoint: { type: "number", label: "Tablet ≥ px", defaultValue: 640 },
-        desktopBreakpoint: { type: "number", label: "Desktop ≥ px", defaultValue: 1024 },
+        tabletBreakpoint: { type: "number", label: "Tablet â‰¥ px", defaultValue: 640 },
+        desktopBreakpoint: { type: "number", label: "Desktop â‰¥ px", defaultValue: 1024 },
         showOutline: {
           type: "select",
           label: "Show outline (editing)",
@@ -1765,8 +2818,8 @@ export const config = {
         gapMobile: { type: "number", label: "Gap mobile (px)", defaultValue: 12 },
         gapTablet: { type: "number", label: "Gap tablet (px)", defaultValue: 16 },
         gapDesktop: { type: "number", label: "Gap desktop (px)", defaultValue: 24 },
-        tabletBreakpoint: { type: "number", label: "Tablet ≥ px", defaultValue: 640 },
-        desktopBreakpoint: { type: "number", label: "Desktop ≥ px", defaultValue: 1024 },
+        tabletBreakpoint: { type: "number", label: "Tablet â‰¥ px", defaultValue: 640 },
+        desktopBreakpoint: { type: "number", label: "Desktop â‰¥ px", defaultValue: 1024 },
         editingPadding: { type: "number", label: "Editing extra padding (px)", defaultValue: 8 },
       },
       render: ({
@@ -1828,7 +2881,7 @@ export const config = {
     /**
      * Flex container that only accepts FlexItem children. Users can control
      * common flexbox settings such as gap, wrap, alignment and justification.
-     * See Puck's flex container – flex item pattern【579873606476094†L667-L786】.
+     * See Puck's flex container â€“ flex item patternã€579873606476094â€ L667-L786ã€‘.
      */
     FlexContainer: {
       label: "Flex Container",
@@ -1837,10 +2890,10 @@ export const config = {
           type: "select",
           label: "Direction",
           options: [
-            { label: "Row (→)", value: "row" },
-            { label: "Column (↓)", value: "column" },
-            { label: "Row Reverse (←)", value: "row-reverse" },
-            { label: "Column Reverse (↑)", value: "column-reverse" },
+            { label: "Row (â†’)", value: "row" },
+            { label: "Column (â†“)", value: "column" },
+            { label: "Row Reverse (â†)", value: "row-reverse" },
+            { label: "Column Reverse (â†‘)", value: "column-reverse" },
           ],
           defaultValue: "row",
         },
@@ -1907,7 +2960,7 @@ export const config = {
     /**
      * Flex item component representing a section within a FlexContainer. Each
      * FlexItem exposes controls for flex-grow, flex-shrink and flex-basis. It
-     * disallows nesting of FlexItems to avoid deeply nested flex hierarchies【579873606476094†L667-L786】.
+     * disallows nesting of FlexItems to avoid deeply nested flex hierarchiesã€579873606476094â€ L667-L786ã€‘.
      */
     FlexItem: {
       label: "Flex Item",
@@ -1955,7 +3008,7 @@ export const config = {
     /**
      * Grid container that defines CSS grid layout. By default it uses three
      * equal columns, but users can customise the template string. It only allows
-     * GridItem children to be dropped inside【579873606476094†L196-L318】.
+     * GridItem children to be dropped insideã€579873606476094â€ L196-L318ã€‘.
      */
     GridContainer: {
       label: "Grid Container",
@@ -1979,8 +3032,8 @@ export const config = {
         gapTablet: { type: "number", label: "Gap tablet (px)", defaultValue: 16 },
         gapDesktop: { type: "number", label: "Gap desktop (px)", defaultValue: 24 },
         autoRows: { type: "text", label: "Auto rows", defaultValue: "minmax(64px, auto)" },
-        tabletBreakpoint: { type: "number", label: "Tablet ≥ px", defaultValue: 640 },
-        desktopBreakpoint: { type: "number", label: "Desktop ≥ px", defaultValue: 1024 },
+        tabletBreakpoint: { type: "number", label: "Tablet â‰¥ px", defaultValue: 640 },
+        desktopBreakpoint: { type: "number", label: "Desktop â‰¥ px", defaultValue: 1024 },
         minHeight: { type: "number", label: "Min height (px)", defaultValue: 120 },
         showGridLines: {
           type: "radio",
@@ -2116,10 +3169,10 @@ export const config = {
                 }}
               >
                 {containerWidth >= desktopBp
-                  ? `${colsDesktop}×${colsDesktop} desktop`
+                  ? `${colsDesktop}Ã—${colsDesktop} desktop`
                   : containerWidth >= tabletBp
-                    ? `${colsTablet}×${colsTablet} tablet`
-                    : `${colsMobile}×${colsMobile} mobile`}
+                    ? `${colsTablet}Ã—${colsTablet} tablet`
+                    : `${colsMobile}Ã—${colsMobile} mobile`}
               </div>
             )}
 
@@ -2201,7 +3254,7 @@ export const config = {
     },
     /**
      * Grid item component that lives within a Grid. Users can set column and
-     * row spans. Nesting of GridItems is disallowed【579873606476094†L196-L318】.
+     * row spans. Nesting of GridItems is disallowedã€579873606476094â€ L196-L318ã€‘.
      */
     GridItem: {
       label: "Grid Item",
@@ -2268,7 +3321,7 @@ export const config = {
       },
     },
     /**
-     * Columns component for multi‑column layouts. Users can select automatic
+     * Columns component for multiâ€‘column layouts. Users can select automatic
      * distribution (all columns equal) or manual distribution where each column
      * has its own span value. This pattern is inspired by the puck-pages example.
      */
@@ -2306,7 +3359,7 @@ export const config = {
          * behaviour for tablet and mobile viewports by stacking the content
          * vertically instead of squishing columns side by side. See the Puck
          * blog on advanced grid and flex layouts for guidance on responsive
-         * patterns【994289787293651†L31-L39】.
+         * patternsã€994289787293651â€ L31-L39ã€‘.
          */
         collapseAt: {
           type: "number",
@@ -2522,7 +3575,7 @@ export const config = {
       label: "Text",
       inline: true,
       fields: {
-        text: { type: "textarea", label: "Text", defaultValue: "Lorem ipsum dolor sit amet…" },
+        text: { type: "textarea", label: "Text", defaultValue: "Lorem ipsum dolor sit ametâ€¦" },
         align: {
           type: "select",
           label: "Align",
@@ -2580,8 +3633,8 @@ export const config = {
      * dangerouslySetInnerHTML. Editors can adjust text alignment and colour.
      * When editing, selection outlines are applied in the same way as for
      * other components. This component provides a lightweight alternative to
-     * more full‑featured rich text editors and is inspired by community
-     * plugins referenced in the awesome‑puck repository【62556322094410†L6-L31】.
+     * more fullâ€‘featured rich text editors and is inspired by community
+     * plugins referenced in the awesomeâ€‘puck repositoryã€62556322094410â€ L6-L31ã€‘.
      */
     RichText: {
       label: "Rich Text",
@@ -2918,7 +3971,7 @@ export const config = {
         }
         // Determine whether this button has any actions bound to the click event. If
         // so, we suppress the anchor's href by setting it to "#" regardless of the
-        // user‑provided URL. Without this guard, a navigate action or accidental
+        // userâ€‘provided URL. Without this guard, a navigate action or accidental
         // string typed into the URL field could override the runActions logic and
         // navigate away before other actions (such as toggling a modal flag) execute.
         const clickActions = Array.isArray(actions) ? actions.filter((a: any) => (a?.event || "click") === "click") : []
@@ -2941,7 +3994,7 @@ export const config = {
     },
     /**
      * Hero section for landing pages. Provides controls for eyebrow, title,
-     * subtitle, alignment, colours and call‑to‑action buttons.
+     * subtitle, alignment, colours and callâ€‘toâ€‘action buttons.
      */
     Hero: {
       label: "Hero",
@@ -2981,7 +4034,7 @@ export const config = {
         },
         // Slot for nested content inside the hero. Without an explicit allow list the hero
         // can accept any registered component. Nested content is rendered after the
-        // call‑to‑action buttons.
+        // callâ€‘toâ€‘action buttons.
         children: {
           type: "slot",
           label: "Extra Content",
@@ -3387,7 +4440,7 @@ export const config = {
             author: { type: "text", label: "Author", defaultValue: "" },
           },
           defaultItemProps: { quote: "", author: "" },
-          getItemSummary: (props: any) => (props?.quote ? `${props.quote.slice(0, 20)}…` : "Testimonial"),
+          getItemSummary: (props: any) => (props?.quote ? `${props.quote.slice(0, 20)}â€¦` : "Testimonial"),
         },
         background: { type: "text", label: "Background", defaultValue: "#f9fafb" },
         textColor: { type: "text", label: "Text color", defaultValue: "#111827" },
@@ -3447,7 +4500,7 @@ export const config = {
             <div style={{ maxWidth: "640px", margin: "0 auto", display: "grid", gap: "1.5rem" }}>
               {testimonials.map((item: any, idx: number) => (
                 <div key={idx}>
-                  <p style={{ fontStyle: "italic", marginBottom: "0.5rem" }}>“{item?.quote || ""}”</p>
+                  <p style={{ fontStyle: "italic", marginBottom: "0.5rem" }}>â€œ{item?.quote || ""}â€</p>
                   <p style={{ fontWeight: 600 }}>{item?.author || ""}</p>
                 </div>
               ))}
@@ -3640,7 +4693,7 @@ export const config = {
      * (text and optional logo), a list of links and collapses into a mobile
      * drawer when the viewport width drops below the specified breakpoint.
      * Users can customise link alignment, gap and menu label. The Navbar
-     * respects Puck’s editing state: navigation links prevent navigation
+     * respects Puckâ€™s editing state: navigation links prevent navigation
      * during editing and the bar shows a selection outline when selected.
      */
     Navbar: {
@@ -3886,7 +4939,7 @@ export const config = {
      * control the text, speed, looping, loop delay, cursor, colour and font size.
      */
     TypingText: {
-      label: "Texte animé",
+      label: "Texte animÃ©",
       inline: true,
       fields: {
         text: { type: "text", label: "Text", defaultValue: "Hello, world!" },
@@ -4146,7 +5199,7 @@ export const config = {
      * utility component can highlight sections or act as a spacer.
      */
     ColorBox: {
-      label: "Boîte de couleur",
+      label: "BoÃ®te de couleur",
       inline: true,
       fields: {
         color: { type: "text", label: "Colour", defaultValue: "#f3f4f6" },
@@ -4928,7 +5981,7 @@ export const config = {
      * has a title and slot content. Only one panel is open at a time unless
      * allowMultiple is enabled. When editing in Puck, all panels are kept
      * open to make it easier to select nested components. Accordions reduce
-     * clutter by letting users toggle the visibility of sections【243256177162445†L136-L142】.
+     * clutter by letting users toggle the visibility of sectionsã€243256177162445â€ L136-L142ã€‘.
      */
     Accordion: {
       label: "Accordion",
@@ -5015,7 +6068,7 @@ export const config = {
                     }}
                   >
                     <span>{item?.title || `Item ${idx + 1}`}</span>
-                    <span>{isOpen ? "−" : "+"}</span>
+                    <span>{isOpen ? "âˆ’" : "+"}</span>
                   </div>
                   <div style={{ display: isOpen ? "block" : "none", padding: "8px 12px" }}>
                     {typeof item?.content === "function"
@@ -5035,7 +6088,7 @@ export const config = {
 
     /**
      * Switch component. A simple toggle that flips a boolean flag on or off.
-     * Switches toggle the state of a single setting【720273760266879†L37-L42】. When toggled,
+     * Switches toggle the state of a single settingã€720273760266879â€ L37-L42ã€‘. When toggled,
      * the specified flag in ActionState is updated. Editors can label the
      * switch and choose its default state.
      */
@@ -5113,7 +6166,7 @@ export const config = {
     /**
      * Slider component. Allows users to select a numeric value from a range.
      * Sliders reflect a range of values along a bar, from which users may
-     * select a single value【263366092288640†L169-L176】. The current value is displayed next
+     * select a single valueã€263366092288640â€ L169-L176ã€‘. The current value is displayed next
      * to the slider.
      */
     Slider: {
@@ -5167,302 +6220,302 @@ export const config = {
      */
     Tabs: {
       label: 'Tabs',
-        inline: true,
-        fields: {
-          defaultTab: { type: 'number', label: 'Default tab index', defaultValue: 0 },
-          tabsAlign: {
-            type: 'select',
-            label: 'Tabs alignment',
-            options: [
-              { label: 'Left', value: 'flex-start' },
-              { label: 'Center', value: 'center' },
-              { label: 'Right', value: 'flex-end' },
-            ],
-            defaultValue: 'flex-start',
-          },
-          tabs: {
-            type: 'array',
-            label: 'Tabs',
-            getItemSummary: (item: any, i: number) => item?.title ? `${i + 1}. ${item.title}` : `Tab ${i + 1}`,
-            // When adding a new tab, default the title; Puck will assign an internal key.
-            defaultItemProps: { title: 'Tab' },
-            arrayFields: {
-              title: { type: 'text', label: 'Title', defaultValue: 'Tab' },
-              content: { type: 'slot', label: 'Content' },
-            },
-          },
-          fontFamily: {
-            type: 'select',
-            label: 'Font',
-            options: [
-              { label: 'Inherit (Page)', value: 'inherit' },
-              { label: 'Inter', value: 'var(--font-inter, Arial, sans-serif)' },
-              { label: 'Lora', value: 'var(--font-lora, Georgia, serif)' },
-              { label: 'Playfair', value: "var(--font-playfair, 'Playfair Display', serif)" },
-              { label: 'Source Sans 3', value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
-              { label: 'Poppins', value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
-              { label: 'Fira Code', value: "var(--font-fira-code, 'Fira Code', monospace)" },
-              { label: 'Roboto Mono', value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
-            ],
-            defaultValue: 'inherit',
-          },
-          tabStyle: {
-            type: 'select',
-            label: 'Tab Style',
-            options: [
-              { label: 'Underline', value: 'underline' },
-              { label: 'Pills', value: 'pills' },
-              { label: 'Cards', value: 'cards' },
-            ],
-            defaultValue: 'pills',
-          },
-        },
-        defaultProps: {
-          defaultTab: 0,
-          tabsAlign: 'flex-start',
-          // Predefined keys for default tabs so Puck can identify them immediately.
-          tabs: [
-            // { title: 'Tab 1', key: 'tab-1' },
-
+      inline: true,
+      fields: {
+        defaultTab: { type: 'number', label: 'Default tab index', defaultValue: 0 },
+        tabsAlign: {
+          type: 'select',
+          label: 'Tabs alignment',
+          options: [
+            { label: 'Left', value: 'flex-start' },
+            { label: 'Center', value: 'center' },
+            { label: 'Right', value: 'flex-end' },
           ],
-          tabStyle: 'pills',
+          defaultValue: 'flex-start',
         },
-        render: ({ defaultTab, tabsAlign, tabs = [], fontFamily, tabStyle, puck }:any) => {
-          const [activeTab, setActiveTab] = React.useState(() => (typeof defaultTab === 'number' ? defaultTab : 0));
-          const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
-          const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
-          const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
-      
-          // On mount, persist the default tabs into Puck’s state and assign keys if missing.
-          React.useEffect(() => {
-            if (!puck?.setFieldValue) return;
-            // Only run once on mount.  Copy the current array of tabs into state,
-            // assigning fallback keys to any tab without a key.
-            const itemsWithKeys = (tabs || []).map((tab: any, idx: number) => ({
-              ...tab,
-              key: tab?.key || `tab-${idx + 1}`,
-            }));
-            puck.setFieldValue('tabs', itemsWithKeys);
-          }, []); // empty dependency ensures this runs once
-      
-          // If tabs prop changes (e.g. after reorder), always work with an array.
-          const items = Array.isArray(tabs) ? tabs : [];
-          const currentIndex = items.length ? Math.min(activeTab, items.length - 1) : 0;
-          const isEditing = puck?.isEditing ?? false;
-      
-          // Drag handlers
-          const handleDragStart = (e: any, idx: number) => {
-            setDraggedIndex(idx);
-            e.dataTransfer.effectAllowed = 'move';
-          };
-      
-          const handleDragOver = (e: any, idx: number) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            setDragOverIndex(idx);
-          };
-      
-          const handleDrop = (e: any, idx: number) => {
-            e.preventDefault();
-            if (draggedIndex !== null && draggedIndex !== idx) {
-              const newTabs = [...items];
-              const [draggedItem] = newTabs.splice(draggedIndex, 1);
-              newTabs.splice(idx, 0, draggedItem);
-              // Save the new order into Puck’s state.  Do not preserve React’s fallback keys.
-              if (puck?.setFieldValue) {
-                puck.setFieldValue('tabs', newTabs);
-              }
+        tabs: {
+          type: 'array',
+          label: 'Tabs',
+          getItemSummary: (item: any, i: number) => item?.title ? `${i + 1}. ${item.title}` : `Tab ${i + 1}`,
+          // When adding a new tab, default the title; Puck will assign an internal key.
+          defaultItemProps: { title: 'Tab' },
+          arrayFields: {
+            title: { type: 'text', label: 'Title', defaultValue: 'Tab' },
+            content: { type: 'slot', label: 'Content' },
+          },
+        },
+        fontFamily: {
+          type: 'select',
+          label: 'Font',
+          options: [
+            { label: 'Inherit (Page)', value: 'inherit' },
+            { label: 'Inter', value: 'var(--font-inter, Arial, sans-serif)' },
+            { label: 'Lora', value: 'var(--font-lora, Georgia, serif)' },
+            { label: 'Playfair', value: "var(--font-playfair, 'Playfair Display', serif)" },
+            { label: 'Source Sans 3', value: "var(--font-source-sans, 'Source Sans 3', Arial, sans-serif)" },
+            { label: 'Poppins', value: "var(--font-poppins, 'Poppins', Arial, sans-serif)" },
+            { label: 'Fira Code', value: "var(--font-fira-code, 'Fira Code', monospace)" },
+            { label: 'Roboto Mono', value: "var(--font-roboto-mono, 'Roboto Mono', monospace)" },
+          ],
+          defaultValue: 'inherit',
+        },
+        tabStyle: {
+          type: 'select',
+          label: 'Tab Style',
+          options: [
+            { label: 'Underline', value: 'underline' },
+            { label: 'Pills', value: 'pills' },
+            { label: 'Cards', value: 'cards' },
+          ],
+          defaultValue: 'pills',
+        },
+      },
+      defaultProps: {
+        defaultTab: 0,
+        tabsAlign: 'flex-start',
+        // Predefined keys for default tabs so Puck can identify them immediately.
+        tabs: [
+          // { title: 'Tab 1', key: 'tab-1' },
+
+        ],
+        tabStyle: 'pills',
+      },
+      render: ({ defaultTab, tabsAlign, tabs = [], fontFamily, tabStyle, puck }: any) => {
+        const [activeTab, setActiveTab] = React.useState(() => (typeof defaultTab === 'number' ? defaultTab : 0));
+        const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
+        const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
+        const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
+
+        // On mount, persist the default tabs into Puckâ€™s state and assign keys if missing.
+        React.useEffect(() => {
+          if (!puck?.setFieldValue) return;
+          // Only run once on mount.  Copy the current array of tabs into state,
+          // assigning fallback keys to any tab without a key.
+          const itemsWithKeys = (tabs || []).map((tab: any, idx: number) => ({
+            ...tab,
+            key: tab?.key || `tab-${idx + 1}`,
+          }));
+          puck.setFieldValue('tabs', itemsWithKeys);
+        }, []); // empty dependency ensures this runs once
+
+        // If tabs prop changes (e.g. after reorder), always work with an array.
+        const items = Array.isArray(tabs) ? tabs : [];
+        const currentIndex = items.length ? Math.min(activeTab, items.length - 1) : 0;
+        const isEditing = puck?.isEditing ?? false;
+
+        // Drag handlers
+        const handleDragStart = (e: any, idx: number) => {
+          setDraggedIndex(idx);
+          e.dataTransfer.effectAllowed = 'move';
+        };
+
+        const handleDragOver = (e: any, idx: number) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          setDragOverIndex(idx);
+        };
+
+        const handleDrop = (e: any, idx: number) => {
+          e.preventDefault();
+          if (draggedIndex !== null && draggedIndex !== idx) {
+            const newTabs = [...items];
+            const [draggedItem] = newTabs.splice(draggedIndex, 1);
+            newTabs.splice(idx, 0, draggedItem);
+            // Save the new order into Puckâ€™s state.  Do not preserve Reactâ€™s fallback keys.
+            if (puck?.setFieldValue) {
+              puck.setFieldValue('tabs', newTabs);
             }
-            setDraggedIndex(null);
-            setDragOverIndex(null);
+          }
+          setDraggedIndex(null);
+          setDragOverIndex(null);
+        };
+
+        const handleDragEnd = () => {
+          setDraggedIndex(null);
+          setDragOverIndex(null);
+        };
+
+        // Styling helpers
+        const getTabButtonStyle = (isActive: boolean, isHovered: boolean) => {
+          const base = {
+            padding: '12px 20px',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: isActive ? 600 : 500,
+            transition: 'all 0.3s ease',
+            borderRadius: '8px',
+            fontSize: '14px',
           };
-      
-          const handleDragEnd = () => {
-            setDraggedIndex(null);
-            setDragOverIndex(null);
-          };
-      
-          // Styling helpers
-          const getTabButtonStyle = (isActive: boolean, isHovered: boolean) => {
-            const base = {
-              padding: '12px 20px',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: isActive ? 600 : 500,
-              transition: 'all 0.3s ease',
-              borderRadius: '8px',
-              fontSize: '14px',
-            };
-            if (tabStyle === 'underline') {
-              return {
-                ...base,
-                background: 'transparent',
-                color: isActive ? '#3b82f6' : '#9ca3af',
-                borderBottom: isActive ? '3px solid #3b82f6' : '2px solid transparent',
-                borderRadius: 0,
-              };
-            }
-            if (tabStyle === 'cards') {
-              return {
-                ...base,
-                background: isActive ? '#3b82f6' : '#f3f4f6',
-                color: isActive ? '#ffffff' : '#6b7280',
-                boxShadow: isActive ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
-                transform: isHovered && isActive ? 'translateY(-2px)' : 'translateY(0)',
-              };
-            }
-            // Default to "pills"
+          if (tabStyle === 'underline') {
             return {
               ...base,
-              background: isActive ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : '#f3f4f6',
+              background: 'transparent',
+              color: isActive ? '#3b82f6' : '#9ca3af',
+              borderBottom: isActive ? '3px solid #3b82f6' : '2px solid transparent',
+              borderRadius: 0,
+            };
+          }
+          if (tabStyle === 'cards') {
+            return {
+              ...base,
+              background: isActive ? '#3b82f6' : '#f3f4f6',
               color: isActive ? '#ffffff' : '#6b7280',
               boxShadow: isActive ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
-              transform: isHovered && isActive ? 'scale(1.05)' : 'scale(1)',
+              transform: isHovered && isActive ? 'translateY(-2px)' : 'translateY(0)',
             };
+          }
+          // Default to "pills"
+          return {
+            ...base,
+            background: isActive ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : '#f3f4f6',
+            color: isActive ? '#ffffff' : '#6b7280',
+            boxShadow: isActive ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+            transform: isHovered && isActive ? 'scale(1.05)' : 'scale(1)',
           };
-      
-          return (
-            <div ref={puck?.dragRef} data-puck-path={puck?.path?.join('.') || undefined} style={{ width: '100%' }}>
-              {/* Tab buttons */}
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '8px',
-                  borderBottom: tabStyle === 'underline' ? '2px solid #e5e7eb' : 'none',
-                  justifyContent: tabsAlign || 'flex-start',
-                  flexWrap: 'wrap',
-                  marginBottom: '24px',
-                  fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
-                  padding: tabStyle === 'cards' ? '8px' : '0',
-                  background: tabStyle === 'cards' ? '#f9fafb' : 'transparent',
-                  borderRadius: tabStyle === 'cards' ? '12px' : '0',
-                }}
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (!items.length) return;
-                  if (e.key === 'ArrowRight') {
-                    e.preventDefault();
-                    setActiveTab((prev) => (prev + 1) % items.length);
-                  } else if (e.key === 'ArrowLeft') {
-                    e.preventDefault();
-                    setActiveTab((prev) => (prev - 1 + items.length) % items.length);
-                  }
-                }}
-              >
-                {items.map((tab:any, idx:any) => {
-                  const isActive = activeTab === idx;
-                  const isOver = dragOverIndex === idx;
-                  const isDragging = draggedIndex === idx;
-                  const isHovered = hoverIndex === idx;
-                  const key = tab?.key ?? idx;
-                  return (
-                    <div
-                      key={`${key}-btn`}
-                      draggable={isEditing}
-                      onDragStart={(e) => handleDragStart(e, idx)}
-                      onDragOver={(e) => handleDragOver(e, idx)}
-                      onDrop={(e) => handleDrop(e, idx)}
-                      onDragEnd={handleDragEnd}
-                      onMouseEnter={() => setHoverIndex(idx)}
-                      onMouseLeave={() => setHoverIndex(null)}
+        };
+
+        return (
+          <div ref={puck?.dragRef} data-puck-path={puck?.path?.join('.') || undefined} style={{ width: '100%' }}>
+            {/* Tab buttons */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                borderBottom: tabStyle === 'underline' ? '2px solid #e5e7eb' : 'none',
+                justifyContent: tabsAlign || 'flex-start',
+                flexWrap: 'wrap',
+                marginBottom: '24px',
+                fontFamily: fontFamily && fontFamily !== 'inherit' ? fontFamily : undefined,
+                padding: tabStyle === 'cards' ? '8px' : '0',
+                background: tabStyle === 'cards' ? '#f9fafb' : 'transparent',
+                borderRadius: tabStyle === 'cards' ? '12px' : '0',
+              }}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (!items.length) return;
+                if (e.key === 'ArrowRight') {
+                  e.preventDefault();
+                  setActiveTab((prev) => (prev + 1) % items.length);
+                } else if (e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  setActiveTab((prev) => (prev - 1 + items.length) % items.length);
+                }
+              }}
+            >
+              {items.map((tab: any, idx: any) => {
+                const isActive = activeTab === idx;
+                const isOver = dragOverIndex === idx;
+                const isDragging = draggedIndex === idx;
+                const isHovered = hoverIndex === idx;
+                const key = tab?.key ?? idx;
+                return (
+                  <div
+                    key={`${key}-btn`}
+                    draggable={isEditing}
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    onMouseEnter={() => setHoverIndex(idx)}
+                    onMouseLeave={() => setHoverIndex(null)}
+                    style={{
+                      opacity: isDragging ? 0.5 : 1,
+                      background: isOver && !isDragging ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                      borderRadius: '8px',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <button
+                      type='button'
+                      onClick={() => setActiveTab(idx)}
                       style={{
-                        opacity: isDragging ? 0.5 : 1,
-                        background: isOver && !isDragging ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                        borderRadius: '8px',
-                        transition: 'all 0.2s ease',
+                        ...getTabButtonStyle(isActive, isHovered),
+                        cursor: isEditing ? 'move' : 'pointer',
                       }}
+                      title={isEditing ? 'Drag to reorder' : tab?.title}
                     >
-                      <button
-                        type='button'
-                        onClick={() => setActiveTab(idx)}
+                      {tab?.title || `Tab ${idx + 1}`}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Tab content areas */}
+            <div style={{ padding: '24px 0' }}>
+              {items.map((tab, idx) => {
+                const isActive = activeTab === idx;
+                const TabContent = tab?.content;
+                const key = tab?.key ?? idx;
+                return (
+                  <div
+                    key={`${key}-content`}
+                    style={{
+                      display: isEditing || currentIndex === idx ? 'block' : 'none',
+                      animation: isActive ? 'fadeIn 0.3s ease' : 'none',
+                      ...(isEditing && {
+                        marginBottom: '24px',
+                        border: '2px dashed #3b82f6',
+                        padding: '20px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%)',
+                      }),
+                    }}
+                  >
+                    {isEditing && (
+                      <div
                         style={{
-                          ...getTabButtonStyle(isActive, isHovered),
-                          cursor: isEditing ? 'move' : 'pointer',
+                          paddingBottom: '12px',
+                          fontWeight: 700,
+                          color: '#3b82f6',
+                          fontSize: '14px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
                         }}
-                        title={isEditing ? 'Drag to reorder' : tab?.title}
                       >
+                        <span>ðŸ“‘</span>
                         {tab?.title || `Tab ${idx + 1}`}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Tab content areas */}
-              <div style={{ padding: '24px 0' }}>
-                {items.map((tab, idx) => {
-                  const isActive = activeTab === idx;
-                  const TabContent = tab?.content;
-                  const key = tab?.key ?? idx;
-                  return (
+                      </div>
+                    )}
                     <div
-                      key={`${key}-content`}
-                      style={{
-                        display: isEditing || currentIndex === idx ? 'block' : 'none',
-                        animation: isActive ? 'fadeIn 0.3s ease' : 'none',
-                        ...(isEditing && {
-                          marginBottom: '24px',
-                          border: '2px dashed #3b82f6',
-                          padding: '20px',
-                          borderRadius: '12px',
-                          background: 'linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%)',
-                        }),
-                      }}
+                      style={
+                        isEditing
+                          ? {
+                            minHeight: '100px',
+                            background: '#fff',
+                            padding: '16px',
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                          }
+                          : {}
+                      }
                     >
-                      {isEditing && (
+                      {typeof TabContent === 'function' ? (
+                        <TabContent />
+                      ) : isEditing ? (
                         <div
                           style={{
-                            paddingBottom: '12px',
-                            fontWeight: 700,
-                            color: '#3b82f6',
-                            fontSize: '14px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
+                            minHeight: '80px',
+                            display: 'grid',
+                            placeItems: 'center',
+                            color: '#6b7280',
+                            fontSize: 12,
+                            fontStyle: 'italic',
                           }}
                         >
-                          <span>📑</span>
-                          {tab?.title || `Tab ${idx + 1}`}
+                          Drop components here
                         </div>
-                      )}
-                      <div
-                        style={
-                          isEditing
-                            ? {
-                                minHeight: '100px',
-                                background: '#fff',
-                                padding: '16px',
-                                borderRadius: '8px',
-                                border: '1px solid #e5e7eb',
-                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                              }
-                            : {}
-                        }
-                      >
-                        {typeof TabContent === 'function' ? (
-                          <TabContent />
-                        ) : isEditing ? (
-                          <div
-                            style={{
-                              minHeight: '80px',
-                              display: 'grid',
-                              placeItems: 'center',
-                              color: '#6b7280',
-                              fontSize: 12,
-                              fontStyle: 'italic',
-                            }}
-                          >
-                            Drop components here
-                          </div>
-                        ) : null}
-                      </div>
+                      ) : null}
                     </div>
-                  );
-                })}
-              </div>
-              {/* fade in animation */}
-              <style>{`
+                  </div>
+                );
+              })}
+            </div>
+            {/* fade in animation */}
+            <style>{`
                 @keyframes fadeIn {
                   from {
                     opacity: 0;
@@ -5474,9 +6527,9 @@ export const config = {
                   }
                 }
               `}</style>
-            </div>
-          );
-        },
+          </div>
+        );
+      },
     },
 
     /**
@@ -5538,7 +6591,7 @@ export const config = {
             hasContentSlot: typeof ContentSlot === 'function',
             contentSlotType: typeof ContentSlot,
           })
-        } catch {}
+        } catch { }
         return (
           <div ref={puck?.dragRef} data-puck-path={path || undefined} style={style} onMouseDown={onMouseDown}>
             {String(showTitle) === 'true' && (
@@ -5849,7 +6902,7 @@ export const config = {
      * Template component that acts as a generic wrapper for nested content. This simplified
      * functionality found in the example configuration. This enhanced version adds a template
      * selector so users can choose between blank and example templates. When a template is
-     * selected, the component’s children are automatically populated via resolveData.
+     * selected, the componentâ€™s children are automatically populated via resolveData.
      */
     Template: {
       label: "Template",
@@ -5872,7 +6925,7 @@ export const config = {
       },
       /**
        * When the template selection changes we populate the children array with
-       * predefined content. This mimics the behaviour of the example configuration’s
+       * predefined content. This mimics the behaviour of the example configurationâ€™s
        * Template component but avoids requiring dynamic imports or complex APIs.
        */
       resolveData: async (data: any, { changed }: any) => {
@@ -6058,7 +7111,7 @@ export const config = {
                   fontWeight: 600,
                 }}
               >
-                −
+                âˆ’
               </button>
               <button
                 type="button"
@@ -6396,7 +7449,7 @@ export const config = {
           <div ref={puck?.dragRef} data-puck-path={path || undefined} style={style} onMouseDown={onMouseDown}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <div style={{ fontSize: "32px" }}>
-                {drink === "water" ? "💧" : drink === "coffee" ? "☕" : drink === "tea" ? "🍵" : "🧃"}
+                {drink === "water" ? "ðŸ’§" : drink === "coffee" ? "â˜•" : drink === "tea" ? "ðŸµ" : "ðŸ§ƒ"}
               </div>
               <div>
                 <div style={{ fontWeight: 600, fontSize: "16px", textTransform: "capitalize" }}>
@@ -6499,7 +7552,7 @@ export const templates = {
         {
           type: "Footer",
           props: {
-            copyright: "© 2025 Your Company",
+            copyright: "Â© 2025 Your Company",
             year: new Date().getFullYear(),
           },
         },
@@ -6576,6 +7629,14 @@ export const templates = {
       ],
     },
   },
+  ProfileTemplate: profileTemplateData,
 }
 
 export default config
+
+
+
+
+
+
+

@@ -1,11 +1,44 @@
+const fs = require("fs");
+const path = require("path");
+
+const puckConfigPath = path.resolve(__dirname, "src/lib/puck/config.tsx");
+
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+function readPuckConfigForTailwind() {
+  const attempts = 5;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return fs.readFileSync(puckConfigPath, "utf8");
+    } catch (error) {
+      if (error.code !== "EBUSY") {
+        console.warn(`[tailwind] Failed to read puck config: ${error.message}`);
+        return "";
+      }
+      if (i === attempts - 1) {
+        console.warn("[tailwind] Puck config locked, continuing without it.");
+        return "";
+      }
+      sleep(25);
+    }
+  }
+  return "";
+}
+
+const puckConfigRaw = readPuckConfigForTailwind();
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-    darkMode: ["class"],
-    content: [
+  darkMode: ["class"],
+  content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/lib/**/*.{js,ts,jsx,tsx,mdx}",
+    "!./src/lib/puck/config.tsx",
+    ...(puckConfigRaw
+      ? [{ raw: puckConfigRaw, extension: "tsx" }]
+      : []),
   ],
   theme: {
   	extend: {

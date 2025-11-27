@@ -31,6 +31,21 @@ export interface ProfileVcfFields {
   whatsapp: string;
 }
 
+export interface ProfileTheme {
+  cardGradient: string;
+  panelBackground: string;
+  panelShadow: string;
+  cardSurface: string;
+  cardShadow: string;
+  accentPrimary: string;
+  accentPrimaryText: string;
+  accentSecondary: string;
+  accentSecondaryText: string;
+  textPrimary: string;
+  textSecondary: string;
+  iconColor: string;
+}
+
 export interface ProfilePayload {
   slug: string;
   displayName: string;
@@ -41,6 +56,7 @@ export interface ProfilePayload {
   buttonSecondaryLabel: string;
   links: ProfileLink[];
   vcf: ProfileVcfFields;
+  theme: ProfileTheme;
 }
 
 export const PROFILE_ICON_KEYS = [
@@ -77,6 +93,21 @@ export const DEFAULT_PROFILE_VCF: ProfileVcfFields = {
   whatsapp: "",
 };
 
+export const DEFAULT_PROFILE_THEME: ProfileTheme = {
+  cardGradient: "linear-gradient(180deg, #8cc0de 0%, #f7ecd7 65%, #f5e7d0 100%)",
+  panelBackground: "#ffffff",
+  panelShadow: "0 40px 65px rgba(16, 34, 66, 0.25)",
+  cardSurface: "#fbf3e7",
+  cardShadow: "inset 0 1px 0 rgba(255,255,255,0.8), 0 8px 18px rgba(51, 45, 34, 0.2)",
+  accentPrimary: "#fbf3e7",
+  accentPrimaryText: "#163a39",
+  accentSecondary: "#3c706f",
+  accentSecondaryText: "#ffffff",
+  textPrimary: "#163a39",
+  textSecondary: "#2b2b2b",
+  iconColor: "#163a39",
+};
+
 const PROFILE_TEMPLATE = {
   slug: "",
   displayName: "",
@@ -85,6 +116,7 @@ const PROFILE_TEMPLATE = {
   backgroundUrl: "",
   buttonPrimaryLabel: "Connect",
   buttonSecondaryLabel: "Links",
+  theme: { ...DEFAULT_PROFILE_THEME },
 } as const;
 
 export function createEmptyProfilePayload(): ProfilePayload {
@@ -92,6 +124,7 @@ export function createEmptyProfilePayload(): ProfilePayload {
     ...PROFILE_TEMPLATE,
     links: [],
     vcf: { ...DEFAULT_PROFILE_VCF },
+    theme: { ...DEFAULT_PROFILE_THEME },
   };
 }
 
@@ -142,5 +175,6 @@ export function createSampleProfilePayload(slug: string, displayName?: string): 
     github: "https://github.com/walid",
     whatsapp: "+212600000000",
   };
+  sample.theme = { ...DEFAULT_PROFILE_THEME };
   return sample;
 }

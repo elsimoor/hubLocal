@@ -96,7 +96,8 @@ function PuckEditor() {
   const [saving, setSaving] = useState<"idle" | "draft" | "published">("idle");
   const search = useSearchParams();
   const router = useRouter();
-  const [slug, setSlug] = useState<string>(search?.get("slug") || "default");
+  const [slug, setSlug] = useState<string>(search?.get("slug") || "");
+  const [prefetchedDoc, setPrefetchedDoc] = useState<{ slug: string; data: any } | null>(null);
 
   // Dynamically loaded custom components and editor ref
   const [customComponents, setCustomComponents] = useState<any[]>([]);
@@ -1171,8 +1172,57 @@ function PuckEditor() {
     };
   }, [isFullscreen]);
 
-  // Load existing draft on mount
+  // Resolve slug from URL or fall back to the default profile doc
   useEffect(() => {
+    const slugParam = search?.get("slug");
+    if (slugParam) {
+      if (slugParam !== slug) setSlug(slugParam);
+      return;
+    }
+    if (slug) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/profile/puck", { cache: "no-store" });
+        if (!res.ok) throw new Error("Failed to load profile doc");
+        const json = await res.json();
+        if (cancelled) return;
+        const docSlug =
+          typeof json?.slug === "string" && json.slug
+            ? json.slug
+            : `${(json?.defaultApp?.slug || "default-app")}/home`;
+        setPrefetchedDoc({ slug: docSlug, data: json?.data ?? {} });
+        setSlug(docSlug);
+        try {
+          const params = new URLSearchParams(search?.toString() || "");
+          params.set("slug", docSlug);
+          router.replace(`/dashboard/puck?${params.toString()}`, { scroll: false });
+        } catch {}
+      } catch (err) {
+        console.warn("Failed to initialize default profile doc", err);
+        if (!slug) setSlug("default");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [search, slug, router]);
+
+  // Load existing draft whenever the slug changes
+  useEffect(() => {
+    if (!slug) return;
+
+    if (prefetchedDoc && prefetchedDoc.slug === slug) {
+      setData(prefetchedDoc.data || {});
+      setPrefetchedDoc(null);
+      setLoading(false);
+      return;
+    }
+
     let active = true;
     (async () => {
       try {
@@ -1191,7 +1241,7 @@ function PuckEditor() {
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, prefetchedDoc]);
 
   // Helper: get value at path from Puck data (e.g. "root.content.2")
   const getValueAtPath = (rootData: any, path: string) => {
@@ -1512,7 +1562,7 @@ function PuckEditor() {
             
           </div>
         )}
-          {loading ? (
+          {loading || !slug ? (
             <div className="flex items-center justify-center min-h-[120px]">
               <div className="animate-spin rounded-full h-5 w-5 border-4 border-gray-300 border-t-gray-700 mr-3"></div>
               <span className="text-sm text-gray-600">Chargement…</span>

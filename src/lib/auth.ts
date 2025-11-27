@@ -74,7 +74,7 @@ export const authOptions: NextAuthOptions = {
         const password = credentials?.password;
         if (!email || !password) return null;
         await connectDB();
-        const user:any = await UserModel.findOne({ email }).lean();
+        const user: any = await UserModel.findOne({ email }).lean();
         if (!user || !user.passwordHash) return null;
         const hashed = hashPassword(password);
         if (hashed !== user.passwordHash) return null;
@@ -95,24 +95,29 @@ export const authOptions: NextAuthOptions = {
     error: "/auth/error",
   },
   callbacks: {
-    async signIn({ profile }) {
+    async signIn({ user, profile }) {
       await connectDB();
-      if (profile?.email) {
+      const email = user.email || profile?.email;
+      if (email) {
         // When a new account is created via Google, seed firstName/lastName from
         // the OAuth profile if available. Use $setOnInsert so existing users
         // are not overwritten.
         await UserModel.findOneAndUpdate(
-          { email: profile.email },
+          { email },
           {
             $setOnInsert: {
-              name: profile.name,
-              email: profile.email,
+              name: profile?.name || user.name,
+              email,
               firstName: (profile as any)?.given_name ?? undefined,
               lastName: (profile as any)?.family_name ?? undefined,
             },
           },
           { upsert: true }
         );
+
+        // Ensure default app and profile exist
+        const { ensureDefaultApp } = await import("@/lib/apps/service");
+        await ensureDefaultApp(email);
       }
       return true;
     },
@@ -121,12 +126,13 @@ export const authOptions: NextAuthOptions = {
       try {
         if (session?.user?.email) {
           await connectDB();
-          const user:any = await UserModel.findOne({ email: session.user.email }).lean();
+          const user: any = await UserModel.findOne({ email: session.user.email }).lean();
           if (user) {
             (session.user as any).id = user._id.toString();
             (session.user as any).isPro = !!user.isPro;
             (session.user as any).firstName = user.firstName ?? "";
             (session.user as any).lastName = user.lastName ?? "";
+            (session.user as any).username = user.username ?? "";
             // Mark user as admin if their email matches the ADMIN_EMAIL env variable
             (session.user as any).isAdmin =
               !!process.env.ADMIN_EMAIL && session.user.email === process.env.ADMIN_EMAIL;
