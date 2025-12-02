@@ -382,23 +382,39 @@ const buildProfileThemeFromProps = (props: any) => {
 const cloneNodeArray = (nodes?: any[]): any[] => {
   if (!Array.isArray(nodes)) return []
   return nodes.map((node) => {
-    const clonedChildren = cloneNodeArray(node?.children)
-    return {
+    const slotSource =
+      Array.isArray(node?.props?.children) && node.props.children.length
+        ? node.props.children
+        : node?.children
+    const clonedChildren = cloneNodeArray(slotSource)
+    const clonedNode: any = {
       ...node,
       props: node?.props ? { ...node.props } : {},
-      children: clonedChildren.length ? clonedChildren : undefined,
     }
+    if (clonedChildren.length) {
+      clonedNode.children = clonedChildren
+      clonedNode.props.children = clonedChildren
+    } else {
+      delete clonedNode.children
+      if (clonedNode.props) delete clonedNode.props.children
+    }
+    return clonedNode
   })
 }
 
 const cloneProfileTemplateChildren = () => {
   const tree = cloneProfileTemplateData()
-  console.log("tree",tree)
-  const firstChild = Array.isArray(tree?.root?.children) ? tree.root.children[0] : null
-  if (firstChild?.type === "ProfileDefaultPage" && Array.isArray(firstChild.children)) {
-    console.log("firstChild",firstChild)
-    let clone =  cloneNodeArray(firstChild.children)
-    console.log("clone",clone)
+  console.log("tree", tree)
+  const rootChildren = Array.isArray(tree?.root?.content) ? tree.root.content : tree?.root?.children
+  const firstChild = Array.isArray(rootChildren) ? rootChildren[0] : null
+  const slotChildren =
+    Array.isArray(firstChild?.props?.children) && firstChild.props.children.length
+      ? firstChild.props.children
+      : firstChild?.children
+  if (firstChild?.type === "ProfileDefaultPage" && Array.isArray(slotChildren)) {
+    console.log("firstChild", firstChild)
+    const clone = cloneNodeArray(slotChildren)
+    console.log("clone", clone)
     return clone
   }
   return []
@@ -5112,7 +5128,7 @@ export const config = {
      * utility component can highlight sections or act as a spacer.
      */
     ColorBox: {
-      label: "BoÃ®te de couleur",
+      label: "Boîte de couleur",
       inline: true,
       fields: {
         color: { type: "text", label: "Colour", defaultValue: "#f3f4f6" },

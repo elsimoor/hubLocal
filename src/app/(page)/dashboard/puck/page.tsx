@@ -99,6 +99,18 @@ function PuckEditor() {
   const [slug, setSlug] = useState<string>(search?.get("slug") || "");
   const [prefetchedDoc, setPrefetchedDoc] = useState<{ slug: string; data: any } | null>(null);
 
+  useEffect(() => {
+    try {
+      console.log("[PuckEditor] Data snapshot", {
+        slug,
+        hasRoot: !!data?.root,
+        childCount: Array.isArray(data?.root?.content) ? data.root.content.length : 0,
+        firstNodeType: data?.root?.content?.[0]?.type,
+        firstNode: data?.root?.content?.[0],
+      });
+    } catch {}
+  }, [data, slug]);
+
   // Dynamically loaded custom components and editor ref
   const [customComponents, setCustomComponents] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);

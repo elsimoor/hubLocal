@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { PuckDocModel } from "@/lib/models/PuckDoc";
 import { ensureDefaultApp } from "@/lib/apps/service";
-import { cloneProfileTemplateData } from "@/lib/puck/profileTemplate";
+import { cloneProfileTemplateData, ensureDocHasRootContent, ensureProfileTemplateContent } from "@/lib/puck/profileTemplate";
 import { buildProfileUrl } from "@/lib/profile/urls";
 import { getProfileDocSlug } from "@/lib/profile/docSlug";
 
@@ -27,6 +27,8 @@ export async function GET(req: Request) {
             : profileDoc ?? {};
 
     const data = docJson?.data && (docJson.data as any)?.root ? docJson.data : cloneProfileTemplateData();
+    ensureProfileTemplateContent(data, { context: "api/profile/puck#get" });
+    ensureDocHasRootContent(data);
     const profileUrl = user?.username ? buildProfileUrl(user.username) : "/profile";
 
     return NextResponse.json({
@@ -42,6 +44,7 @@ export async function PUT(req: Request) {
 
     const body = await req.json();
     const { data } = body;
+    if (data && typeof data === "object") ensureDocHasRootContent(data);
 
     await connectDB();
     const ensure = await ensureDefaultApp(session.user.email);

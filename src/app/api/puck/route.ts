@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { PuckDocModel } from "@/lib/models/PuckDoc";
 import { AppModel } from "@/lib/models/App";
+import { ensureDocHasRootContent, ensureProfileTemplateContent } from "@/lib/puck/profileTemplate";
+import { ensureDefaultApp } from "@/lib/apps/service";
+import { getProfileDocSlug } from "@/lib/profile/docSlug";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -13,7 +16,34 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const slug = searchParams.get("slug") || "default";
   await connectDB();
-  let doc = (await PuckDocModel.findOne({ ownerEmail: session.user.email, slug }).lean()) as any;
+  try {
+    console.log("[PuckAPI] Requested slug", slug);
+  } catch {}
+  let ensured: Awaited<ReturnType<typeof ensureDefaultApp>> | null = null;
+  try {
+    ensured = await ensureDefaultApp(session.user.email);
+  } catch (err) {
+    console.warn("Failed to ensure default app before loading Puck doc", err);
+  }
+  const defaultProfileSlug =
+    ensured?.defaultApp && typeof ensured.defaultApp.slug === "string"
+      ? getProfileDocSlug(ensured.defaultApp.slug)
+      : null;
+
+  let doc: any = null;
+  if (defaultProfileSlug && slug === defaultProfileSlug && ensured?.profileDoc) {
+    const source = ensured.profileDoc;
+    doc =
+      typeof source.toObject === "function"
+        ? source.toObject()
+        : typeof source.toJSON === "function"
+        ? source.toJSON()
+        : source;
+    if (doc?.data) ensureProfileTemplateContent(doc.data, { context: "api/puck#get(defaultProfileDoc)" });
+  }
+  if (!doc) {
+    doc = (await PuckDocModel.findOne({ ownerEmail: session.user.email, slug }).lean()) as any;
+  }
 
   if (!doc && slug.endsWith("/home")) {
     const legacySlug = slug.replace(/\/home$/, "");
@@ -39,9 +69,25 @@ export async function GET(req: Request) {
   if (!doc) {
     const parts = String(slug || "").split("/");
     const last = parts[parts.length - 1] || slug;
-    const emptyData = { root: { props: { title: last, viewport: "fluid", allowCustomJS: "true", slug } }, content: [] };
+    const emptyData = { root: { props: { title: last, viewport: "fluid", allowCustomJS: "true", slug }, content: [] }, content: [] };
+    ensureDocHasRootContent(emptyData);
     return NextResponse.json({ data: emptyData, status: "draft", updatedAt: null });
   }
+
+  if (doc.data) {
+    ensureDocHasRootContent(doc.data);
+    if (slug === defaultProfileSlug) {
+      ensureProfileTemplateContent(doc.data, { context: "api/puck#get(existingProfileDoc)" });
+    }
+  }
+  try {
+    console.log("[PuckAPI] Responding with doc", {
+      slug,
+      hasDoc: !!doc,
+      childCount: Array.isArray(doc?.data?.root?.content) ? doc.data.root.content.length : 0,
+      defaultProfileSlug,
+    });
+  } catch {}
 
   return NextResponse.json({ data: doc.data || {}, status: doc.status || "draft", updatedAt: doc.updatedAt || null });
 }
@@ -53,6 +99,7 @@ export async function POST(req: Request) {
   }
   const body = await req.json().catch(() => ({}));
   const { slug = "default", data = {}, status = "draft" } = body || {};
+  if (data && typeof data === "object") ensureDocHasRootContent(data);
   await connectDB();
   const update: any = { data, status };
   if (status === "published") update.publishedAt = new Date();
