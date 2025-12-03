@@ -6,7 +6,7 @@ import {
   ProfilePayload,
   createEmptyProfilePayload,
 } from "@/types/profile";
-import { cloneProfileTemplateData, ensureDocHasRootContent } from "@/lib/puck/profileTemplate";
+import { cloneProfileTemplateData } from "@/lib/puck/profileTemplate";
 
 const PROFILE_COMPONENT_TYPE = "ProfileDefaultPage";
 const iconSet = new Set(PROFILE_ICON_KEYS);
@@ -195,20 +195,15 @@ export const applyProfilePayloadToDoc = (doc: any, payload: ProfilePayload) => {
     doc && typeof doc === "object"
       ? JSON.parse(JSON.stringify(doc))
       : cloneProfileTemplateData();
-  ensureDocHasRootContent(nextDoc);
   const componentProps = profilePayloadToComponentProps(payload);
   const component = findProfileComponentNode(nextDoc) || findProfileComponentNode(nextDoc.root);
   if (component) {
     component.props = { ...(component.props || {}), ...componentProps };
   } else {
-    const content = Array.isArray(nextDoc.root?.content) ? nextDoc.root.content : [];
-    content.push({ type: PROFILE_COMPONENT_TYPE, props: componentProps });
-    if (nextDoc.root) {
-      nextDoc.root.content = content;
-      nextDoc.root.children = content;
-    } else {
-      nextDoc.root = { props: {}, content, children: content };
-    }
+    if (!nextDoc.root) nextDoc.root = { props: {}, children: [] };
+    const children = Array.isArray(nextDoc.root.children) ? nextDoc.root.children : [];
+    children.push({ type: PROFILE_COMPONENT_TYPE, props: componentProps });
+    nextDoc.root.children = children;
   }
   return nextDoc;
 };

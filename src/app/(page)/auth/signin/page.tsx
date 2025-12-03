@@ -85,9 +85,9 @@ export default function SignInPage() {
     const [loginSending, setLoginSending] = React.useState(false);
 
     const onGoogle = async () => {
-        // After Google sign‑in, redirect to the hubs dashboard. This avoids hitting
+        // After Google sign‑in, redirect to the apps dashboard. This avoids hitting
         // the nonexistent /dashboard route which produced a 404.
-        await signIn("google", { callbackUrl: "/dashboard/hub" });
+        await signIn("google", { callbackUrl: "/dashboard/apps" });
     };
     const onEmail = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -98,7 +98,7 @@ export default function SignInPage() {
         }
         setSending(true);
         try {
-        const res = await signIn("email", { email, callbackUrl: "/dashboard/hub", redirect: false });
+        const res = await signIn("email", { email, callbackUrl: "/dashboard/apps", redirect: false });
             if (res?.ok) {
                 setSent(true);
             } else if (res?.error) {
@@ -126,8 +126,8 @@ export default function SignInPage() {
             const res = await signIn("credentials", {
                 email: loginEmail,
                 password: loginPass,
-                // Redirect to the hubs dashboard after a successful login.
-                callbackUrl: "/dashboard/hub",
+                // Redirect to the apps dashboard after a successful login.
+                callbackUrl: "/dashboard/apps",
                 redirect: false,
             });
             if (res?.error) {

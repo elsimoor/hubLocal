@@ -2,7 +2,7 @@ import { AppModel } from "@/lib/models/App";
 import { PuckDocModel } from "@/lib/models/PuckDoc";
 import { UserModel } from "@/lib/models/User";
 import { connectDB } from "@/lib/mongodb";
-import { cloneProfileTemplateData, ensureProfileTemplateContent } from "@/lib/puck/profileTemplate";
+import { cloneProfileTemplateData } from "@/lib/puck/profileTemplate";
 import { getLegacyProfileDocSlugs, getProfileDocSlug } from "@/lib/profile/docSlug";
 
 export async function ensureDefaultApp(email: string) {
@@ -72,14 +72,6 @@ export async function ensureDefaultApp(email: string) {
         profileDoc.status = "published";
         profileDoc.publishedAt = profileDoc.publishedAt ?? new Date();
         await profileDoc.save();
-    }
-
-    if (profileDoc?.data) {
-        const normalized = ensureProfileTemplateContent(profileDoc.data, { context: "ensureDefaultApp" });
-        if (normalized && typeof profileDoc.markModified === "function") {
-            profileDoc.markModified("data");
-            await profileDoc.save();
-        }
     }
 
     return { defaultApp, profileDoc, user };

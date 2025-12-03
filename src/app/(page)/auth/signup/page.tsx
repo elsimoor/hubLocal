@@ -40,8 +40,8 @@ export default function SignUpPage() {
         await signIn("credentials", {
           email,
           password,
-          // Redirect to the hubs dashboard after registration and login.
-          callbackUrl: "/dashboard/hub",
+          // Redirect to the apps dashboard after registration and login.
+          callbackUrl: "/dashboard/apps",
         });
       }
     } catch (err: any) {

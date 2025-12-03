@@ -324,8 +324,8 @@ export default function AppsDashboardPage() {
       <div className="mx-auto max-w-6xl py-8 px-4">
         <div className="mb-6 flex flex-col gap-2">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Apps & Templates</h1>
-            <p className="text-sm text-gray-600 mt-1">Gérez vos applications ou démarrez à partir d’un modèle public.</p>
+            <h1 className="text-2xl font-semibold text-gray-900">Hubs & Templates</h1>
+            <p className="text-sm text-gray-600 mt-1">Gérez vos hubs ou démarrez à partir d'un modèle public.</p>
           </div>
           <div className="flex gap-2 text-sm">
             <button
@@ -334,7 +334,7 @@ export default function AppsDashboardPage() {
                 activeTab === "apps" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 border-gray-300"
               }`}
             >
-              Mes Apps
+              Mes Hubs
             </button>
             <button
               onClick={() => setActiveTab("myTemplates")}
@@ -357,7 +357,7 @@ export default function AppsDashboardPage() {
 
         {activeTab === 'apps' && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow mb-8">
-          <h2 className="text-lg font-medium mb-3">Créer une nouvelle app</h2>
+          <h2 className="text-lg font-medium mb-3">Créer un nouveau hub</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-700">Nom</label>
@@ -366,7 +366,7 @@ export default function AppsDashboardPage() {
             <div>
               <label className="block text-xs font-medium text-gray-700">Slug</label>
               <input className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-gray-300" placeholder="ex: byteforce" value={form.slug} onChange={(e) => { setForm({ ...form, slug: e.target.value }); setSlugTouched(true); }} />
-              <p className="mt-1 text-xs text-gray-500">URL : /published/<span className="font-mono">{form.slug || slugify(form.name) || 'mon-app'}</span>/...</p>
+              <p className="mt-1 text-xs text-gray-500">URL : /published/<span className="font-mono">{form.slug || slugify(form.name) || 'mon-hub'}</span>/...</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700">Icône (URL)</label>
@@ -401,7 +401,7 @@ export default function AppsDashboardPage() {
               disabled={creating}
               className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50"
             >
-              {creating ? "Création…" : makePublicTemplate ? "Créer le template" : "Créer l’app"}
+              {creating ? "Création…" : makePublicTemplate ? "Créer le template" : "Créer le hub"}
             </button>
             <Link href="/dashboard/puck" className="text-sm text-gray-700 underline decoration-gray-300 hover:decoration-gray-500">Ouvrir l’éditeur Puck</Link>
           </div>
@@ -421,7 +421,7 @@ export default function AppsDashboardPage() {
           ) : apps.length === 0 ? (
             <div className="col-span-full">
               <div className="border border-dashed rounded-xl p-8 bg-white text-center text-sm text-gray-600">
-                Aucune app pour le moment. Utilisez le formulaire ci-dessus pour créer votre première application.
+                Aucun hub pour le moment. Utilisez le formulaire ci-dessus pour créer votre premier hub.
               </div>
             </div>
           ) : (
@@ -594,7 +594,7 @@ export default function AppsDashboardPage() {
             }}
           />
           <div className="relative bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Synchroniser l’app : {syncAppData.name}</h3>
+            <h3 className="text-lg font-semibold">Synchroniser le hub : {syncAppData.name}</h3>
             <div className="text-sm text-gray-600 space-y-2">
               {syncAppData.templateSourceInfo ? (
                 <p>
@@ -602,7 +602,7 @@ export default function AppsDashboardPage() {
                   {typeof syncAppData.templateVersionRemote === "number" ? ` / source v${syncAppData.templateVersionRemote}` : ""}.
                 </p>
               ) : (
-                <p>Cette app ne référence plus son template source.</p>
+                <p>Ce hub ne référence plus son template source.</p>
               )}
               <p>La synchronisation ajoute toujours les nouvelles pages manquantes et peut, en option, écraser les pages existantes pour refléter la dernière version du template.</p>
             </div>
@@ -702,7 +702,7 @@ export default function AppsDashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => !creating && setShowEditModal(false)} />
           <div className="relative bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Modifier l’app: {editAppData.name}</h3>
+            <h3 className="text-lg font-semibold">Modifier le hub: {editAppData.name}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700">Nom</label>
@@ -736,7 +736,7 @@ export default function AppsDashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => !creating && setShowDeleteConfirm(false)} />
           <div className="relative bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Supprimer l’app</h3>
+            <h3 className="text-lg font-semibold">Supprimer le hub</h3>
             <p className="text-sm text-gray-600">Êtes-vous sûr de vouloir supprimer <span className="font-medium">{deleteAppData.name}</span>? Cette action supprimera aussi ses pages.</p>
             {error && <div className="text-sm text-red-600">{error}</div>}
             <div className="flex gap-2 justify-end">

@@ -99,18 +99,6 @@ function PuckEditor() {
   const [slug, setSlug] = useState<string>(search?.get("slug") || "");
   const [prefetchedDoc, setPrefetchedDoc] = useState<{ slug: string; data: any } | null>(null);
 
-  useEffect(() => {
-    try {
-      console.log("[PuckEditor] Data snapshot", {
-        slug,
-        hasRoot: !!data?.root,
-        childCount: Array.isArray(data?.root?.content) ? data.root.content.length : 0,
-        firstNodeType: data?.root?.content?.[0]?.type,
-        firstNode: data?.root?.content?.[0],
-      });
-    } catch {}
-  }, [data, slug]);
-
   // Dynamically loaded custom components and editor ref
   const [customComponents, setCustomComponents] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
@@ -1229,6 +1217,7 @@ function PuckEditor() {
     if (!slug) return;
 
     if (prefetchedDoc && prefetchedDoc.slug === slug) {
+      try { console.log('[PuckDebug] Applying prefetchedDoc to state for slug', prefetchedDoc.slug, 'data keys:', Object.keys(prefetchedDoc.data || {})); } catch {}
       setData(prefetchedDoc.data || {});
       setPrefetchedDoc(null);
       setLoading(false);
@@ -1242,6 +1231,7 @@ function PuckEditor() {
         const res = await fetch(`/api/puck?slug=${encodeURIComponent(slug)}`, { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load");
         const json = await res.json();
+        try { console.log('[PuckDebug] /api/puck fetched for slug', slug, 'response data keys:', Object.keys(json?.data || {})); } catch {}
         if (active) setData(json?.data ?? {});
       } catch (e) {
         console.warn("Failed to load Puck doc:", e);
@@ -1574,6 +1564,18 @@ function PuckEditor() {
             
           </div>
         )}
+        {/* Debug banner: shows whether data.root.content is populated */}
+        <div className="mb-4 flex items-center gap-3">
+          <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-800">
+            <strong>Debug:</strong>{' '}
+            {data && data.root && Array.isArray((data as any).root.content)
+              ? `root.content length: ${(data as any).root.content.length}`
+              : 'no root.content present'}
+            {data && data.root && Array.isArray((data as any).root.content) && (data as any).root.content.length > 0 ? (
+              <span className="ml-2 text-xs text-blue-600">Types: {((data as any).root.content || []).map((n:any)=>n.type).join(', ')}</span>
+            ) : null}
+          </div>
+        </div>
           {loading || !slug ? (
             <div className="flex items-center justify-center min-h-[120px]">
               <div className="animate-spin rounded-full h-5 w-5 border-4 border-gray-300 border-t-gray-700 mr-3"></div>

@@ -4,9 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { PuckDocModel } from "@/lib/models/PuckDoc";
 import { AppModel } from "@/lib/models/App";
-import { ensureDocHasRootContent, ensureProfileTemplateContent } from "@/lib/puck/profileTemplate";
-import { ensureDefaultApp } from "@/lib/apps/service";
-import { getProfileDocSlug } from "@/lib/profile/docSlug";
+import { ensureDefaultApp } from '@/lib/apps/service';
+import { getLegacyProfileDocSlugs } from '@/lib/profile/docSlug';
+import { cloneProfileTemplateData } from '@/lib/puck/profileTemplate';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -16,34 +16,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const slug = searchParams.get("slug") || "default";
   await connectDB();
-  try {
-    console.log("[PuckAPI] Requested slug", slug);
-  } catch {}
-  let ensured: Awaited<ReturnType<typeof ensureDefaultApp>> | null = null;
-  try {
-    ensured = await ensureDefaultApp(session.user.email);
-  } catch (err) {
-    console.warn("Failed to ensure default app before loading Puck doc", err);
-  }
-  const defaultProfileSlug =
-    ensured?.defaultApp && typeof ensured.defaultApp.slug === "string"
-      ? getProfileDocSlug(ensured.defaultApp.slug)
-      : null;
-
-  let doc: any = null;
-  if (defaultProfileSlug && slug === defaultProfileSlug && ensured?.profileDoc) {
-    const source = ensured.profileDoc;
-    doc =
-      typeof source.toObject === "function"
-        ? source.toObject()
-        : typeof source.toJSON === "function"
-        ? source.toJSON()
-        : source;
-    if (doc?.data) ensureProfileTemplateContent(doc.data, { context: "api/puck#get(defaultProfileDoc)" });
-  }
-  if (!doc) {
-    doc = (await PuckDocModel.findOne({ ownerEmail: session.user.email, slug }).lean()) as any;
-  }
+  let doc = (await PuckDocModel.findOne({ ownerEmail: session.user.email, slug }).lean()) as any;
 
   if (!doc && slug.endsWith("/home")) {
     const legacySlug = slug.replace(/\/home$/, "");
@@ -63,31 +36,37 @@ export async function GET(req: Request) {
     }
   }
 
-  // If no document exists for this slug, return a clean default payload without
-  // cloning another app's content. This guarantees each app/page starts with its
-  // own empty object instead of inheriting another app's UI.
+  // If no document exists for this slug, try to resolve a sensible default.
+  // For profile/home slugs we want new users to see the profile template
+  // rather than an empty canvas, so call `ensureDefaultApp` to create the
+  // profile doc if needed and return that data. Otherwise fall back to an
+  // empty payload to avoid inheriting another app's UI.
   if (!doc) {
+    try {
+      const ensured = await ensureDefaultApp(session.user.email);
+      if (ensured?.profileDoc) {
+        const profileSlug = String(ensured.profileDoc.slug || "");
+        const legacy = getLegacyProfileDocSlugs(ensured.defaultApp?.slug);
+        if (profileSlug === slug || legacy.includes(slug || "")) {
+          const docJson: any =
+            typeof ensured.profileDoc?.toObject === 'function'
+              ? ensured.profileDoc.toObject()
+              : typeof ensured.profileDoc?.toJSON === 'function'
+              ? ensured.profileDoc.toJSON()
+              : ensured.profileDoc ?? {};
+          const data = docJson?.data && docJson.data.root ? docJson.data : cloneProfileTemplateData();
+          return NextResponse.json({ data, status: docJson?.status || 'published', updatedAt: docJson?.updatedAt || null });
+        }
+      }
+    } catch (err) {
+      console.warn('ensureDefaultApp failed in /api/puck GET fallback', err);
+    }
+
     const parts = String(slug || "").split("/");
     const last = parts[parts.length - 1] || slug;
-    const emptyData = { root: { props: { title: last, viewport: "fluid", allowCustomJS: "true", slug }, content: [] }, content: [] };
-    ensureDocHasRootContent(emptyData);
+    const emptyData = { root: { props: { title: last, viewport: "fluid", allowCustomJS: "true", slug } }, content: [] };
     return NextResponse.json({ data: emptyData, status: "draft", updatedAt: null });
   }
-
-  if (doc.data) {
-    ensureDocHasRootContent(doc.data);
-    if (slug === defaultProfileSlug) {
-      ensureProfileTemplateContent(doc.data, { context: "api/puck#get(existingProfileDoc)" });
-    }
-  }
-  try {
-    console.log("[PuckAPI] Responding with doc", {
-      slug,
-      hasDoc: !!doc,
-      childCount: Array.isArray(doc?.data?.root?.content) ? doc.data.root.content.length : 0,
-      defaultProfileSlug,
-    });
-  } catch {}
 
   return NextResponse.json({ data: doc.data || {}, status: doc.status || "draft", updatedAt: doc.updatedAt || null });
 }
@@ -99,7 +78,6 @@ export async function POST(req: Request) {
   }
   const body = await req.json().catch(() => ({}));
   const { slug = "default", data = {}, status = "draft" } = body || {};
-  if (data && typeof data === "object") ensureDocHasRootContent(data);
   await connectDB();
   const update: any = { data, status };
   if (status === "published") update.publishedAt = new Date();

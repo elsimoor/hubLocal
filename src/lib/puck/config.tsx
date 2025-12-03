@@ -24,7 +24,49 @@ import {
 } from "@/components/profile/ProfileCardElements"
 import ProfileClient from "@/app/profile/[slug]/ProfileClient"
 import QRCode from "react-qr-code"
-import { Contact2, Globe, Image as ImageIcon, Mail, Share, UserCheck2, Youtube } from "lucide-react"
+import { 
+  Contact2, 
+  Globe, 
+  Image as ImageIcon, 
+  Mail, 
+  Share, 
+  UserCheck2, 
+  Youtube,
+  Box,
+  LayoutGrid,
+  Columns3,
+  LayoutList,
+  Package,
+  Layers,
+  Type,
+  AlignLeft,
+  FileText,
+  MousePointerClick,
+  Play,
+  Images,
+  Menu,
+  PanelLeft,
+  SquareDashedBottom,
+  Clock,
+  Database,
+  ChevronDown,
+  FolderTree,
+  User,
+  CreditCard,
+  Grid3x3,
+  ShoppingCart,
+  Palette,
+  Maximize,
+  Proportions,
+  Flame,
+  MessageSquare,
+  Link2,
+  Star,
+  Info,
+  BarChart3,
+  FileCode,
+  Smile
+} from "lucide-react"
 import {
   DEFAULT_PROFILE_VCF,
   // PROFILE_ICON_KEYS,
@@ -36,6 +78,16 @@ import { profileComponentDefaults } from "@/lib/puck/profileDefaults"
 import { cloneProfileTemplateData, profileTemplateData, profileTemplateLinks } from "@/lib/puck/profileTemplate"
 import { buildProfilePayloadFromProps } from "@/lib/puck/profilePayload"
 import { downloadVCard } from "./profile-vcf-handler"
+
+// Helper function to create labels with icons
+const createLabel = (IconComponent: any, text: string) => {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <IconComponent size={16} />
+      <span>{text}</span>
+    </div>
+  )
+}
 
 // Helper functions for selection highlighting.
 const outlineForSelected: any = { outline: "2px solid #6366f1", outlineOffset: 2 }
@@ -382,39 +434,23 @@ const buildProfileThemeFromProps = (props: any) => {
 const cloneNodeArray = (nodes?: any[]): any[] => {
   if (!Array.isArray(nodes)) return []
   return nodes.map((node) => {
-    const slotSource =
-      Array.isArray(node?.props?.children) && node.props.children.length
-        ? node.props.children
-        : node?.children
-    const clonedChildren = cloneNodeArray(slotSource)
-    const clonedNode: any = {
+    const clonedChildren = cloneNodeArray(node?.children)
+    return {
       ...node,
       props: node?.props ? { ...node.props } : {},
+      children: clonedChildren.length ? clonedChildren : undefined,
     }
-    if (clonedChildren.length) {
-      clonedNode.children = clonedChildren
-      clonedNode.props.children = clonedChildren
-    } else {
-      delete clonedNode.children
-      if (clonedNode.props) delete clonedNode.props.children
-    }
-    return clonedNode
   })
 }
 
 const cloneProfileTemplateChildren = () => {
   const tree = cloneProfileTemplateData()
-  console.log("tree", tree)
-  const rootChildren = Array.isArray(tree?.root?.content) ? tree.root.content : tree?.root?.children
-  const firstChild = Array.isArray(rootChildren) ? rootChildren[0] : null
-  const slotChildren =
-    Array.isArray(firstChild?.props?.children) && firstChild.props.children.length
-      ? firstChild.props.children
-      : firstChild?.children
-  if (firstChild?.type === "ProfileDefaultPage" && Array.isArray(slotChildren)) {
-    console.log("firstChild", firstChild)
-    const clone = cloneNodeArray(slotChildren)
-    console.log("clone", clone)
+  console.log("tree",tree)
+  const firstChild = Array.isArray(tree?.root?.children) ? tree.root.children[0] : null
+  if (firstChild?.type === "ProfileDefaultPage" && Array.isArray(firstChild.children)) {
+    console.log("firstChild",firstChild)
+    let clone =  cloneNodeArray(firstChild.children)
+    console.log("clone",clone)
     return clone
   }
   return []
@@ -1178,7 +1214,7 @@ export const config = {
       render: (props: any) => renderProfilePageComponent(props),
     },
     ProfileHeaderPuck: {
-      label: "Profile Header",
+      label: createLabel(User, "Profile Header"),
       fields: {
         slug: { type: "text", label: "Slug", defaultValue: profileComponentDefaults.slug || "" },
       },
@@ -1190,7 +1226,7 @@ export const config = {
     },
 
     ProfileAvatarPuck: {
-      label: "Profile Avatar",
+      label: createLabel(User, "Profile Avatar"),
       fields: {
         slug: { type: "text", label: "Slug", defaultValue: profileComponentDefaults.slug || "" },
         displayName: { type: "text", label: "Display name", defaultValue: profileComponentDefaults.displayName || "" },
@@ -1200,7 +1236,7 @@ export const config = {
     },
 
     ProfileInfoPuck: {
-      label: "Profile Info",
+      label: createLabel(UserCheck2, "Profile Info"),
       fields: {
         displayName: { type: "text", label: "Display name", defaultValue: profileComponentDefaults.displayName || "" },
         tagline: { type: "textarea", label: "Tagline", defaultValue: profileComponentDefaults.tagline || "" },
@@ -1317,7 +1353,7 @@ export const config = {
     },
 
     ProfileButtonsPuck: {
-      label: "Profile Buttons",
+      label: createLabel(MousePointerClick, "Profile Buttons"),
       fields: {
         buttonPrimaryLabel: {
           type: "text",
@@ -1438,7 +1474,7 @@ export const config = {
       },
     },
     ProfileLinksPuck: {
-      label: "Profile Links",
+      label: createLabel(Globe, "Profile Links"),
       fields: {
         links: {
           type: "array",
@@ -1894,7 +1930,7 @@ export const config = {
      * The wrapper applies selection outlines and passes dragRef for Puck.
      */
     Container: {
-      label: "Container",
+      label: createLabel(Box, "Container"),
       inline: true,
       fields: {
         children: { type: "slot", label: "Content" },
@@ -1975,7 +2011,7 @@ export const config = {
     },
     // === Added responsive Section wrapper ===
     Section: {
-      label: "Section",
+      label: createLabel(Package, "Section"),
       fields: {
         children: { type: "slot", label: "Content" },
         maxWidth: { type: "text", label: "Max width", defaultValue: "1280px" },
@@ -2058,7 +2094,7 @@ export const config = {
     },
     // === Added Stack primitive (direction + gap) ===
     Stack: {
-      label: "Stack",
+      label: createLabel(LayoutList, "Stack"),
       fields: {
         children: { type: "slot", label: "Items" },
         direction: {
@@ -2136,7 +2172,7 @@ export const config = {
     },
     // === ResponsiveFlex (direction + gap per breakpoint) ===
     ResponsiveFlex: {
-      label: "Responsive Flex",
+      label: createLabel(Proportions, "Responsive Flex"),
       fields: {
         children: { type: "slot", label: "Items" },
         dirMobile: {
@@ -2271,7 +2307,7 @@ export const config = {
     },
     // === ResponsiveGrid (different column counts per breakpoint) ===
     ResponsiveGrid: {
-      label: "Responsive Grid",
+      label: createLabel(Grid3x3, "Responsive Grid"),
       fields: {
         children: { type: "slot", label: "Cells" },
         layout: {
@@ -2364,7 +2400,7 @@ export const config = {
     },
     // === Footer component ===
     Footer: {
-      label: "Footer",
+      label: createLabel(Package, "Footer"),
       fields: {
         columns: {
           type: "array",
@@ -2674,7 +2710,7 @@ export const config = {
     },
     // === Spacer primitive ===
     Spacer: {
-      label: "Spacer",
+      label: createLabel(Maximize, "Spacer"),
       inline: true,
       fields: {
         sizeMobile: { type: "number", label: "Size mobile (px)", defaultValue: 24 },
@@ -2738,7 +2774,7 @@ export const config = {
     },
     // === AutoColumns component ===
     AutoColumns: {
-      label: "Auto Columns",
+      label: createLabel(Grid3x3, "Auto Columns"),
       fields: {
         children: { type: "slot", label: "Content" },
         minWidthMobile: { type: "number", label: "Min width mobile (px)", defaultValue: 160 },
@@ -2813,7 +2849,7 @@ export const config = {
      * See Puck's flex container â€“ flex item patternã€579873606476094â€ L667-L786ã€‘.
      */
     FlexContainer: {
-      label: "Flex Container",
+      label: createLabel(Columns3, "Flex Container"),
       fields: {
         direction: {
           type: "select",
@@ -2892,7 +2928,7 @@ export const config = {
      * disallows nesting of FlexItems to avoid deeply nested flex hierarchiesã€579873606476094â€ L667-L786ã€‘.
      */
     FlexItem: {
-      label: "Flex Item",
+      label: createLabel(Layers, "Flex Item"),
       fields: {
         grow: {
           type: "number",
@@ -2940,7 +2976,7 @@ export const config = {
      * GridItem children to be dropped insideã€579873606476094â€ L196-L318ã€‘.
      */
     GridContainer: {
-      label: "Grid Container",
+      label: createLabel(LayoutGrid, "Grid Container"),
       fields: {
         children: { type: "slot", label: "Grid Items" },
         layout: {
@@ -3111,7 +3147,7 @@ export const config = {
       },
     },
     Grid: {
-      label: "Grid",
+      label: createLabel(LayoutGrid, "Grid"),
       fields: {
         layout: {
           type: "select",
@@ -3186,7 +3222,7 @@ export const config = {
      * row spans. Nesting of GridItems is disallowedã€579873606476094â€ L196-L318ã€‘.
      */
     GridItem: {
-      label: "Grid Item",
+      label: createLabel(Box, "Grid Item"),
       inline: true,
       fields: {
         children: { type: "slot", label: "Content" },
@@ -3255,7 +3291,7 @@ export const config = {
      * has its own span value. This pattern is inspired by the puck-pages example.
      */
     Columns: {
-      label: "Columns",
+      label: createLabel(Columns3, "Columns"),
       fields: {
         distribution: {
           type: "select",
@@ -3372,7 +3408,7 @@ export const config = {
      * Space component for vertical spacing.
      */
     Space: {
-      label: "Space",
+      label: createLabel(Maximize, "Space"),
       inline: true,
       /**
        * Updated space component to support horizontal, vertical or both directions and
@@ -3427,7 +3463,7 @@ export const config = {
      * Heading component for semantic headings.
      */
     Heading: {
-      label: "Heading",
+      label: createLabel(Type, "Heading"),
       inline: true,
       fields: {
         level: {
@@ -3501,7 +3537,7 @@ export const config = {
      * Text component for paragraphs.
      */
     Text: {
-      label: "Text",
+      label: createLabel(AlignLeft, "Text"),
       inline: true,
       fields: {
         text: { type: "textarea", label: "Text", defaultValue: "Lorem ipsum dolor sit ametâ€¦" },
@@ -3566,7 +3602,7 @@ export const config = {
      * plugins referenced in the awesomeâ€‘puck repositoryã€62556322094410â€ L6-L31ã€‘.
      */
     RichText: {
-      label: "Rich Text",
+      label: createLabel(FileText, "Rich Text"),
       inline: true,
       fields: {
         html: {
@@ -3632,7 +3668,7 @@ export const config = {
      * Image component with adjustable dimensions and object fit.
      */
     Image: {
-      label: "Image",
+      label: createLabel(ImageIcon, "Image"),
       inline: true,
       fields: {
         src: {
@@ -3926,7 +3962,7 @@ export const config = {
      * subtitle, alignment, colours and callâ€‘toâ€‘action buttons.
      */
     Hero: {
-      label: "Hero",
+      label: createLabel(Flame, "Hero"),
       fields: {
         eyebrow: { type: "text", label: "Eyebrow", defaultValue: "" },
         title: {
@@ -4228,7 +4264,7 @@ export const config = {
      * computes the embed URL automatically.
      */
     Video: {
-      label: "Video",
+      label: createLabel(Play, "Video"),
       inline: true,
       fields: {
         url: { type: "text", label: "YouTube URL", defaultValue: "" },
@@ -4303,7 +4339,7 @@ export const config = {
      * Gallery component for displaying a grid of images.
      */
     Gallery: {
-      label: "Gallery",
+      label: createLabel(Images, "Gallery"),
       fields: {
         images: {
           type: "array",
@@ -4442,7 +4478,7 @@ export const config = {
      * LinksList component for simple link lists.
      */
     LinksList: {
-      label: "Links List",
+      label: createLabel(Link2, "Links List"),
       fields: {
         title: { type: "text", label: "Title", defaultValue: "Useful Links" },
         items: {
@@ -4511,7 +4547,7 @@ export const config = {
      * link to a URL.
      */
     Logos: {
-      label: "Logos",
+      label: createLabel(Star, "Logos"),
       fields: {
         items: {
           type: "array",
@@ -4626,7 +4662,7 @@ export const config = {
      * during editing and the bar shows a selection outline when selected.
      */
     Navbar: {
-      label: "Navbar",
+      label: createLabel(Menu, "Navbar"),
       inline: true,
       fields: {
         brand: { type: "text", label: "Brand", defaultValue: "Brand" },
@@ -4868,7 +4904,7 @@ export const config = {
      * control the text, speed, looping, loop delay, cursor, colour and font size.
      */
     TypingText: {
-      label: "Texte animÃ©",
+      label: createLabel(Clock, "Texte animÃ©"),
       inline: true,
       fields: {
         text: { type: "text", label: "Text", defaultValue: "Hello, world!" },
@@ -5128,7 +5164,7 @@ export const config = {
      * utility component can highlight sections or act as a spacer.
      */
     ColorBox: {
-      label: "Boîte de couleur",
+      label: createLabel(Palette, "BoÃ®te de couleur"),
       inline: true,
       fields: {
         color: { type: "text", label: "Colour", defaultValue: "#f3f4f6" },
@@ -5162,7 +5198,7 @@ export const config = {
      * component is intended for general content presentation.
      */
     Card: {
-      label: "Carte",
+      label: createLabel(CreditCard, "Carte"),
       inline: true,
       fields: {
         header: { type: "slot", label: "Header" },
@@ -5246,7 +5282,7 @@ export const config = {
      * <pre> tag by default. Errors are shown when the fetch fails.
      */
     RemoteData: {
-      label: "Remote data",
+      label: createLabel(Database, "Remote data"),
       inline: true,
       fields: {
         url: { type: "text", label: "Request URL", defaultValue: "https://jsonplaceholder.typicode.com/posts" },
@@ -5350,7 +5386,7 @@ export const config = {
      * configurability while maintaining professional UX.
      */
     Sidebar: {
-      label: "Sidebar",
+      label: createLabel(PanelLeft, "Sidebar"),
       inline: true,
       fields: {
         position: {
@@ -5572,7 +5608,7 @@ export const config = {
      * clicking outside the modal will close it.
      */
     Modal: {
-      label: "Modal",
+      label: createLabel(SquareDashedBottom, "Modal"),
       inline: true,
       fields: {
         flag: { type: "text", label: "Flag name", defaultValue: "modalOpen" },
@@ -5913,7 +5949,7 @@ export const config = {
      * clutter by letting users toggle the visibility of sectionsã€243256177162445â€ L136-L142ã€‘.
      */
     Accordion: {
-      label: "Accordion",
+      label: createLabel(ChevronDown, "Accordion"),
       inline: true,
       fields: {
         allowMultiple: {
@@ -6022,7 +6058,7 @@ export const config = {
      * switch and choose its default state.
      */
     Switch: {
-      label: "Switch",
+      label: createLabel(MousePointerClick, "Switch"),
       inline: true,
       fields: {
         label: { type: "text", label: "Label", defaultValue: "Toggle" },
@@ -6099,7 +6135,7 @@ export const config = {
      * to the slider.
      */
     Slider: {
-      label: "Slider",
+      label: createLabel(BarChart3, "Slider"),
       inline: true,
       fields: {
         min: { type: "number", label: "Min", defaultValue: 0 },
@@ -6148,7 +6184,7 @@ export const config = {
      * Each tab has a title and content that displays when selected.
      */
     Tabs: {
-      label: 'Tabs',
+      label: createLabel(LayoutList, 'Tabs'),
       inline: true,
       fields: {
         defaultTab: { type: 'number', label: 'Default tab index', defaultValue: 0 },
@@ -6466,7 +6502,7 @@ export const config = {
      * Can be used to compose reusable groups of UI.
      */
     Group: {
-      label: 'Group',
+      label: createLabel(FolderTree, 'Group'),
       inline: true,
       fields: {
         title: { type: 'text', label: 'Title', defaultValue: 'Group' },
@@ -6547,7 +6583,7 @@ export const config = {
      * ColorPickerBox component. A color picker widget for selecting colors.
      */
     ColorPickerBox: {
-      label: "Color Picker Box",
+      label: createLabel(Palette, "Color Picker Box"),
       inline: true,
       fields: {
         label: { type: "text", label: "Label", defaultValue: "Pick a color" },
@@ -6649,7 +6685,7 @@ export const config = {
      * SelectedInfo component. Displays information about the currently selected item in the editor.
      */
     SelectedInfo: {
-      label: "Selected Info",
+      label: createLabel(Info, "Selected Info"),
       inline: true,
       fields: {
         showType: {
@@ -6760,7 +6796,7 @@ export const config = {
      * shows a purple outline, consistent with other components.
      */
     Stats: {
-      label: "Stats",
+      label: createLabel(BarChart3, "Stats"),
       fields: {
         items: {
           type: "array",
@@ -6834,7 +6870,7 @@ export const config = {
      * selected, the componentâ€™s children are automatically populated via resolveData.
      */
     Template: {
-      label: "Template",
+      label: createLabel(FileCode, "Template"),
       fields: {
         template: {
           type: "select",
@@ -7083,7 +7119,7 @@ export const config = {
      * DataSelector component. Allows selecting data from predefined options or external sources.
      */
     DataSelector: {
-      label: "Data Selector",
+      label: createLabel(Database, "Data Selector"),
       inline: true,
       fields: {
         label: { type: "text", label: "Label", defaultValue: "Select Data" },
