@@ -1697,93 +1697,102 @@ function PuckEditor() {
                 };
                 // Auto-save removed per request; manual save only
                 return (
-                  <>
+                  <div className="flex flex-col w-full bg-white border-b border-gray-200 shadow-sm">
                     <ActiveNodeSync />
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={onToggleFs}
-                        title={isFs ? "Exit full page" : "Full page"}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50 transition-transform duration-150 active:scale-95"
-                      >
-                        {isFs ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                      </button>
-                      <input
-                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300"
-                        placeholder="slug"
-                        value={slug}
-                        onChange={(e) => setSlug(e.target.value.replace(/\s+/g, '-').toLowerCase())}
-                        title="Slug"
-                        style={{ width: 160 }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/dashboard/puck?slug=${encodeURIComponent(slug)}`)}
-                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-                      >
-                        Load
-                      </button>
-                      <button
-                        type="button"
-                        disabled={saving !== "idle"}
-                        onClick={() => current && saveDoc(withSyncedViewport(current), "draft")}
-                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        {saving === "draft" ? "Saving…" : "Save draft"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={saving !== "idle"}
-                        onClick={() => current && saveDoc(withSyncedViewport(current), "published")}
-                        className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-black disabled:opacity-50"
-                      >
-                        {saving === "published" ? "Publishing…" : "Publish"}
-                      </button>
-                      {/* Selection debug panel */}
-                      <div className="flex items-center gap-1 px-2 py-1 rounded border border-dashed border-gray-300 bg-white text-[10px] text-gray-600">
-                        <span className="font-semibold">Sel:</span>
-                        <span>{(() => { try { const s = selectionStore.get(); return s && s.length ? s.join(',') : 'none'; } catch { return 'err'; } })()}</span>
-                        <span className="font-semibold ml-1">Last:</span>
-                        <span>{lastPuckPathRef.current || 'none'}</span>
-                        <span className="font-semibold ml-1">Hover:</span>
-                        <span>{lastHoverPathRef.current || 'none'}</span>
+                    
+                    {/* Primary Header Bar */}
+                    <div className="flex items-center justify-between px-6 py-3.5 border-b border-gray-100">
+                      {/* Left: Branding & Navigation */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={onToggleFs}
+                            title={isFs ? "Exit fullscreen" : "Enter fullscreen"}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition-all duration-200"
+                          >
+                            {isFs ? <Minimize2 size={18} strokeWidth={2} /> : <Maximize2 size={18} strokeWidth={2} />}
+                          </button>
+                        </div>
+                        
+                        <div className="h-6 w-px bg-gray-200"></div>
+                        
+                        <div className="flex items-center gap-2.5">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Page</label>
+                          <input
+                            className="min-w-[280px] rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-medium text-gray-900 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
+                            placeholder="app-name/page-slug"
+                            value={slug}
+                            onChange={(e) => setSlug(e.target.value.replace(/\s+/g, '-').toLowerCase())}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/dashboard/puck?slug=${encodeURIComponent(slug)}`)}
+                            className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 active:bg-gray-950 transition-all duration-200 shadow-sm"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Load
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex items-center gap-2.5">
                         <button
                           type="button"
-                          onClick={() => { try { if (lastPuckPathRef.current) { selectionStore.set([lastPuckPathRef.current]); console.log('[PuckDebug] Force selected last path:', lastPuckPathRef.current); } } catch {} }}
-                          className="ml-2 px-1 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
-                        >Force</button>
+                          disabled={saving !== "idle"}
+                          onClick={() => current && saveDoc(withSyncedViewport(current), "draft")}
+                          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                          </svg>
+                          {saving === "draft" ? "Saving..." : "Save Draft"}
+                        </button>
                         <button
                           type="button"
-                          onClick={() => { try { if ((window as any).___PUCK_DIAG) (window as any).___PUCK_DIAG('manual'); } catch {} }}
-                          className="ml-1 px-1 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
-                        >Diag</button>
+                          disabled={saving !== "idle"}
+                          onClick={() => current && saveDoc(withSyncedViewport(current), "published")}
+                          className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-2 text-sm font-semibold text-white hover:from-blue-700 hover:to-blue-600 active:from-blue-800 active:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                          </svg>
+                          {saving === "published" ? "Publishing..." : "Publish"}
+                        </button>
                       </div>
                     </div>
-                    {/* Groups controls */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        title="Save selection as Group"
-                        onClick={async () => {
-                          try {
-                            // Debug: log the current state of selectionStore and related
-                            // references before computing the selected paths.
+
+                    {/* Secondary Toolbar */}
+                    <div className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-b from-gray-50 to-white">
+                      {/* Group Controls */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mr-1">Groups</span>
+                        <button
+                          type="button"
+                          title="Save selection as Group"
+                          onClick={async () => {
                             try {
-                              console.log('[PuckDebug] Save as Group invoked');
-                              console.log('[PuckDebug] selectionStore.get():', selectionStore.get());
-                              console.log('[PuckDebug] lastPuckPathRef.current:', lastPuckPathRef.current);
-                              if (typeof window !== 'undefined') {
-                                console.log('[PuckDebug] window.__LAST_PUCK_PATH__:', (window as any).__LAST_PUCK_PATH__);
-                              }
-                              console.log('[PuckDebug] current document (appState.data):', current);
-                              console.log('[PuckDebug] fallback document (state data):', data);
-                              console.log('[PuckDebug] lastNonEmptySelectionRef.current:', lastNonEmptySelectionRef.current);
-                              console.log('[PuckDebug] lastHoverPathRef.current:', lastHoverPathRef.current);
-                            } catch {}
-                            const doc = current || data || {};
-                            const sel = selectionStore.get();
-                            let paths = Array.isArray(sel) ? sel.slice() : [];
-                            try { console.log('[PuckDebug] initial raw selection paths:', paths); } catch {}
+                              // Debug: log the current state of selectionStore and related
+                              // references before computing the selected paths.
+                              try {
+                                console.log('[PuckDebug] Save as Group invoked');
+                                console.log('[PuckDebug] selectionStore.get():', selectionStore.get());
+                                console.log('[PuckDebug] lastPuckPathRef.current:', lastPuckPathRef.current);
+                                if (typeof window !== 'undefined') {
+                                  console.log('[PuckDebug] window.__LAST_PUCK_PATH__:', (window as any).__LAST_PUCK_PATH__);
+                                }
+                                console.log('[PuckDebug] current document (appState.data):', current);
+                                console.log('[PuckDebug] fallback document (state data):', data);
+                                console.log('[PuckDebug] lastNonEmptySelectionRef.current:', lastNonEmptySelectionRef.current);
+                                console.log('[PuckDebug] lastHoverPathRef.current:', lastHoverPathRef.current);
+                              } catch {}
+                              const doc = current || data || {};
+                              const sel = selectionStore.get();
+                              let paths = Array.isArray(sel) ? sel.slice() : [];
+                              try { console.log('[PuckDebug] initial raw selection paths:', paths); } catch {}
                             // Minimal fallback: use last clicked element only (no doc scan)
                             if (!paths.length) {
                               let last = lastPuckPathRef.current;
@@ -2059,139 +2068,195 @@ function PuckEditor() {
                             showToast(String(e?.message || e), 'error');
                           }
                         }}
-                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                        className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition-all duration-200"
                       >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
                         Save as Group
                       </button>
                       <button
                         type="button"
                         onClick={openAllGroupsModal}
-                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                        className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition-all duration-200"
                       >
-                        Gérer les groupes
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                        </svg>
+                        Manage Groups
                       </button>
                       <div className="relative group">
                         <button
                           type="button"
-                          className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition-all duration-200"
                           title="Insert a saved Group at the end"
                         >
-                          Insert Group ▾
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Insert Group
+                          <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
                         </button>
-                        <div className="absolute hidden group-hover:block right-0 mt-1 w-72 bg-white border border-gray-200 rounded-md shadow-md z-10 max-h-80 overflow-auto">
+                        <div className="absolute hidden group-hover:block right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-96 overflow-auto">
                           {groups.length === 0 ? (
-                            <div className="p-3 text-sm text-gray-600">No groups yet.</div>
+                            <div className="p-4 text-center">
+                              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
+                                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                </svg>
+                              </div>
+                              <p className="text-sm font-medium text-gray-900">No groups yet</p>
+                              <p className="text-xs text-gray-500 mt-1">Create your first group to get started</p>
+                            </div>
                           ) : (
-                            groups.map((g: any) => {
-                              const summary = summarizeGroupTree(g?.tree);
-                              const blockLabel = `${summary.contentCount} block${summary.contentCount === 1 ? '' : 's'}`;
-                              return (
-                                <button
-                                  key={g._id}
-                                  type="button"
-                                  onClick={() => {
-                                    try {
+                            <div className="p-2">
+                              {groups.map((g: any) => {
+                                const summary = summarizeGroupTree(g?.tree);
+                                const blockLabel = `${summary.contentCount} block${summary.contentCount === 1 ? '' : 's'}`;
+                                return (
+                                  <button
+                                    key={g._id}
+                                    type="button"
+                                    onClick={() => {
                                       try {
-                                        console.log('[GroupDebug] Inserting group', String(g?._id || ''), {
-                                          name: g?.name,
-                                          contentCount: summary.contentCount,
-                                          childTypes: summary.childTypes,
-                                        });
-                                      } catch {}
-                                      // Insert a lightweight reference node instead of copying the tree.
-                                      const node = {
-                                        type: `Group_${String(g._id)}`,
-                                        props: {},
-                                        __groupId: String(g._id),
-                                      };
-                                      const next = appendNodeToRoot(current, node);
-                                      setData(next);
-                                      showToast('Inserted group');
-                                    } catch (e: any) {
-                                      console.error(e);
-                                      showToast('Failed to insert group', 'error');
-                                    }
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                                >
-                                  {g.name}
-                                  <span className="ml-2 text-xs text-gray-500">{blockLabel}</span>
-                                  <span
-                                    className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                      g.public
-                                        ? 'bg-emerald-50 text-emerald-700'
-                                        : 'bg-gray-100 text-gray-600'
-                                    }`}
+                                        try {
+                                          console.log('[GroupDebug] Inserting group', String(g?._id || ''), {
+                                            name: g?.name,
+                                            contentCount: summary.contentCount,
+                                            childTypes: summary.childTypes,
+                                          });
+                                        } catch {}
+                                        // Insert a lightweight reference node instead of copying the tree.
+                                        const node = {
+                                          type: `Group_${String(g._id)}`,
+                                          props: {},
+                                          __groupId: String(g._id),
+                                        };
+                                        const next = appendNodeToRoot(current, node);
+                                        setData(next);
+                                        showToast('Inserted group');
+                                      } catch (e: any) {
+                                        console.error(e);
+                                        showToast('Failed to insert group', 'error');
+                                      }
+                                    }}
+                                    className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors duration-150 group/item"
                                   >
-                                    {g.public ? 'Public' : 'Privé'}
-                                  </span>
-                                  {g.sourceGroupId ? (
-                                    <span className="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
-                                      Copie partagée
-                                    </span>
-                                  ) : null}
-                                  {g.autoInclude ? <span className="ml-2 text-xs text-gray-500">auto</span> : null}
-                                </button>
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 truncate group-hover/item:text-blue-600">
+                                          {g.name}
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-0.5">{blockLabel}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 mt-2">
+                                      <span
+                                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                          g.public
+                                            ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20'
+                                            : 'bg-gray-100 text-gray-600'
+                                        }`}
+                                      >
+                                        {g.public ? 'Public' : 'Private'}
+                                      </span>
+                                      {g.sourceGroupId && (
+                                        <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 ring-1 ring-blue-600/20">
+                                          Shared
+                                        </span>
+                                      )}
+                                      {g.autoInclude && (
+                                        <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700 ring-1 ring-purple-600/20">
+                                          Auto
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
                               );
-                            })
+                            })}
+                          </div>
                           )}
                         </div>
                       </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          // slug is like "appSlug/page"; we resolve appId by listing user's apps
-                          const parts = (slug || '').split('/');
-                          const appSlug = parts[0] || '';
-                          const pagePart = parts.slice(1).join('/') || 'home';
-                          let url = `/published/${parts.map(encodeURIComponent).join('/')}`; // fallback
-                          if (appSlug) {
+                      </div>
+
+                      {/* Divider */}
+                      <div className="hidden lg:block h-5 w-px bg-gray-300 mx-2"></div>
+
+                      {/* Utility Actions */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mr-1">Tools</span>
+                        <button
+                          type="button"
+                          onClick={async () => {
                             try {
-                              const res = await fetch('/api/apps', { cache: 'no-store' });
-                              const json = await res.json();
-                              const list = Array.isArray(json?.apps) ? json.apps : [];
-                              const mine = list.find((a: any) => a?.slug === appSlug);
-                              if (mine?._id) {
-                                url = `/published/app/${encodeURIComponent(mine._id)}/${pagePart.split('/').map(encodeURIComponent).join('/')}`;
+                              // slug is like "appSlug/page"; we resolve appId by listing user's apps
+                              const parts = (slug || '').split('/');
+                              const appSlug = parts[0] || '';
+                              const pagePart = parts.slice(1).join('/') || 'home';
+                              let url = `/published/${parts.map(encodeURIComponent).join('/')}`; // fallback
+                              if (appSlug) {
+                                try {
+                                  const res = await fetch('/api/apps', { cache: 'no-store' });
+                                  const json = await res.json();
+                                  const list = Array.isArray(json?.apps) ? json.apps : [];
+                                  const mine = list.find((a: any) => a?.slug === appSlug);
+                                  if (mine?._id) {
+                                    url = `/published/app/${encodeURIComponent(mine._id)}/${pagePart.split('/').map(encodeURIComponent).join('/')}`;
+                                  }
+                                } catch {}
                               }
-                            } catch {}
-                          }
-                          try { window.open(url, '_blank'); } catch { router.push(url); }
-                        } catch {
-                          const url = `/published/${slug.split('/').map(encodeURIComponent).join('/')}`;
-                          try { window.open(url, '_blank'); } catch { router.push(url); }
-                        }
-                      }}
-                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-                    >
-                      Open published
-                    </button>
-                    <a
-                      href="/dashboard/apps"
-                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-                    >
-                      Apps
-                    </a>
+                              try { window.open(url, '_blank'); } catch { router.push(url); }
+                            } catch {
+                              const url = `/published/${slug.split('/').map(encodeURIComponent).join('/')}`;
+                              try { window.open(url, '_blank'); } catch { router.push(url); }
+                            }
+                          }}
+                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition-all duration-200"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          Preview
+                        </button>
+                        <a
+                          href="/dashboard/apps"
+                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition-all duration-200"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 010 2H6v10h10v-3a1 1 0 112 0v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 3h6m0 0v6m0-6l-6 6" />
+                          </svg>
+                          Apps
+                        </a>
+                        <button
+                          type="button"
+                          onClick={openModal}
+                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition-all duration-200"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          New Component
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDocsModal(true)}
+                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition-all duration-200"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Help
+                        </button>
+                      </div>
+                    </div>
                     {children}
-                    <button
-                      type="button"
-                      onClick={openModal}
-                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-                    >
-                      Nouveau composant
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowDocsModal(true)}
-                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-                    >
-                      How to use
-                    </button>
-          </>
-          );
-        },
+                  </div>
+                );
+              },
             }}
             onPublish={(newData: any) => {
               // Persist and mark as published
