@@ -1225,7 +1225,7 @@ export const config = {
         return (
           <>
             <ProfileTopBar initial={headerInitial} />
-            {children && typeof children === 'function' && <children />}
+            {children}
           </>
         )
       },
@@ -1242,7 +1242,7 @@ export const config = {
       render: ({ children, ...props }: any) => (
         <div>
           <ProfileAvatarPuckComponent {...props} />
-          {children && typeof children === 'function' && <children />}
+          {children}
         </div>
       ),
     },
@@ -1361,7 +1361,7 @@ export const config = {
         return (
           <div style={style}>
             <ProfileNameBlock displayName={display} tagline={tagline} />
-            {children && typeof children === 'function' && <children />}
+            {children}
           </div>
         )
       },
@@ -1486,7 +1486,7 @@ export const config = {
               onPrimaryClick={() => onPrimaryClick && eval(onPrimaryClick)}
               onSecondaryClick={() => onSecondaryClick && eval(onSecondaryClick)}
             />
-            {children && typeof children === 'function' && <children />}
+            {children}
           </div>
         )
       },
@@ -1558,7 +1558,7 @@ export const config = {
         return (
           <>
             <ProfileLinksSection items={items} emptyMessage="No links configured yet." />
-            {children && typeof children === 'function' && <children />}
+            {children}
           </>
         )
       },
