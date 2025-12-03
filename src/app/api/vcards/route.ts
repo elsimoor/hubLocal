@@ -58,12 +58,34 @@ export async function POST(req: Request) {
         await connectDB();
 
         // Basic validation
-        if (!body.appId || !body.name || !body.slug) {
+        if (!body.name || !body.slug) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const appId = typeof body.appId === "string" ? body.appId : String(body.appId || "");
-        body.appId = appId;
+        // Check if using manual URL or app link
+        const useManualUrl = !!body.manualUrl;
+        
+        if (!useManualUrl && !body.appId) {
+            return NextResponse.json({ error: "Either appId or manualUrl is required" }, { status: 400 });
+        }
+
+        let appId = null;
+        let pageSlug = "home";
+        let websiteUrl = body.website;
+
+        if (!useManualUrl) {
+            appId = typeof body.appId === "string" ? body.appId : String(body.appId || "");
+            pageSlug = normalizePageSlug(body.pageSlug);
+
+            // Point website to the selected published page
+            const defaultWebsite = await getDefaultAppWebsite(appId, session.user.email, pageSlug);
+            if (defaultWebsite) {
+                websiteUrl = defaultWebsite;
+            }
+        } else {
+            // Use manual URL directly
+            websiteUrl = body.manualUrl;
+        }
 
         // Check slug uniqueness
         const existing = await VCardModel.findOne({ slug: body.slug });
@@ -71,19 +93,24 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Slug already taken" }, { status: 400 });
         }
 
-        const pageSlug = normalizePageSlug(body.pageSlug);
-        body.pageSlug = pageSlug;
+        const vcardData: any = {
+            name: body.name,
+            title: body.title,
+            email: body.email,
+            phone: body.phone,
+            website: websiteUrl,
+            slug: body.slug,
+            bio: body.bio,
+            pageSlug: pageSlug,
+            ownerEmail: session.user.email,
+        };
 
-        // Point website to the selected published page
-        const defaultWebsite = await getDefaultAppWebsite(appId, session.user.email, pageSlug);
-        if (defaultWebsite) {
-            body.website = defaultWebsite;
+        // Only set appId if it exists (not null)
+        if (appId) {
+            vcardData.appId = appId;
         }
 
-        const vcard = await VCardModel.create({
-            ...body,
-            ownerEmail: session.user.email,
-        });
+        const vcard = await VCardModel.create(vcardData);
 
         return NextResponse.json(vcard);
     } catch (error) {

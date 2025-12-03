@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { ChevronLeft, Loader2, Save } from "lucide-react";
+import { ChevronLeft, Loader2, Save, Search, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -12,6 +12,8 @@ export default function CreateVCardPage() {
     const router = useRouter();
     const { data, isLoading: appsLoading } = useSWR("/api/apps", fetcher);
     const apps = data?.apps;
+    const [linkMode, setLinkMode] = useState<"app" | "manual">("app");
+    const [manualUrl, setManualUrl] = useState("");
     const [selectedAppId, setSelectedAppId] = useState("");
     const [selectedPageSlug, setSelectedPageSlug] = useState("home");
     const { data: pagesData, isLoading: pagesLoading } = useSWR(
@@ -55,9 +57,10 @@ export default function CreateVCardPage() {
             phone: formData.get("phone"),
             website: formData.get("website"),
             slug: formData.get("slug"),
-            appId: formData.get("appId"),
+            appId: linkMode === "app" ? formData.get("appId") : undefined,
             bio: formData.get("bio"),
-            pageSlug: formData.get("pageSlug"),
+            pageSlug: linkMode === "app" ? formData.get("pageSlug") : undefined,
+            manualUrl: linkMode === "manual" ? manualUrl : undefined,
         };
 
         try {
@@ -117,7 +120,7 @@ export default function CreateVCardPage() {
                                     name="name"
                                     required
                                     placeholder="Ex: Jean Dupont"
-                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                                 />
                             </div>
 
@@ -128,7 +131,7 @@ export default function CreateVCardPage() {
                                 <input
                                     name="title"
                                     placeholder="Ex: Développeur Fullstack"
-                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                                 />
                             </div>
                         </div>
@@ -142,7 +145,7 @@ export default function CreateVCardPage() {
                                     name="email"
                                     type="email"
                                     placeholder="jean@example.com"
-                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                                 />
                             </div>
 
@@ -154,7 +157,7 @@ export default function CreateVCardPage() {
                                     name="phone"
                                     type="tel"
                                     placeholder="+33 6 12 34 56 78"
-                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                                 />
                             </div>
                         </div>
@@ -167,41 +170,96 @@ export default function CreateVCardPage() {
                                 name="website"
                                 type="url"
                                 placeholder="https://mon-site.com"
-                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">
-                                Lier à une App <span className="text-red-500">*</span>
-                            </label>
-                            {appsLoading ? (
-                                <div className="h-10 w-full animate-pulse rounded-xl bg-gray-100" />
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">
+                                    Type de lien <span className="text-red-500">*</span>
+                                </label>
+                                <div className="flex gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setLinkMode("app")}
+                                        className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                                            linkMode === "app"
+                                                ? "bg-white text-indigo-600 shadow-sm"
+                                                : "text-gray-600 hover:text-gray-900"
+                                        }`}
+                                    >
+                                        <Search size={16} />
+                                        Lier à une App
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setLinkMode("manual")}
+                                        className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                                            linkMode === "manual"
+                                                ? "bg-white text-indigo-600 shadow-sm"
+                                                : "text-gray-600 hover:text-gray-900"
+                                        }`}
+                                    >
+                                        <LinkIcon size={16} />
+                                        Lien manuel
+                                    </button>
+                                </div>
+                            </div>
+
+                            {linkMode === "app" ? (
+                                <>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-700">
+                                            Sélectionner une App <span className="text-red-500">*</span>
+                                        </label>
+                                        {appsLoading ? (
+                                            <div className="h-10 w-full animate-pulse rounded-xl bg-gray-100" />
+                                        ) : (
+                                            <select
+                                                name="appId"
+                                                required={linkMode === "app"}
+                                                value={selectedAppId}
+                                                onChange={(e) => {
+                                                    setSelectedAppId(e.target.value);
+                                                    setSelectedPageSlug("home");
+                                                }}
+                                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                                            >
+                                                <option value="">Sélectionner une app...</option>
+                                                {apps?.map((app: any) => (
+                                                    <option key={app._id} value={app._id}>
+                                                        {app.name} ({app.slug})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                        <p className="text-xs text-gray-500">
+                                            La vCard servira de page de présentation pour cette application.
+                                        </p>
+                                    </div>
+                                </>
                             ) : (
-                                <select
-                                    name="appId"
-                                    required
-                                    value={selectedAppId}
-                                    onChange={(e) => {
-                                        setSelectedAppId(e.target.value);
-                                        setSelectedPageSlug("home");
-                                    }}
-                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
-                                >
-                                    <option value="">Sélectionner une app...</option>
-                                    {apps?.map((app: any) => (
-                                        <option key={app._id} value={app._id}>
-                                            {app.name} ({app.slug})
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700">
+                                        URL de destination <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="url"
+                                        required={linkMode === "manual"}
+                                        value={manualUrl}
+                                        onChange={(e) => setManualUrl(e.target.value)}
+                                        placeholder="https://exemple.com"
+                                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                        Le QR code redirigera vers cette URL personnalisée.
+                                    </p>
+                                </div>
                             )}
-                            <p className="text-xs text-gray-500">
-                                La vCard servira de page de présentation pour cette application.
-                            </p>
                         </div>
 
-                        {selectedAppId && (
+                        {selectedAppId && linkMode === "app" && (
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700">
                                     Page de destination <span className="text-red-500">*</span>
@@ -211,10 +269,10 @@ export default function CreateVCardPage() {
                                 ) : (
                                     <select
                                         name="pageSlug"
-                                        required
+                                        required={linkMode === "app"}
                                         value={selectedPageSlug}
                                         onChange={(e) => setSelectedPageSlug(e.target.value)}
-                                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                                     >
                                         {pageOptions.map((page) => (
                                             <option key={page.slug} value={page.slug}>
@@ -239,7 +297,7 @@ export default function CreateVCardPage() {
                                     name="slug"
                                     required
                                     placeholder="mon-nom"
-                                    className="w-full bg-transparent py-2.5 pl-1 text-sm outline-none"
+                                    className="w-full bg-transparent py-2.5 pl-1 text-sm text-gray-900 placeholder:text-gray-400 outline-none"
                                 />
                             </div>
                         </div>
@@ -252,7 +310,7 @@ export default function CreateVCardPage() {
                                 name="bio"
                                 rows={3}
                                 placeholder="Une courte description..."
-                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                             />
                         </div>
                     </div>

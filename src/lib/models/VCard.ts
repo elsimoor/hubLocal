@@ -3,7 +3,7 @@ import mongoose, { Schema, InferSchemaType } from "mongoose";
 const VCardSchema = new Schema(
     {
         ownerEmail: { type: String, required: true, index: true },
-        appId: { type: Schema.Types.ObjectId, ref: "App", required: true },
+        appId: { type: Schema.Types.ObjectId, ref: "App", required: false, default: null },
         slug: { type: String, required: true, unique: true, index: true },
         name: { type: String, required: true },
         title: { type: String, default: "" },
@@ -25,4 +25,10 @@ const VCardSchema = new Schema(
 );
 
 export type VCardDoc = InferSchemaType<typeof VCardSchema> & { _id: mongoose.Types.ObjectId };
-export const VCardModel = mongoose.models.VCard || mongoose.model("VCard", VCardSchema);
+
+// Force model recreation to ensure schema changes are applied
+if (mongoose.models.VCard) {
+    delete mongoose.models.VCard;
+}
+
+export const VCardModel = mongoose.model("VCard", VCardSchema);

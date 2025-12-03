@@ -1217,11 +1217,17 @@ export const config = {
       label: createLabel(User, "Profile Header"),
       fields: {
         slug: { type: "text", label: "Slug", defaultValue: profileComponentDefaults.slug || "" },
+        children: { type: "slot", label: "Additional content", allowOnly: [] },
       },
-      render: ({ slug }: any) => {
+      render: ({ slug, children }: any) => {
         const displayName = slug || "Profile"
         const headerInitial = displayName.charAt(0).toUpperCase()
-        return <ProfileTopBar initial={headerInitial} />
+        return (
+          <>
+            <ProfileTopBar initial={headerInitial} />
+            {children && typeof children === 'function' && <children />}
+          </>
+        )
       },
     },
 
@@ -1231,8 +1237,14 @@ export const config = {
         slug: { type: "text", label: "Slug", defaultValue: profileComponentDefaults.slug || "" },
         displayName: { type: "text", label: "Display name", defaultValue: profileComponentDefaults.displayName || "" },
         avatarUrl: { type: "text", label: "Avatar URL", defaultValue: profileComponentDefaults.avatarUrl || "" },
+        children: { type: "slot", label: "Additional content", allowOnly: [] },
       },
-      render: (props: any) => <ProfileAvatarPuckComponent {...props} />,
+      render: ({ children, ...props }: any) => (
+        <div>
+          <ProfileAvatarPuckComponent {...props} />
+          {children && typeof children === 'function' && <children />}
+        </div>
+      ),
     },
 
     ProfileInfoPuck: {
@@ -1309,9 +1321,11 @@ export const config = {
         customTextColor: { type: "text", label: "Custom text color (hex/rgb)", defaultValue: "" },
         padding: { type: "text", label: "Padding (eg. 8px, 16px)", defaultValue: "16px" },
         gap: { type: "text", label: "Gap (eg. 8px)", defaultValue: "8px" },
+        children: { type: "slot", label: "Additional content", allowOnly: [] },
       },
       render: ({
         puck,
+        children,
         displayName,
         tagline,
         width,
@@ -1347,6 +1361,7 @@ export const config = {
         return (
           <div style={style}>
             <ProfileNameBlock displayName={display} tagline={tagline} />
+            {children && typeof children === 'function' && <children />}
           </div>
         )
       },
@@ -1416,9 +1431,11 @@ export const config = {
         bgColor: { type: "text", label: "Background Color", defaultValue: "" },
         textColor: { type: "text", label: "Text Color", defaultValue: "#1f2937" },
         padding: { type: "text", label: "Padding (eg. 8px, 16px)", defaultValue: "16px" },
+        children: { type: "slot", label: "Additional content", allowOnly: [] },
       },
       render: ({
         puck,
+        children,
         buttonPrimaryLabel,
         buttonSecondaryLabel,
         onPrimaryClick,
@@ -1469,6 +1486,7 @@ export const config = {
               onPrimaryClick={() => onPrimaryClick && eval(onPrimaryClick)}
               onSecondaryClick={() => onSecondaryClick && eval(onSecondaryClick)}
             />
+            {children && typeof children === 'function' && <children />}
           </div>
         )
       },
@@ -1476,6 +1494,7 @@ export const config = {
     ProfileLinksPuck: {
       label: createLabel(Globe, "Profile Links"),
       fields: {
+        children: { type: "slot", label: "Additional content", allowOnly: [] },
         links: {
           type: "array",
           label: "Links & actions",
@@ -1534,9 +1553,14 @@ export const config = {
           },
         }
       },
-      render: ({ links }: any) => {
+      render: ({ links, children }: any) => {
         const items = buildPuckProfileLinks(links)
-        return <ProfileLinksSection items={items} emptyMessage="No links configured yet." />
+        return (
+          <>
+            <ProfileLinksSection items={items} emptyMessage="No links configured yet." />
+            {children && typeof children === 'function' && <children />}
+          </>
+        )
       },
     },
     Shop: {
