@@ -320,9 +320,9 @@ const PROFILE_CHILD_COMPONENT_TYPES = [
   "ProfileInfoPuck",
   "ProfileButtonsPuck",
   "ProfileLinksPuck",
-  "ProfileHeader",
-  "ProfileLinks",
-  "ProfileVCard",
+  // "ProfileHeader",
+  // "ProfileLinks",
+  // "ProfileVCard",
 ] as const
 
 const profilePageFields = {
@@ -381,7 +381,7 @@ const profilePageFields = {
   children: {
     type: "slot",
     label: "Profile components",
-    allow: Array.from(PROFILE_CHILD_COMPONENT_TYPES),
+    // Removed allow restriction to enable dropping any component type
   },
 } as const
 
@@ -509,8 +509,8 @@ const renderProfilePageComponent = ({ puck, children, backgroundImage, ...props 
 
     if (isSlotRenderFunction) {
       const SlotComponent = children as any
-      // Pass allow to restrict what can be dropped into this slot in the editor
-      renderedContent = <SlotComponent allow={Array.from(PROFILE_CHILD_COMPONENT_TYPES)} />
+      // Render the slot without restrictions to allow any component to be dropped
+      renderedContent = <SlotComponent />
       console.log('[PuckDebug] rendered slot via SlotComponent')
     } else if (Array.isArray(content) && content.length > 0) {
       // Fallback slot component that renders the node array via <Render />
@@ -848,9 +848,9 @@ export const config = {
         "ProfileInfoPuck",
         "ProfileButtonsPuck",
         "ProfileLinksPuck",
-        "ProfileHeader",
-        "ProfileLinks",
-        "ProfileVCard",
+        // "ProfileHeader",
+        // "ProfileLinks",
+        // "ProfileVCard",
       ],
       defaultExpanded: true,
     },
@@ -1160,7 +1160,7 @@ export const config = {
   },
   components: {
     ProfileDefaultPage: {
-      label: "Profile Default Page",
+      label: createLabel(User, "Profile Default Page"),
       fields: profilePageFields,
       defaultProps: profilePageDefaultProps,
       render: (props: any) => renderProfilePageComponent(props),
@@ -1191,7 +1191,7 @@ export const config = {
     // },
 
     ProfileTemplatePage: {
-      label: "Profile Template Page",
+      label: createLabel(FileCode, "Profile Template Page"),
       description: "Pre-built profile layout with sample data you can customise.",
       fields: profilePageFields,
       defaultProps: {
@@ -1540,6 +1540,7 @@ export const config = {
       },
     },
     Shop: {
+      label: createLabel(ShoppingCart, "Shop"),
       preview: () => (
         <div className="rounded-xl border border-gray-200 p-4 bg-white w-full">
           <div className="text-xs font-medium text-gray-500 mb-2">Shop</div>
@@ -2524,7 +2525,7 @@ export const config = {
     },
     // === LayoutItem for Grid/Flex "Any item" dynamic span & flex controls ===
     LayoutItem: {
-      label: "Layout Item",
+      label: createLabel(Layers, "Layout Item"),
 
       // All fields for the right sidebar
       fields: {
@@ -3727,7 +3728,7 @@ export const config = {
      * Button component with variant, size and shape options.
      */
     Button: {
-      label: "Button",
+      label: createLabel(MousePointerClick, "Button"),
       inline: true,
       fields: {
         label: { type: "text", label: "Label", defaultValue: "Get started" },
@@ -4395,7 +4396,7 @@ export const config = {
      * Testimonials component. Uses an array field to manage quotes and authors.
      */
     Testimonials: {
-      label: "Testimonials",
+      label: createLabel(MessageSquare, "Testimonials"),
       fields: {
         items: {
           type: "array",
@@ -4978,7 +4979,7 @@ export const config = {
      * Provide a URL or text in the `url` field and adjust the size in pixels.
      */
     QrCode: {
-      label: "QR Code",
+      label: createLabel(Grid3x3, "QR Code"),
       inline: true,
       fields: {
         url: { type: "text", label: "URL or text", defaultValue: "https://example.com" },
@@ -5011,7 +5012,7 @@ export const config = {
      * Spotify URL (open.spotify.com) and the component converts it into an embed.
      */
     SpotifyCard: {
-      label: "Carte Spotify",
+      label: createLabel(Play, "Carte Spotify"),
       inline: true,
       fields: {
         url: { type: "text", label: "Spotify URL", defaultValue: "" },
@@ -5089,7 +5090,7 @@ export const config = {
      * link cards.
      */
     ExternalPost: {
-      label: "Article externe",
+      label: createLabel(FileText, "Article externe"),
       inline: true,
       fields: {
         title: { type: "text", label: "Title", defaultValue: "External article" },
@@ -6990,7 +6991,7 @@ export const config = {
      * SharedCounter component. A counter that uses shared state across multiple instances.
      */
     SharedCounter: {
-      label: "Shared Counter",
+      label: createLabel(BarChart3, "Shared Counter"),
       inline: true,
       fields: {
         label: { type: "text", label: "Label", defaultValue: "Counter" },
@@ -7244,7 +7245,7 @@ export const config = {
      * Similar to Puck's dynamic fields example for beverages.
      */
     BeverageSelector: {
-      label: "Beverage Selector",
+      label: createLabel(Smile, "Beverage Selector"),
       inline: true,
       fields: {
         drink: {
