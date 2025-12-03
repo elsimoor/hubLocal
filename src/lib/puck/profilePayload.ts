@@ -8,7 +8,8 @@ import {
 } from "@/types/profile";
 import { cloneProfileTemplateData } from "@/lib/puck/profileTemplate";
 
-const PROFILE_COMPONENT_TYPE = "ProfileDefaultPage";
+const PROFILE_COMPONENT_TYPES = new Set(["ProfileTemplatePage", "ProfileDefaultPage"]);
+const DEFAULT_PROFILE_COMPONENT_TYPE = "ProfileDefaultPage";
 const iconSet = new Set(PROFILE_ICON_KEYS);
 const linkTypeSet = new Set(PROFILE_LINK_TYPES);
 
@@ -23,6 +24,53 @@ const splitImagesField = (value: unknown): string[] => {
     .split(/\r?\n|,/)
     .map((img) => img.trim())
     .filter(Boolean);
+};
+
+const isTemplateString = (value: unknown): value is string =>
+  typeof value === "string" && /\{\{\s*[^}]+\s*\}\}/.test(value);
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const mergePropsPreservingTemplates = (
+  existing: Record<string, unknown> = {},
+  incoming: Record<string, unknown> = {},
+): Record<string, unknown> => {
+  const next: Record<string, unknown> = { ...existing };
+  for (const key of Object.keys(incoming)) {
+    const incomingValue = incoming[key];
+    const existingValue = existing[key];
+
+    if (typeof incomingValue === "string") {
+      if (isTemplateString(existingValue) && !isTemplateString(incomingValue)) {
+        console.log("[ProfilePayload] Preserving template string", { key, existingValue, incomingValue });
+        continue;
+      }
+      if (isTemplateString(incomingValue) && !isTemplateString(existingValue)) {
+        console.log("[ProfilePayload] Applying template string", { key, incomingValue });
+      }
+      next[key] = incomingValue;
+      continue;
+    }
+
+    if (isPlainObject(incomingValue) && isPlainObject(existingValue)) {
+      console.log("[ProfilePayload] Recursing into nested props", { key });
+      next[key] = mergePropsPreservingTemplates(
+        existingValue as Record<string, unknown>,
+        incomingValue as Record<string, unknown>,
+      );
+      continue;
+    }
+
+    if (isTemplateString(existingValue) && typeof incomingValue !== "string") {
+      console.log("[ProfilePayload] Keeping template value despite non-string incoming", { key, existingValue });
+      next[key] = existingValue;
+      continue;
+    }
+
+    next[key] = incomingValue;
+  }
+  return next;
 };
 
 export const buildProfilePayloadFromProps = (props: any): ProfilePayload => {
@@ -109,26 +157,36 @@ export const buildProfilePayloadFromProps = (props: any): ProfilePayload => {
   return payload;
 };
 
-const findProfileComponentNode = (node: any): any | null => {
-  if (!node) return null;
+// Collect all nodes of the Profile component type for better selection
+const collectProfileComponentNodes = (node: any, acc: any[] = []): any[] => {
+  if (!node) return acc;
   if (Array.isArray(node)) {
-    for (const child of node) {
-      const found = findProfileComponentNode(child);
-      if (found) return found;
-    }
-    return null;
+    for (const child of node) collectProfileComponentNodes(child, acc);
+    return acc;
   }
-  if (typeof node !== "object") return null;
-  if (typeof node.type === "string" && node.type === PROFILE_COMPONENT_TYPE) {
-    return node;
+  if (typeof node !== "object") return acc;
+  if (typeof node.type === "string" && PROFILE_COMPONENT_TYPES.has(node.type)) {
+    acc.push(node);
   }
-  return (
-    findProfileComponentNode(node.children) ||
-    findProfileComponentNode(node.content) ||
-    findProfileComponentNode(node.root) ||
-    findProfileComponentNode(node.slots ? Object.values(node.slots) : null) ||
-    findProfileComponentNode(node.zones ? Object.values(node.zones) : null)
-  );
+  collectProfileComponentNodes(node.children, acc);
+  collectProfileComponentNodes(node.content, acc);
+  collectProfileComponentNodes(node.root, acc);
+  collectProfileComponentNodes(node.slots ? Object.values(node.slots) : null, acc);
+  collectProfileComponentNodes(node.zones ? Object.values(node.zones) : null, acc);
+  return acc;
+};
+
+// Prefer the main template instance if present; otherwise pick the last occurrence
+const findProfileComponentNode = (node: any): any | null => {
+  const nodes = collectProfileComponentNodes(node);
+  if (!nodes.length) return null;
+  const main = nodes.find((n) => n?.props?.isMainTemplate === true);
+  if (main) return main;
+  // Heuristics: prefer nodes that have children (page instance) over configuration-only
+  const withChildren = nodes.filter((n) => Array.isArray(n?.props?.children) || Array.isArray(n?.children));
+  if (withChildren.length) return withChildren[withChildren.length - 1];
+  // Fallback to the last found node
+  return nodes[nodes.length - 1];
 };
 
 export const extractProfilePayloadFromDoc = (doc: any): ProfilePayload => {
@@ -141,10 +199,9 @@ export const extractProfilePayloadFromDoc = (doc: any): ProfilePayload => {
 export const profilePayloadToComponentProps = (payload: ProfilePayload) => {
   const toLines = (images?: string[]) => (Array.isArray(images) && images.length ? images.join("\n") : "");
   const links = Array.isArray(payload.links) ? payload.links : [];
-  return {
+  
+  const props: any = {
     slug: payload.slug,
-    displayName: payload.displayName,
-    tagline: payload.tagline,
     avatarUrl: payload.avatarUrl,
     backgroundUrl: payload.backgroundUrl,
     buttonPrimaryLabel: payload.buttonPrimaryLabel,
@@ -188,9 +245,15 @@ export const profilePayloadToComponentProps = (payload: ProfilePayload) => {
     themeTextSecondary: payload.theme.textSecondary,
     themeIconColor: payload.theme.iconColor,
   };
+  
+  // Always include displayName/tagline; applyProfilePayloadToDoc decides whether to keep templates
+  props.displayName = payload.displayName;
+  props.tagline = payload.tagline;
+  
+  return props;
 };
 
-export const applyProfilePayloadToDoc = (doc: any, payload: ProfilePayload) => {
+export const applyProfilePayloadToDoc = (doc: any, payload: ProfilePayload, preserveTemplates: boolean = false) => {
   const nextDoc =
     doc && typeof doc === "object"
       ? JSON.parse(JSON.stringify(doc))
@@ -198,11 +261,14 @@ export const applyProfilePayloadToDoc = (doc: any, payload: ProfilePayload) => {
   const componentProps = profilePayloadToComponentProps(payload);
   const component = findProfileComponentNode(nextDoc) || findProfileComponentNode(nextDoc.root);
   if (component) {
-    component.props = { ...(component.props || {}), ...componentProps };
+    const existing = (component.props as Record<string, unknown>) || {};
+    component.props = preserveTemplates
+      ? mergePropsPreservingTemplates(existing, componentProps)
+      : { ...existing, ...componentProps };
   } else {
     if (!nextDoc.root) nextDoc.root = { props: {}, children: [] };
     const children = Array.isArray(nextDoc.root.children) ? nextDoc.root.children : [];
-    children.push({ type: PROFILE_COMPONENT_TYPE, props: componentProps });
+    children.push({ type: DEFAULT_PROFILE_COMPONENT_TYPE, props: componentProps });
     nextDoc.root.children = children;
   }
   return nextDoc;

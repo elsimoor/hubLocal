@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { PuckDocModel } from "@/lib/models/PuckDoc";
+import { UserModel } from "@/lib/models/User";
+import { getUserVariablesMap } from "@/lib/variables/service";
+import { replaceVariablesInObject } from "@/lib/variables/service";
 
 export async function GET(
   req: Request,
@@ -27,7 +30,36 @@ export async function GET(
     if (debugOn) return NextResponse.json({ error: "not found", debug }, { status: 404 });
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
-  const body: any = { data: (doc as any).data || {}, updatedAt: (doc as any).updatedAt || null };
+  
+  // Apply variable replacement if the document has an owner
+  const { data: rawData, ownerEmail, updatedAt } = doc as any;
+  let processedData = rawData || {};
+  if (ownerEmail) {
+    try {
+      // Get userId from ownerEmail
+      const user: any = await UserModel.findOne({ email: ownerEmail }).lean();
+      if (user?._id) {
+        const variablesMap = await getUserVariablesMap(user._id);
+        processedData = replaceVariablesInObject(processedData, variablesMap);
+        if (debugOn && debug) {
+          debug.variablesApplied = Object.keys(variablesMap).length;
+          debug.userId = user._id.toString();
+        }
+      }
+    } catch (err) {
+      console.error('[Variables] Failed to apply variable replacement:', err);
+      // Continue with unprocessed data on error
+    }
+  }
+  
+  const body: any = { data: processedData, updatedAt: updatedAt || null };
   if (debugOn) body.debug = { ...(debug || {}), matched: { slug: (doc as any).slug } };
-  return NextResponse.json(body);
+  
+  return NextResponse.json(body, {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    },
+  });
 }

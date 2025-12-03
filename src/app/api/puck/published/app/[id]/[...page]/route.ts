@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { AppModel } from "@/lib/models/App";
 import { PuckDocModel } from "@/lib/models/PuckDoc";
+import { UserModel } from "@/lib/models/User";
+import { getUserVariablesMap, replaceVariablesInObject } from "@/lib/variables/service";
 
 export async function GET(
   req: Request,
@@ -25,6 +27,9 @@ export async function GET(
   // Primary query including ownerEmail for isolation
   let doc = await PuckDocModel.findOne({ ownerEmail, slug: resolvedSlug, status: "published" }).lean();
 
+  console.log('[PublishedApp] Query:', { ownerEmail, slug: resolvedSlug, status: "published" });
+  console.log('[PublishedApp] Document found:', !!doc, doc ? `id: ${(doc as any)._id}` : 'none');
+
   // Build optional debug info
   const debugInfo: any = debug ? {
     id,
@@ -46,5 +51,41 @@ export async function GET(
   }
 
   if (!doc) return NextResponse.json({ error: "not found", debug: debug ? debugInfo : undefined }, { status: 404 });
-  return NextResponse.json({ data: (doc as any).data || {}, updatedAt: (doc as any).updatedAt || null, debug: debug ? debugInfo : undefined });
+  
+  // Apply variable replacement if the document has an owner
+  const { data: rawData, ownerEmail: docOwnerEmail, updatedAt } = doc as any;
+  let processedData = rawData || {};
+  
+  console.log('[PublishedApp] Before replacement - data keys:', Object.keys(rawData || {}));
+  
+  if (docOwnerEmail) {
+    try {
+      // Get userId from ownerEmail
+      const user: any = await UserModel.findOne({ email: docOwnerEmail }).lean();
+      if (user?._id) {
+        const variablesMap = await getUserVariablesMap(user._id);
+        console.log('[PublishedApp] Variables map:', variablesMap);
+        processedData = replaceVariablesInObject(processedData, variablesMap);
+        console.log('[PublishedApp] After replacement - variables applied:', Object.keys(variablesMap).length);
+        if (debug && debugInfo) {
+          debugInfo.variablesApplied = Object.keys(variablesMap).length;
+          debugInfo.userId = user._id.toString();
+        }
+      }
+    } catch (err) {
+      console.error('[Variables] Failed to apply variable replacement:', err);
+      // Continue with unprocessed data on error
+    }
+  }
+  
+  return NextResponse.json(
+    { data: processedData, updatedAt: updatedAt || null, debug: debug ? debugInfo : undefined },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    }
+  );
 }

@@ -22,6 +22,7 @@ import { ActionStateProvider } from "@/lib/puck/actions";
 import { selectionStore } from "@/lib/puck/selectionStore";
 import { parseIndexFromPath } from "@/lib/puck/selectionStore";
 import { hydrateGroupProps, normalizeGroupTree, summarizeGroupTree } from "@/lib/puck/group-helpers";
+import { VariablePicker } from "@/components/VariablePicker";
 
 function extractGroupComponentIds(doc: any): string[] {
   const ids = new Set<string>();
@@ -2241,6 +2242,7 @@ function PuckEditor() {
                           </svg>
                           New Component
                         </button>
+                        <VariablePicker position="bottom" />
                         <button
                           type="button"
                           onClick={() => setShowDocsModal(true)}

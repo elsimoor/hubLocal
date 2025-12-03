@@ -45,13 +45,30 @@ export default function ManageProfileForm() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/profile/puck", { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to load profile doc");
-        const json = await res.json();
+        const [docRes, variablesRes] = await Promise.all([
+          fetch("/api/profile/puck", { cache: "no-store" }),
+          fetch("/api/variables?format=map", { cache: "no-store" }),
+        ]);
+        if (!docRes.ok) throw new Error("Failed to load profile doc");
+        const json = await docRes.json();
         if (!active) return;
         const doc = json?.data;
         setSourceDoc(doc);
         const parsed = extractProfilePayloadFromDoc(doc);
+        console.log("[ManageProfile] Loaded profile doc", {
+          hasDoc: !!doc,
+          displayNameFromDoc: parsed.displayName,
+          taglineFromDoc: parsed.tagline,
+        });
+
+        // When variables exist, prefer them for displayName/tagline so manage UI shows live values
+        if (variablesRes.ok) {
+          const variablesJson = await variablesRes.json();
+          const variablesMap = variablesJson?.variables || {};
+          console.log("[ManageProfile] Loaded variable map", variablesMap);
+          if (variablesMap.full_name) parsed.displayName = variablesMap.full_name;
+          if (variablesMap.tagline) parsed.tagline = variablesMap.tagline;
+        }
         setPayload(parsed);
       } catch (err) {
         console.error(err);
@@ -171,11 +188,24 @@ export default function ManageProfileForm() {
     setMessage(null);
     setError(null);
     try {
-      const doc = applyProfilePayloadToDoc(sourceDoc, payload);
+      // Force the Puck document to use mustache placeholders so templates stay wired to variables
+      const docPayload = {
+        ...payload,
+        displayName: "{{full_name}}",
+        tagline: "{{tagline}}",
+      };
+      console.log("[ManageProfile] Submitting payload", {
+        docDisplayName: docPayload.displayName,
+        docTagline: docPayload.tagline,
+        profilePayloadDisplayName: payload.displayName,
+        profilePayloadTagline: payload.tagline,
+      });
+      const doc = applyProfilePayloadToDoc(sourceDoc, docPayload, true);
+      console.log("[ManageProfile] Next doc profile node", doc?.root?.children?.[0]?.props);
       const res = await fetch("/api/profile/puck", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: doc }),
+        body: JSON.stringify({ data: doc, profilePayload: payload }),
       });
       if (!res.ok) throw new Error("Sauvegarde impossible");
       setSourceDoc(doc);
@@ -233,6 +263,7 @@ export default function ManageProfileForm() {
                 onChange={(e) => handleBasicChange("displayName", e.target.value)}
                 placeholder="Alex Rivers"
               />
+              <p className="mt-1 text-xs text-gray-500">Astuce: utilisez des variables moustache comme {'{{full_name}}'} pour lier aux valeurs globales.</p>
             </label>
             <label className="md:col-span-2 text-sm font-medium text-gray-700">
               Tagline
@@ -242,6 +273,7 @@ export default function ManageProfileForm() {
                 onChange={(e) => handleBasicChange("tagline", e.target.value)}
                 placeholder="Luxury, Fashion, Personal Style Enthusiast, Entrepreneur."
               />
+              <p className="mt-1 text-xs text-gray-500">Astuce: vous pouvez aussi mettre {'{{tagline}}'} pour que l’éditeur remplace automatiquement.</p>
             </label>
             <label className="text-sm font-medium text-gray-700">
               Avatar URL
