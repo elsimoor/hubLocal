@@ -41,8 +41,9 @@ export async function GET(
     // Priority 2: If linked to a hub, redirect to the published page
     if (vcard.hubId) {
         try {
-            const hub = await HubModel.findById(vcard.hubId).lean();
-            if (hub) {
+            // Narrow the shape returned by `lean()` to what we need
+            const hub = await HubModel.findById(vcard.hubId).lean<{ slug: string } | null>();
+            if (hub && typeof hub.slug === 'string') {
                 const pageSlug = vcard.pageSlug || "home";
                 const publishedUrl = new URL(`/published/${hub.slug}/${pageSlug}`, req.url);
                 console.log(`[QR Route] Redirecting to hub page: ${publishedUrl.toString()}`);
