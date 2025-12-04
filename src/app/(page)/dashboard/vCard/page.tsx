@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import Link from "next/link";
 import QRCode from "react-qr-code";
-import { Plus, ExternalLink, Pencil, Contact, Loader2 } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Contact, Loader2, Power } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -13,6 +13,7 @@ const ENV_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "")
 export default function VCardDashboard() {
     const { data: vcards, isLoading } = useSWR("/api/vcards", fetcher);
     const [siteBase, setSiteBase] = useState(ENV_SITE_URL);
+    const [togglingId, setTogglingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!siteBase && typeof window !== "undefined") {
@@ -20,10 +21,44 @@ export default function VCardDashboard() {
         }
     }, [siteBase]);
 
+    const toggleActive = async (vcardId: string, currentActive: boolean) => {
+        setTogglingId(vcardId);
+        try {
+            const res = await fetch(`/api/vcards/${vcardId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isActive: !currentActive }),
+            });
+            if (res.ok) {
+                mutate("/api/vcards");
+            }
+        } catch (error) {
+            console.error("Error toggling vCard active status:", error);
+        } finally {
+            setTogglingId(null);
+        }
+    };
+
     const buildQrUrl = (vcard: any) => {
-        const destination = vcard.viewUrl || `/vcard/${vcard.slug}`;
-        if (/^https?:\/\//i.test(destination)) return destination;
-        return siteBase ? `${siteBase}${destination}` : destination;
+        if (!vcard.isActive) {
+            const path404 = "/card-not-found";
+            return siteBase ? `${siteBase}${path404}` : path404;
+        }
+        // Priority 1: manual website
+        const cleanWebsite = typeof vcard.website === "string" ? vcard.website.trim() : "";
+        if (cleanWebsite) {
+            const withProto = /^https?:\/\//i.test(cleanWebsite) ? cleanWebsite : `https://${cleanWebsite}`;
+            return withProto;
+        }
+        // Priority 2: linked hub published page
+        if (vcard.hub && vcard.hub.slug) {
+            const pageSlug = vcard.pageSlug || "home";
+            const path = `/published/${vcard.hub.slug}/${pageSlug}`;
+            return siteBase ? `${siteBase}${path}` : path;
+        }
+        // Fallback: QR redirector route
+        const path = `/qr/${vcard.slug}`;
+        return siteBase ? `${siteBase}${path}` : path;
     };
 
     return (
@@ -81,9 +116,31 @@ export default function VCardDashboard() {
                                         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">vCard</p>
                                         
                                     </div>
-                                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-0.5 text-xs font-semibold text-emerald-700">
-                                        Actif
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${
+                                            vcard.isActive
+                                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                                : "border-gray-200 bg-gray-50 text-gray-500"
+                                        }`}>
+                                            {vcard.isActive ? "Actif" : "Inactif"}
+                                        </span>
+                                        <button
+                                            onClick={() => toggleActive(vcard._id, vcard.isActive)}
+                                            disabled={togglingId === vcard._id}
+                                            className={`rounded-lg p-1.5 transition ${
+                                                vcard.isActive
+                                                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                            } disabled:opacity-50`}
+                                            title={vcard.isActive ? "Désactiver" : "Activer"}
+                                        >
+                                            {togglingId === vcard._id ? (
+                                                <Loader2 size={16} className="animate-spin" />
+                                            ) : (
+                                                <Power size={16} />
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">

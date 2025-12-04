@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { VCardModel } from "@/lib/models/VCard";
-import { extractPageSlugFromWebsite, getDefaultAppWebsite, normalizePageSlug } from "@/lib/vcards/website";
+import { extractPageSlugFromWebsite, getDefaultHubWebsite, normalizePageSlug } from "@/lib/vcards/website";
 
 export async function GET(
     req: Request,
@@ -47,12 +47,17 @@ export async function PUT(
             return NextResponse.json({ error: "vCard not found" }, { status: 404 });
         }
 
-        let nextAppId = existing.appId ? String(existing.appId) : undefined;
-        if (body.appId) {
-            nextAppId = typeof body.appId === "string" ? body.appId : String(body.appId || "");
-            body.appId = nextAppId;
-        } else if (nextAppId) {
-            body.appId = nextAppId;
+        let nextHubId = existing.hubId ? String(existing.hubId) : undefined;
+        if (body.hubId) {
+            nextHubId = typeof body.hubId === "string" ? body.hubId : String(body.hubId || "");
+            body.hubId = nextHubId;
+        } else if (nextHubId) {
+            body.hubId = nextHubId;
+        }
+
+        // Handle isActive toggle
+        if (typeof body.isActive === "boolean") {
+            existing.isActive = body.isActive;
         }
 
         const hasPageSlug = Object.prototype.hasOwnProperty.call(body, "pageSlug");
@@ -61,8 +66,8 @@ export async function PUT(
             : normalizePageSlug(existing.pageSlug || extractPageSlugFromWebsite(existing.website));
         body.pageSlug = nextPageSlug;
 
-        if (nextAppId) {
-            const defaultWebsite = await getDefaultAppWebsite(nextAppId, session.user.email, nextPageSlug);
+        if (nextHubId) {
+            const defaultWebsite = await getDefaultHubWebsite(nextHubId, session.user.email, nextPageSlug);
             if (defaultWebsite) {
                 body.website = defaultWebsite;
             }

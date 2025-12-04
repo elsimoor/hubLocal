@@ -26,3 +26,7 @@ AppSchema.index({ isTemplate: 1, visibility: 1 });
 
 export type AppDoc = InferSchemaType<typeof AppSchema> & { _id: mongoose.Types.ObjectId };
 export const AppModel = mongoose.models.App || mongoose.model("App", AppSchema);
+
+// Backward compatibility aliases for any hub-based imports
+export type HubDoc = AppDoc;
+export const HubModel = AppModel;

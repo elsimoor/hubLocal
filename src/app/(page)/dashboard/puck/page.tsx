@@ -1567,14 +1567,14 @@ function PuckEditor() {
         )}
         {/* Debug banner: shows whether data.root.content is populated */}
         <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-800">
-            <strong>Debug:</strong>{' '}
+          <div className="rounded-md  ">
+            {/* <strong>Debug:</strong>{' '}
             {data && data.root && Array.isArray((data as any).root.content)
               ? `root.content length: ${(data as any).root.content.length}`
               : 'no root.content present'}
             {data && data.root && Array.isArray((data as any).root.content) && (data as any).root.content.length > 0 ? (
               <span className="ml-2 text-xs text-blue-600">Types: {((data as any).root.content || []).map((n:any)=>n.type).join(', ')}</span>
-            ) : null}
+            ) : null} */}
           </div>
         </div>
           {loading || !slug ? (

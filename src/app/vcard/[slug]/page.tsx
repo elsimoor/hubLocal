@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/mongodb";
 import { VCardModel } from "@/lib/models/VCard";
-import { AppModel } from "@/lib/models/App";
+import { HubModel } from "@/lib/models/App";
 import { getSiteBaseUrl } from "@/lib/profile/urls";
 import QRCode from "react-qr-code";
 import {
@@ -20,8 +20,8 @@ async function getVCard(slug: string) {
     const vcard = await VCardModel.findOne({ slug }).lean<any>();
     if (!vcard) return null;
 
-    const app = vcard.appId ? await AppModel.findById(vcard.appId).lean<any>() : null;
-    return { ...vcard, app };
+    const hub = vcard.hubId ? await HubModel.findById(vcard.hubId).lean<any>() : null;
+    return { ...vcard, hub };
 }
 
 export default async function PublicVCardPage({
@@ -36,11 +36,23 @@ export default async function PublicVCardPage({
         notFound();
     }
 
-    const qrUrl = (() => {
+    const base = getSiteBaseUrl();
+
+    // QR value: if inactive, point directly to 404; else to redirector
+    const qrValue = vcard.isActive ? `${base}/qr/${vcard.slug}` : `${base}/card-not-found`;
+
+    // Destination preview label shown under the QR
+    const destinationLabel = (() => {
+        if (!vcard.isActive) return "Inactif";
         const cleanWebsite = typeof vcard.website === "string" ? vcard.website.trim() : "";
-        if (cleanWebsite) return cleanWebsite;
-        const base = getSiteBaseUrl();
-        return `${base}/vcard/${vcard.slug}`;
+        if (cleanWebsite) {
+            return /^https?:\/\//i.test(cleanWebsite) ? cleanWebsite : `https://${cleanWebsite}`;
+        }
+        if (vcard.hub?.slug) {
+            const pageSlug = vcard.pageSlug || "home";
+            return `${base}/published/${vcard.hub.slug}/${pageSlug}`;
+        }
+        return `${base}/card-not-found`;
     })();
 
     return (
@@ -49,7 +61,7 @@ export default async function PublicVCardPage({
                 <div className="mb-6 flex items-center justify-between text-white/80">
                     <div>
                         <p className="text-xs uppercase tracking-[0.3em]">Carte digitale</p>
-                        <h1 className="text-3xl font-semibold text-white">{vcard.app?.name || "HubLocal"}</h1>
+                        <h1 className="text-3xl font-semibold text-white">{vcard.hub?.name || "HubLocal"}</h1>
                     </div>
                     <button className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-white/80 hover:text-white">
                         <Share2 size={16} />
@@ -114,13 +126,13 @@ export default async function PublicVCardPage({
                                     <p className="mt-2 text-sm text-white/90">{vcard.website.replace(/^https?:\/\//, "")}</p>
                                 </a>
                             )}
-                            {vcard.app?.name && (
+                            {vcard.hub?.name && (
                                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                                     <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-white/60">
-                                        <Building2 size={14} /> Application
+                                        <Building2 size={14} /> Hub
                                     </p>
-                                    <p className="mt-2 text-sm text-white">{vcard.app.name}</p>
-                                    {vcard.app.slug && <p className="text-xs text-white/60">{vcard.app.slug}</p>}
+                                    <p className="mt-2 text-sm text-white">{vcard.hub.name}</p>
+                                    {vcard.hub.slug && <p className="text-xs text-white/60">{vcard.hub.slug}</p>}
                                 </div>
                             )}
                         </div>
@@ -150,23 +162,23 @@ export default async function PublicVCardPage({
 
                         <div className="mt-6 flex justify-center">
                             <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4 shadow-inner">
-                                <QRCode value={qrUrl} size={180} />
+                                <QRCode value={qrValue} size={180} />
                             </div>
                         </div>
 
                         <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
                             <p className="font-semibold text-slate-900">URL de destination</p>
-                            <p className="truncate text-xs text-slate-500">{qrUrl}</p>
+                            <p className="truncate text-xs text-slate-500">{destinationLabel}</p>
                         </div>
 
-                        {vcard.app?.icon && (
+                        {vcard.hub?.icon && (
                             <div className="mt-6 flex items-center gap-3 rounded-2xl border border-slate-100 p-4">
                                 <div className="h-12 w-12 rounded-xl bg-white shadow-lg">
-                                    <img src={vcard.app.icon} alt={vcard.app.name} className="h-full w-full object-cover" />
+                                    <img src={vcard.hub.icon} alt={vcard.hub.name} className="h-full w-full object-cover" />
                                 </div>
                                 <div>
                                     <p className="text-xs uppercase tracking-widest text-slate-500">Propulsé par</p>
-                                    <p className="text-sm font-semibold text-slate-900">{vcard.app.name}</p>
+                                    <p className="text-sm font-semibold text-slate-900">{vcard.hub.name}</p>
                                 </div>
                             </div>
                         )}

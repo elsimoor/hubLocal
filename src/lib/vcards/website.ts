@@ -1,5 +1,4 @@
 import { Types } from "mongoose"
-
 import { AppModel } from "@/lib/models/App"
 import { getSiteBaseUrl } from "@/lib/profile/urls"
 
@@ -9,31 +8,39 @@ export const normalizePageSlug = (slug?: string | null): string => {
   return trimmed || "home"
 }
 
-export const buildAppPublishedPath = (appId: string, pageSlug?: string | null) => {
+export const buildHubPublishedPath = (hubId: string, pageSlug?: string | null) => {
   const normalizedSlug = normalizePageSlug(pageSlug)
-  return `/published/app/${encodeURIComponent(appId)}/${normalizedSlug}`
+  return `/published/app/${encodeURIComponent(hubId)}/${normalizedSlug}`
 }
 
-export const buildAppPublishedUrl = (appId: string, pageSlug?: string | null) => {
+export const buildHubPublishedUrl = (hubId: string, pageSlug?: string | null) => {
   const base = getSiteBaseUrl()
-  return `${base}${buildAppPublishedPath(appId, pageSlug)}`
+  return `${base}${buildHubPublishedPath(hubId, pageSlug)}`
 }
 
-export const getDefaultAppWebsite = async (
-  appId: string | undefined | null,
+// Backward compatibility
+export const buildAppPublishedPath = buildHubPublishedPath;
+export const buildAppPublishedUrl = buildHubPublishedUrl;
+
+export const getDefaultHubWebsite = async (
+  hubId: string | undefined | null,
   ownerEmail: string,
   pageSlug?: string | null,
 ): Promise<string | undefined> => {
-  if (!appId || !ownerEmail) return undefined
-  if (!Types.ObjectId.isValid(appId)) return undefined
+  if (!hubId || !ownerEmail) return undefined
+  if (!Types.ObjectId.isValid(hubId)) return undefined
 
-  const app = await AppModel.findOne({ _id: appId, ownerEmail }).select("_id").lean<any>()
-  if (!app) return undefined
+  const hub = await AppModel.findOne({ _id: hubId, ownerEmail }).select("_id").lean<any>()
+  if (!hub) return undefined
 
-  return buildAppPublishedUrl(String(app._id), pageSlug)
+  return buildHubPublishedUrl(String(hub._id), pageSlug)
 }
 
-export const getAppPrimaryWebsite = getDefaultAppWebsite
+export const getHubPrimaryWebsite = getDefaultHubWebsite
+
+// Backward compatibility
+export const getDefaultAppWebsite = getDefaultHubWebsite;
+export const getAppPrimaryWebsite = getDefaultHubWebsite;
 
 export const extractPageSlugFromWebsite = (website?: string | null): string | undefined => {
   if (!website) return undefined

@@ -3,7 +3,7 @@ import mongoose, { Schema, InferSchemaType } from "mongoose";
 const VCardSchema = new Schema(
     {
         ownerEmail: { type: String, required: true, index: true },
-        appId: { type: Schema.Types.ObjectId, ref: "App", required: false, default: null },
+        hubId: { type: Schema.Types.ObjectId, ref: "Hub", required: false, default: null },
         slug: { type: String, required: true, unique: true, index: true },
         name: { type: String, required: true },
         title: { type: String, default: "" },
@@ -13,6 +13,7 @@ const VCardSchema = new Schema(
         avatar: { type: String, default: "" },
         bio: { type: String, default: "" },
         pageSlug: { type: String, default: "home" },
+        isActive: { type: Boolean, default: true, index: true },
         socialLinks: [
             {
                 platform: { type: String, required: true },
