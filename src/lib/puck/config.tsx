@@ -445,13 +445,17 @@ const cloneNodeArray = (nodes?: any[]): any[] => {
 
 const cloneProfileTemplateChildren = () => {
   const tree = cloneProfileTemplateData()
-  console.log("tree",tree)
-  const firstChild = Array.isArray(tree?.root?.children) ? tree.root.children[0] : null
+  // The template tree uses `root.content` as the canonical child array.
+  // Fall back to `root.children` for backward compatibility.
+  const rootArray = Array.isArray((tree as any)?.root?.content)
+    ? (tree as any).root.content
+    : Array.isArray((tree as any)?.root?.children)
+      ? (tree as any).root.children
+      : []
+
+  const firstChild = Array.isArray(rootArray) ? rootArray[0] : null
   if (firstChild?.type === "ProfileDefaultPage" && Array.isArray(firstChild.children)) {
-    console.log("firstChild",firstChild)
-    let clone =  cloneNodeArray(firstChild.children)
-    console.log("clone",clone)
-    return clone
+    return cloneNodeArray(firstChild.children)
   }
   return []
 }
